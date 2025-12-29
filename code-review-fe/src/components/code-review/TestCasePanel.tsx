@@ -49,17 +49,11 @@ export default function TestCasePanel() {
       });
 
       const data = await res.json();
+      console.log('========',data)
 
-      const compileError =
-        data.compileError ||
-        data.errorMessage ||
-        data.error ||
-        "";
+      const compileError = data.errorMessage || "";
 
-      if (
-        compileError &&
-        (!data.testcaseResults || data.testcaseResults.length === 0)
-      ) {
+      if (compileError) {
         setError(compileError);
         setResults(null);
         setActiveTab(undefined);
