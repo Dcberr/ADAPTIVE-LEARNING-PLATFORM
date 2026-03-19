@@ -1,9 +1,52 @@
 server:
   port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
 
 jobe:
   base-url: ${JOBE_URL}
 
+google:
+  client-id: ${CLIENT_ID}
+  client-secret: ${CLIENT_SECRET}
+  redirect_uri: ${GOOGLE_REDIRECT_URI}
 
 review: 
   url: ${REVIEW_AGENT_URL}
+
+spring:
+
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${HIBERNATE_DDL_AUTO}
+    show-sql: ${SHOW_SQL:true}
+    properties:
+      hibernate:
+        dialect: ${HIBERNATE_DIALECT}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${CLIENT_ID}
+            client-secret: ${CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: "http://localhost:8080/login/oauth2/code/google"
+
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
