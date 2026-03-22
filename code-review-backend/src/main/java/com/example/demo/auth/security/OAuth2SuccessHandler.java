@@ -14,9 +14,11 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final AuthService authService;
@@ -34,8 +36,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String email = oauthUser.getAttribute("email");
         String name = oauthUser.getAttribute("name");
         String picture = oauthUser.getAttribute("picture");
+        String role = (String) request.getSession().getAttribute("OAUTH2_ROLE");
+        log.info("OAuth2 login success: email={}, name={}, picture={}, role={}", email, name, picture, role);
 
-        User user = authService.findOrCreateOAuthUser(email, name, picture);
+        User user = "instructor".equals(role)
+                ? authService.findOrCreateOAuthInstructorUser(email, name, picture)
+                : authService.findOrCreateOAuthStudentUser(email, name, picture);
 
         String token = jwtProvider.generateToken(user);
 

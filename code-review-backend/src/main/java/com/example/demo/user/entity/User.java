@@ -48,8 +48,6 @@ public class User {
     // private String address;
 
     // private String bio;
-
-    @Nullable
     private float gpa;
 
 }

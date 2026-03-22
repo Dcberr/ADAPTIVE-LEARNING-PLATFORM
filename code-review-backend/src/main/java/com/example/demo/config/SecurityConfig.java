@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.demo.auth.security.CustomOAuth2AuthorizationRequestRepository;
 import com.example.demo.auth.security.JwtAuthenticationFilter;
 import com.example.demo.auth.security.OAuth2SuccessHandler;
 
@@ -18,6 +19,7 @@ public class SecurityConfig {
 
     private final OAuth2SuccessHandler successHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomOAuth2AuthorizationRequestRepository customRepo;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -37,6 +39,9 @@ public class SecurityConfig {
             )
 
             .oauth2Login(oauth -> oauth
+                    .authorizationEndpoint(endpoint ->
+                        endpoint.authorizationRequestRepository(customRepo)
+                    )
                     .successHandler(successHandler)
             )
 

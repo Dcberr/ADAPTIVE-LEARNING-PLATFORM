@@ -16,7 +16,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserService userService;
 
-    public User findOrCreateOAuthUser(
+    public User findOrCreateOAuthStudentUser(
             String email,
             String name,
             String picture
@@ -35,6 +35,31 @@ public class AuthService {
                             .picture(picture)
                             .provider("google")
                             .role(Role.STUDENT)
+                            .userCode(userCode)
+                            .build()
+            );
+        });
+    }
+
+    public User findOrCreateOAuthInstructorUser(
+            String email,
+            String name,
+            String picture
+    ) {
+
+        return userRepository.findByEmail(email)
+        .orElseGet(() -> {
+
+            String userCode =
+                    userService.generateUserCode(Role.INSTRUCTOR);
+
+            return userRepository.save(
+                    User.builder()
+                            .email(email)
+                            .name(name)
+                            .picture(picture)
+                            .provider("google")
+                            .role(Role.INSTRUCTOR)
                             .userCode(userCode)
                             .build()
             );
