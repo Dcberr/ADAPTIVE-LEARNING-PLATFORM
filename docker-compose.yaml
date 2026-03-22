@@ -8,20 +8,52 @@ services:
     networks:
       - app-network
 
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    ports:
+      - "${DATABASE_PORT}:5432"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data  
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    volumes:
+      - minio-data:/data
+    restart: always
+    networks:
+      - app-network
 
   review-agent:
-    # Context points to the 'review-agent' folder where the Dockerfile is located
     build: review-agent/
     container_name: review-agent
-    # Maps host port 8000 to container port 8000
     ports:
       - "8000:8000"
-    
-    # Loads the GEMINI_API_KEY environment variable from your host system
     environment:
-      - TOGETHER_API_KEY=fbbbb52a58ac7353b6caaf5e5f1f39292c6551a5c194a7d3f7b4fdbca57e198c
-    
-    # Restart the container if it fails
+      - TOGETHER_API_KEY=your_key_here
     restart: always
     networks:
       - app-network
@@ -32,10 +64,23 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - jobe
+      postgres:
+        condition: service_healthy  
+      jobe:
+        condition: service_started
+      minio:
+        condition: service_started
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DATABASE_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DATABASE_PASSWORD}
+
       - JOBE_URL=http://jobe-server/jobe/index.php/restapi
       - REVIEW_AGENT_URL=http://review-agent:8000/api/v1/review_code
+
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=minio123
     restart: always
     networks:
       - app-network
@@ -43,3 +88,7 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  minio-data:
+  postgres-data:
