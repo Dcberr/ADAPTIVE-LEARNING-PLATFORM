@@ -1,6 +1,5 @@
 package com.example.demo.topic.controller;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.topic.dto.CreateTopicRequest;
+import com.example.demo.topic.dto.TopicDetailResponse;
+import com.example.demo.topic.dto.TopicOverviewResponse;
 import com.example.demo.topic.dto.TopicResponse;
 import com.example.demo.topic.service.TopicService;
 
@@ -30,12 +31,22 @@ public class TopicController {
     }
 
     @GetMapping("/class/{classId}")
-    public ApiResponse<List<TopicResponse>> getTopicsByClass(
+    public ApiResponse<TopicOverviewResponse> getTopicsByClass(
             @PathVariable UUID classId
     ) {
 
         return ApiResponse.success(
-                topicService.getTopicsByClass(classId)
+                topicService.getTopicOverviewByClassId(classId)
+        );
+    }
+
+    @GetMapping("/{topicId}")
+    public ApiResponse<TopicDetailResponse> getTopicDetail(   
+            @PathVariable UUID topicId
+    ) {
+
+        return ApiResponse.success(
+                topicService.getTopicDetail(topicId)
         );
     }
 }

@@ -1,20 +1,25 @@
 package com.example.demo.problem.dto;
 
+import java.util.List;
 import java.util.UUID;
 
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class CreateProblemRequest {
 
-    private String title;
-
     private String description;
+    private UUID assignmentId;
 
-    private String difficulty;
+    private List<TestcaseRequest> testcases;
 
-    private UUID assignmentId;  
-
-    private String source;
-
+    @Data
+    public static class TestcaseRequest {
+        private String input;
+        private String expectedOutput;
+        private boolean isSample;
+        private String explanation;
+    }
 }

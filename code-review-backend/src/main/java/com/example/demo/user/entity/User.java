@@ -1,5 +1,6 @@
 package com.example.demo.user.entity;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,6 +27,8 @@ public class User {
     @GeneratedValue
     private java.util.UUID id;
 
+    private String userCode;
+
     private String name;
 
     @Column(unique = true)
@@ -34,13 +37,19 @@ public class User {
     private String picture;
 
     @Enumerated(EnumType.STRING)
-    private UserRole role;
+    private Role role;
 
     private String provider;
 
-    public enum UserRole {
-        STUDENT,
-        INSTRUCTOR
-    }
+    // private String phoneNumber;
+
+    // private String enrollment;
+
+    // private String address;
+
+    // private String bio;
+
+    @Nullable
+    private float gpa;
 
 }

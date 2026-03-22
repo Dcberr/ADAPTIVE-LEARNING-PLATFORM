@@ -35,4 +35,6 @@ public class Testcase {
     private String expectedOutput;
 
     private boolean isSample;
+
+    private String explanation;
 }

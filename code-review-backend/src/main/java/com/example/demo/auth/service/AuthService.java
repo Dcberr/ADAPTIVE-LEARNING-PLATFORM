@@ -2,9 +2,11 @@ package com.example.demo.auth.service;
 
 import org.springframework.stereotype.Service;
 
+import com.example.demo.user.entity.Role;
 import com.example.demo.user.entity.User;
-import com.example.demo.user.entity.User.UserRole;
 import com.example.demo.user.repository.UserRepository;
+import com.example.demo.user.service.UserService;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserService userService;
 
     public User findOrCreateOAuthUser(
             String email,
@@ -20,17 +23,22 @@ public class AuthService {
     ) {
 
         return userRepository.findByEmail(email)
-                .orElseGet(() ->
-                        userRepository.save(
-                                User.builder()
-                                        .email(email)
-                                        .name(name)
-                                        .picture(picture)
-                                        .provider("google")
-                                        .role(UserRole.STUDENT)
-                                        .build()
-                        )
-                );
+        .orElseGet(() -> {
+
+            String userCode =
+                    userService.generateUserCode(Role.STUDENT);
+
+            return userRepository.save(
+                    User.builder()
+                            .email(email)
+                            .name(name)
+                            .picture(picture)
+                            .provider("google")
+                            .role(Role.STUDENT)
+                            .userCode(userCode)
+                            .build()
+            );
+        });
     }
 
 }

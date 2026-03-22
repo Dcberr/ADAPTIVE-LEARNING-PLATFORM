@@ -16,6 +16,12 @@ google:
 review: 
   url: ${REVIEW_AGENT_URL}
 
+minio:
+  url: ${MINIO_URL}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
+  bucket: datn-bucket
+
 spring:
 
   datasource:
@@ -23,6 +29,11 @@ spring:
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
   jpa:
     hibernate:

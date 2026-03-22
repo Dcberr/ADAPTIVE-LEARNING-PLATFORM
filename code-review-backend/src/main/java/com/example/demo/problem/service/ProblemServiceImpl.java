@@ -7,34 +7,45 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
-import com.example.demo.assignment.service.AssignmentServiceImpl;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.entity.Problem;
+import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.problem.repository.TestcaseRepository;
 
 @Service
 @RequiredArgsConstructor
 public class ProblemServiceImpl implements ProblemService {
 
     private final ProblemRepository problemRepository;
-    private final AssignmentServiceImpl assignmentService;
+    private final TestcaseRepository testcaseRepository;    
 
     @Override
     public ProblemResponse createProblem(CreateProblemRequest request) {
 
         Problem problem = Problem.builder()
-                .title(request.getTitle())
+                // .title(request.getTitle())
                 .description(request.getDescription())
-                .difficulty(request.getDifficulty())
-                .source(request.getSource())
+                // .difficulty(request.getDifficulty())
+                // .source(request.getSource())
                 .createdAt(Instant.now())
                 .build();
 
         problemRepository.save(problem);
 
-        if (request.getAssignmentId() != null) {
-            assignmentService.addProblemToAssignment(request.getAssignmentId(), problem.getId());
+        if (request.getTestcases() != null) {
+            for (CreateProblemRequest.TestcaseRequest t : request.getTestcases()) {
+
+                testcaseRepository.save(
+                        Testcase.builder()
+                                .problemId(problem.getId())
+                                .input(t.getInput())
+                                .expectedOutput(t.getExpectedOutput())
+                                .isSample(t.isSample())
+                                .build()
+                );
+            }
         }
 
         return map(problem);
