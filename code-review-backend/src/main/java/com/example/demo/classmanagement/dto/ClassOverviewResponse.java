@@ -1,14 +1,17 @@
 package com.example.demo.classmanagement.dto;
 
-import java.util.List;
 import java.util.UUID;
+
+import com.example.demo.classmanagement.entity.ClassStatus;
 
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class ClassDetailResponse {
+public class ClassOverviewResponse {
+
+    private UUID id;
 
     private String name;
 
@@ -16,9 +19,5 @@ public class ClassDetailResponse {
 
     private int enrolledStudentsCount;
     
-    private String createdAt;
-
-    private String status;
-
-    private String schedule;
+    private ClassStatus status;
 }

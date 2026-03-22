@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,4 +22,10 @@ public interface ClassEnrollmentRepository
             UUID classId,
             UUID studentId
     );
+
+    @Query("""
+            SELECT COUNT(*) FROM class_enrollments
+            WHERE class_id = :classId
+            """)
+    int countByClassId(UUID classId);
 }

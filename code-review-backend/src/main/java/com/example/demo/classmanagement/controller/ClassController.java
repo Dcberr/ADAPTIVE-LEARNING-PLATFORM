@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.classmanagement.dto.AddStudentRequest;
 import com.example.demo.classmanagement.dto.ClassDetailResponse;
+import com.example.demo.classmanagement.dto.ClassOverviewResponse;
 import com.example.demo.classmanagement.dto.ClassResponse;
 import com.example.demo.classmanagement.dto.CreateClassRequest;
 import com.example.demo.classmanagement.service.ClassService;
@@ -42,7 +43,7 @@ public class ClassController {
     }
 
     @GetMapping("/me")
-    public ApiResponse<List<ClassResponse>> myClasses(
+    public ApiResponse<List<ClassOverviewResponse>> myClasses(
             Authentication auth
     ) {
 

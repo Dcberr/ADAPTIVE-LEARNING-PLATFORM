@@ -7,11 +7,15 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.classmanagement.dto.ClassDetailResponse;
+import com.example.demo.classmanagement.dto.ClassOverviewResponse;
 import com.example.demo.classmanagement.dto.ClassResponse;
 import com.example.demo.classmanagement.dto.CreateClassRequest;
 import com.example.demo.classmanagement.entity.ClassEnrollment;
+import com.example.demo.classmanagement.entity.ClassStatus;
 import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
 import com.example.demo.classmanagement.repository.ClassRepository;
+import com.example.demo.user.entity.User;
+import com.example.demo.user.repository.UserRepository;
 import com.example.demo.classmanagement.entity.Class;   
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +26,7 @@ public class ClassServiceImpl implements ClassService {
 
     private final ClassRepository classRepository;
     private final ClassEnrollmentRepository enrollmentRepository;
+    private final UserRepository userRepository; // For fetching instructor names
 
     @Override
     public ClassResponse createClass(UUID instructorId, CreateClassRequest req) {
@@ -31,6 +36,7 @@ public class ClassServiceImpl implements ClassService {
                 .description(req.getDescription())
                 .instructorId(instructorId)
                 .createdAt(Instant.now())
+                .status(ClassStatus.IN_PROGRESS)
                 .build();
 
         classRepository.save(cls);
@@ -39,12 +45,13 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
-    public List<ClassResponse> getMyClasses(UUID instructorId) {
+    public List<ClassOverviewResponse> getMyClasses(UUID instructorId) {
 
-        return classRepository.findByInstructorId(instructorId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        List<Class> classes = classRepository.findByInstructorId(instructorId); 
+
+        return classes.stream()
+                .map(this::getClassOverview)
+                .toList();     
     }
 
     @Override
@@ -85,17 +92,37 @@ public class ClassServiceImpl implements ClassService {
 
         Class cls = classRepository.findById(classId).orElseThrow();
 
-        List<UUID> students =
-                enrollmentRepository.findByClassId(classId)
-                        .stream()
-                        .map(ClassEnrollment::getStudentId)
-                        .toList();
+        return cls == null ? null : getClassDetailResponse(cls);
+    }
 
-        return ClassDetailResponse.builder()
+    private ClassOverviewResponse getClassOverview(Class cls) {
+
+        int enrolledCount = enrollmentRepository.countByClassId(cls.getId());
+        User instructor = userRepository.findById(cls.getInstructorId()).orElseThrow();
+        String instructorName = instructor.getName();
+
+        return ClassOverviewResponse.builder()
                 .id(cls.getId())
                 .name(cls.getName())
-                .description(cls.getDescription())
-                .studentIds(students)
+                .instructorName(instructorName)
+                .enrolledStudentsCount(enrolledCount)
+                .status(cls.getStatus())
+                .build();
+    }
+
+    private ClassDetailResponse getClassDetailResponse(Class cls) {
+
+        int enrolledCount = enrollmentRepository.countByClassId(cls.getId());
+        User instructor = userRepository.findById(cls.getInstructorId()).orElseThrow();
+        String instructorName = instructor.getName();
+
+        return ClassDetailResponse.builder()
+                .name(cls.getName())
+                .instructorName(instructorName)
+                .enrolledStudentsCount(enrolledCount)
+                .createdAt(cls.getCreatedAt().toString())
+                .status(cls.getStatus().name())
+                .schedule(cls.getSchedule())    
                 .build();
     }
 

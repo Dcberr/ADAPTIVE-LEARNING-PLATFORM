@@ -23,7 +23,12 @@ public class Class {
 
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    private ClassStatus status;
+
     private UUID instructorId;
 
     private Instant createdAt;
+
+    private String schedule;    
 }

@@ -9,7 +9,7 @@ public interface ClassService {
 
     ClassResponse createClass(UUID instructorId, CreateClassRequest request);
 
-    List<ClassResponse> getMyClasses(UUID instructorId);
+    List<ClassOverviewResponse> getMyClasses(UUID instructorId);
 
     List<ClassResponse> getClassesForStudent(UUID studentId);
 
