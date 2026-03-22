@@ -11,6 +11,11 @@ import com.example.demo.auth.security.CustomOAuth2AuthorizationRequestRepository
 import com.example.demo.auth.security.JwtAuthenticationFilter;
 import com.example.demo.auth.security.OAuth2SuccessHandler;
 
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -33,7 +38,9 @@ public class SecurityConfig {
                             "/",
                             "/error",
                             "/oauth2/**",
-                            "/login/**"
+                            "/login/**",
+                            "/swagger-ui/**",
+                             "/v3/api-docs/**"
                     ).permitAll()
                     .anyRequest().authenticated()
             )
@@ -51,5 +58,21 @@ public class SecurityConfig {
             );
 
         return http.build();
+    }
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth",
+                                new SecurityScheme()
+                                        .name("Authorization")
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                        )
+                )
+                .info(new Info().title("LMS API").version("1.0"));
     }
 }

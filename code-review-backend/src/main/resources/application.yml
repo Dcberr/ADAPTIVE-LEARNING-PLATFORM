@@ -23,6 +23,8 @@ minio:
   bucket: datn-bucket
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
 
   datasource:
     url: jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}

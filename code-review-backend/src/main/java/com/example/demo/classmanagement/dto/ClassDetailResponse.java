@@ -1,8 +1,5 @@
 package com.example.demo.classmanagement.dto;
 
-import java.util.List;
-import java.util.UUID;
-
 import lombok.Builder;
 import lombok.Data;
 
