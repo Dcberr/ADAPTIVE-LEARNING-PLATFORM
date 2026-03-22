@@ -1,0 +1,64 @@
+package com.example.demo.submission.repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.example.demo.submission.dto.SubmissionOverviewResponse;
+import com.example.demo.submission.entity.Submission;
+
+@Repository
+public interface SubmissionRepository
+        extends JpaRepository<Submission, UUID> {
+    List<Submission> findByUserId(UUID userId);
+
+    List<Submission> findByProblemId(UUID problemId);
+
+    @Query(value = """
+        SELECT 
+            s.id AS submissionId,
+            a.title AS assignmentTitle,
+            p.title AS problemTitle,
+            s.score AS score,
+            p.difficulty AS difficulty,
+            a.deadline AS deadline,
+            s.status AS status,
+            s.created_at AS submittedAt,
+            u.name as studentName
+        FROM submissions s
+        JOIN problems p ON s.problem_id = p.id
+        JOIN assignment_problems ap ON ap.problem_id = p.id
+        JOIN assignments a ON ap.assignment_id = a.id
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.user_id = :userId
+    """, nativeQuery = true)
+    List<SubmissionOverviewResponse> getSubmissionOverview(UUID userId);
+
+    Optional<Submission> findById(UUID id);
+
+    @Query(value = """
+        SELECT
+            s.id AS submissionId,
+            a.title AS assignmentTitle,
+            p.title AS problemTitle,
+            s.score AS score,
+            p.difficulty AS difficulty,
+            a.deadline AS deadline,
+            s.status AS status,
+            s.created_at AS submittedAt,
+            u.name as studentName
+        FROM submissions s
+        JOIN problems p ON s.problem_id = p.id
+        LEFT JOIN assignment_problems ap ON ap.problem_id = p.id
+        LEFT JOIN assignments a ON ap.assignment_id = a.id
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.problem_id = :problemId
+        ORDER BY s.created_at DESC
+    """, nativeQuery = true)
+    List<SubmissionOverviewResponse> getSubmissionOverviewByProblem(UUID problemId);
+
+}
