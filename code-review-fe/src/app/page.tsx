@@ -1,23 +1,27 @@
-import Link from "next/link";
-import { AuroraBackground } from "@/components/ui/shadcn-io/aurora-background";
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+
+import { dashboardPathByRole, useAuthStore } from "@/store/authStore"
 
 export default function Page() {
+  const router = useRouter()
+  const hasHydrated = useAuthStore((state) => state.hasHydrated)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const selectedRole = useAuthStore((state) => state.selectedRole ?? "student")
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
+
+    router.replace(isAuthenticated ? dashboardPathByRole[selectedRole] : "/login")
+  }, [hasHydrated, isAuthenticated, router, selectedRole])
+
   return (
-    <AuroraBackground>
-      <div className="relative flex flex-col gap-4 items-center justify-center px-4">
-        <div className="text-3xl md:text-7xl font-bold dark:text-white text-center">
-          Background lights are cool you know.
-        </div>
-        <div className="font-extralight text-base md:text-4xl dark:text-neutral-200 py-4">
-          And this, is chemical burn.
-        </div>
-        <Link
-          href="/code-review"
-          className="bg-black dark:bg-white rounded-full w-fit text-white dark:text-black px-4 py-2"
-        >
-          Review Code
-        </Link>
-      </div>
-    </AuroraBackground>
-  );
+    <div className="flex min-h-screen items-center justify-center bg-[#f8f9fc]">
+      <p className="text-sm font-medium text-[#030391]">Opening BK Learning Hub...</p>
+    </div>
+  )
 }
