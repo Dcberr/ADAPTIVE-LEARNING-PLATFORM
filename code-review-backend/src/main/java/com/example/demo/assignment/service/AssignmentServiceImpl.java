@@ -59,7 +59,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .build()
         );
 
-        return map(assignment);
+        return mapAssignment(assignment);
     }
 
     @Override
@@ -67,18 +67,17 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         return assignmentRepository.findByTopicId(topicId)
                 .stream()
-                .map(this::map)
+                .map(this::mapAssignment)
                 .toList();
     }
 
-    private AssignmentResponse map(Assignment assignment) {
-
+    private AssignmentResponse mapAssignment(Assignment assignment) {
         return AssignmentResponse.builder()
                 .id(assignment.getId())
-                // .topicId(assignment.getTopicId())
                 .title(assignment.getTitle())
-                // .description(assignment.getDescription())
                 .deadline(assignment.getDeadline())
+                .difficulty(assignment.getDifficulty())
+                .status(assignment.getStatus())
                 .build();
     }
 

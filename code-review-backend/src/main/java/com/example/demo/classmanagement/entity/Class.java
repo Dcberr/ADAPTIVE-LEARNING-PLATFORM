@@ -31,4 +31,7 @@ public class Class {
     private Instant createdAt;
 
     private String schedule;    
+
+    private String imageUrl;
+    
 }

@@ -50,6 +50,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .input(testcase.getInput())
                 .expectedOutput(testcase.getExpectedOutput())
                 .isSample(testcase.isSample())
+                .explanation(testcase.getExplanation())
                 .build();
     }
 }

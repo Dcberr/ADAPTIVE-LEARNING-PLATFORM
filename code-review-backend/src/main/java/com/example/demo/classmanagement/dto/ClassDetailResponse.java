@@ -18,4 +18,6 @@ public class ClassDetailResponse {
     private String status;
 
     private String schedule;
+
+    private String imageUrl;
 }

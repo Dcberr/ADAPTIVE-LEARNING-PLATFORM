@@ -11,12 +11,14 @@ public class ProblemResponse {
 
     private UUID id;
 
-    private String title;
+    // private String title;
 
     private String description;
 
-    private String difficulty;
+    private String problemConstraint;
 
-    private String source;
+    // private String difficulty;
+
+    // private String source;
 
 }

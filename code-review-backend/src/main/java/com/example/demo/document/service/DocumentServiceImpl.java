@@ -39,15 +39,15 @@ public class DocumentServiceImpl implements DocumentService {
 
         documentRepository.save(doc);
 
-        return map(doc);
+        return mapDocument(doc);
     }
 
     @Override
-    public List<DocumentResponse> getByTopic(UUID topicId) {
+    public List<DocumentResponse> getDocumentsByTopic(UUID topicId) {
 
         return documentRepository.findByTopicId(topicId)
                 .stream()
-                .map(this::map)
+                .map(this::mapDocument)
                 .toList();
     }
 
@@ -58,14 +58,13 @@ public class DocumentServiceImpl implements DocumentService {
             return minioStorageService.download(document.getFileUrl(), document.getTitle(), document.getType());
     }
 
-    private DocumentResponse map(Document d) {
-
+    private DocumentResponse mapDocument(Document doc) {
         return DocumentResponse.builder()
-                .id(d.getId())
-                .title(d.getTitle())
-                .description(d.getDescription())
-                .fileUrl(d.getFileUrl())
-                .type(d.getType())
+                .id(doc.getId())
+                .title(doc.getTitle())
+                .description(doc.getDescription())
+                .fileUrl(doc.getFileUrl())
+                .type(doc.getType())
                 .build();
     }
 }

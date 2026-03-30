@@ -53,7 +53,7 @@ public class DocumentController {
     ) {
 
         return ApiResponse.success(
-                documentService.getByTopic(topicId)
+                documentService.getDocumentsByTopic(topicId)
         );
     }
 

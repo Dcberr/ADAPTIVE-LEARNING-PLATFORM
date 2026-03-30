@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,7 +33,7 @@ public class ClassController {
     @PostMapping
     public ApiResponse<ClassResponse> createClass(
             Authentication auth,
-            @RequestBody CreateClassRequest request
+            @ModelAttribute CreateClassRequest request
     ) {
 
         UUID instructorId = (UUID) auth.getPrincipal();

@@ -14,6 +14,8 @@ import com.example.demo.classmanagement.entity.ClassEnrollment;
 import com.example.demo.classmanagement.entity.ClassStatus;
 import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
 import com.example.demo.classmanagement.repository.ClassRepository;
+import com.example.demo.document.dto.UploadFilleResponse;
+import com.example.demo.document.service.MinioStorageService;
 import com.example.demo.user.entity.User;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.classmanagement.entity.Class;   
@@ -27,9 +29,12 @@ public class ClassServiceImpl implements ClassService {
     private final ClassRepository classRepository;
     private final ClassEnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository; // For fetching instructor names
+    private final MinioStorageService storageService; // For handling image uploads
 
     @Override
     public ClassResponse createClass(UUID instructorId, CreateClassRequest req) {
+
+        UploadFilleResponse uploadResult = storageService.upload(req.getImage());       
 
         Class cls = Class.builder()
                 .name(req.getName())
@@ -37,7 +42,11 @@ public class ClassServiceImpl implements ClassService {
                 .instructorId(instructorId)
                 .createdAt(Instant.now())
                 .status(ClassStatus.IN_PROGRESS)
+                .imageUrl(uploadResult.getFileUrl())
+                .schedule(req.getSchedule())    
                 .build();
+
+        
 
         classRepository.save(cls);
 
@@ -133,6 +142,7 @@ public class ClassServiceImpl implements ClassService {
                 .name(cls.getName())
                 .description(cls.getDescription())
                 .instructorId(cls.getInstructorId())
+                .imageUrl(cls.getImageUrl())
                 .build();
     }
 }

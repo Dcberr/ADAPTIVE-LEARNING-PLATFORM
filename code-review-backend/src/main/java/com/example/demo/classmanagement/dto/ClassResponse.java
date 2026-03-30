@@ -16,4 +16,6 @@ public class ClassResponse {
     private String description;
 
     private UUID instructorId;
+
+    private String imageUrl;
 }

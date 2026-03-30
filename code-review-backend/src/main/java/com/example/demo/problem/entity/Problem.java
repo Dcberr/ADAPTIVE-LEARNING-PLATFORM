@@ -34,9 +34,12 @@ public class Problem {
 
     private String difficulty;
 
-    private String source;
+    @Column(columnDefinition = "TEXT")
+    private String problemConstraint;
 
-    private String externalId;
+    // private String source;
+
+    // private String externalId;
 
     private Instant createdAt;
 }

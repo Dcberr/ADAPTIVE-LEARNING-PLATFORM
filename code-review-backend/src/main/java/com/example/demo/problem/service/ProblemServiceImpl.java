@@ -27,6 +27,7 @@ public class ProblemServiceImpl implements ProblemService {
         Problem problem = Problem.builder()
                 // .title(request.getTitle())
                 .description(request.getDescription())
+                .problemConstraint(request.getProblemConstraint())
                 // .difficulty(request.getDifficulty())
                 // .source(request.getSource())
                 .createdAt(Instant.now())
@@ -64,10 +65,11 @@ public class ProblemServiceImpl implements ProblemService {
 
         return ProblemResponse.builder()
                 .id(problem.getId())
-                .title(problem.getTitle())
+                // .title(problem.getTitle())
                 .description(problem.getDescription())
-                .difficulty(problem.getDifficulty())
-                .source(problem.getSource())
+                .problemConstraint(problem.getProblemConstraint())
+                // .difficulty(problem.getDifficulty())
+                // .source(problem.getSource())
                 .build();
     }
 }
