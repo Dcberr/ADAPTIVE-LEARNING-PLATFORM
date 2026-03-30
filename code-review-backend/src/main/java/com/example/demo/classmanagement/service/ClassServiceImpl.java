@@ -116,6 +116,7 @@ public class ClassServiceImpl implements ClassService {
                 .instructorName(instructorName)
                 .enrolledStudentsCount(enrolledCount)
                 .status(cls.getStatus())
+                .imageUrl(cls.getImageUrl())
                 .build();
     }
 

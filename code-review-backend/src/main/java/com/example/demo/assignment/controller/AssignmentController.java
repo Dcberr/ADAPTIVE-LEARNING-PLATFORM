@@ -12,14 +12,19 @@ import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.common.response.ApiResponse;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/assignments")
 @RequiredArgsConstructor
+@Tag(name = "Assignment", description = "APIs for managing assignments")
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
 
     @PostMapping
+    @Operation(summary = "Create new assignment")
     public ApiResponse<AssignmentResponse> createAssignment(
             @RequestBody CreateAssignmentRequest request
     ) {
@@ -29,6 +34,7 @@ public class AssignmentController {
         );
     }
 
+    @Operation(summary = "Get assignments by topicId")
     @GetMapping("/topic/{topicId}")
     public ApiResponse<List<AssignmentResponse>> getAssignments(
             @PathVariable UUID topicId
