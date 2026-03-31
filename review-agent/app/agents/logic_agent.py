@@ -1,13 +1,12 @@
-from ast import List
 import logging
 from typing import Any, Dict
 from together import Together
 
+from app.models.logic_issue import create_logic_issue
 from app.models.review_state import (
     LogicIssue,
     ReviewState,
     SandBoxResult,
-    create_logic_issue,
 )
 from app.utils.parse_json_response import safe_parse_json_response
 

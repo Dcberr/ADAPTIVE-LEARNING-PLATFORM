@@ -1,7 +1,6 @@
 from ast import List
 import logging
 from typing import Any, Dict
-from google.genai import types
 from together import Together
 
 from app.models.review_state import ReviewState

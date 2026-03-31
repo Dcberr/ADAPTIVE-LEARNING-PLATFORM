@@ -1,64 +1,9 @@
-from typing import Literal, NotRequired, TypedDict, Any, Dict, List
+from typing import TypedDict, Any, Dict, List
 
-
-class Location(TypedDict):
-    start_line: int
-    start_col: int
-    end_line: int
-    end_col: int
-
-
-class LogicIssue(TypedDict):
-    issue: str
-    evidence: int
-    location: NotRequired[Location]
-    code_snippet: str
-    relevant_concept: list[str]
-    other_concept: list[str]
-    fix_suggestion: str
-
-
-class ImprovementNote(TypedDict):
-    location: NotRequired[Location]
-    code_snippet: str
-    fix_suggestion: str
-    issue: str
-
-
-class ReviewItem(TypedDict):
-    type: Literal["Warning", "Error"]
-    location: NotRequired[Location]
-    code_snippet: str
-    fix_suggestion: str
-    issue: str
-    relevant_concept: list[str]
-
-
-def create_logic_issue(
-    issue: str = "",
-    evidence: int = -1,
-    code_snippet: str = "",
-    location: Location = None,
-) -> LogicIssue:
-    """
-    Helper function to create a LogicIssue with default empty lists for concepts.
-    """
-    return {
-        "issue": issue,
-        "evidence": evidence,
-        "code_snippet": code_snippet,
-        "location": location,
-        "relevant_concept": [],
-        "other_concept": [],
-        "fix_suggestion": "",
-    }
-
-
-class SandBoxResult(TypedDict):
-    id: int
-    input: str
-    expected: str
-    actual: str
+from app.api.review_code_schema import ReviewItem
+from app.models.improvement_note import ImprovementNote
+from app.models.logic_issue import LogicIssue
+from app.models.sandbox_result import SandBoxResult
 
 
 class ReviewState(TypedDict):

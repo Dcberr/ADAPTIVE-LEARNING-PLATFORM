@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Dict
 
 from app.models.review_state import LogicIssue, ReviewState
 from app.utils.parse_json_response import safe_parse_json_response
