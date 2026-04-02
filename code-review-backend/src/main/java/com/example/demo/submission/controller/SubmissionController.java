@@ -37,15 +37,37 @@ public class SubmissionController {
         );
     }
 
-    @Operation(summary = "Get current user's submissions overview")
-    @GetMapping("/me")
-    public ApiResponse<List<SubmissionOverviewResponse>> overview(
-            Authentication auth
+    @Operation(summary = "Get my submissions by assignmennt")
+    @GetMapping("/assignment/{assignmentId}/me")
+    public ApiResponse<List<SubmissionResponse>> overview(
+            Authentication auth,
+            @PathVariable UUID assignmentId
     ) {
         UUID userId = (UUID) auth.getPrincipal();
 
         return ApiResponse.success(
-                submissionService.getUserSubmissionOverview(userId)
+                submissionService.getUserSubmissionsByAssignmentId(userId, assignmentId)
+        );
+    }
+
+    @Operation(summary = "Get current user's submissions by assignmennt")
+    @GetMapping("/assignment/{assignmentId}/{userId}")
+    public ApiResponse<List<SubmissionResponse>> overview(
+            @PathVariable UUID userId,
+            @PathVariable UUID assignmentId
+    ) {
+        return ApiResponse.success(
+                submissionService.getUserSubmissionsByAssignmentId(userId, assignmentId)
+        );
+    }
+
+    @Operation(summary = "Get all submissions by assignmennt")
+    @GetMapping("/assignment/{assignmentId}")
+    public ApiResponse<List<SubmissionResponse>> overview(
+            @PathVariable UUID assignmentId
+    ) {
+        return ApiResponse.success(
+                submissionService.getAllSubmissionsByAssignmentId(assignmentId)
         );
     }
 
@@ -57,17 +79,6 @@ public class SubmissionController {
     ) {
         return ApiResponse.success(
                 submissionService.getSubmissionDetail(submissionId)
-        );
-    }
-
-    @Operation(summary = "Get submissions of a problem")
-    @GetMapping("/problem/{problemId}")
-    public ApiResponse<List<SubmissionOverviewResponse>> getProblemSubmissions(
-            @Parameter(description = "Problem ID")
-            @PathVariable UUID problemId
-    ) {
-        return ApiResponse.success(
-                submissionService.getProblemSubmissions(problemId)
         );
     }
 }

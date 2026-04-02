@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.CreateAssignmentRequest;
+import com.example.demo.assignment.dto.UpdateAssignmentRequest;
 import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.entity.Assignment;
 import com.example.demo.assignment.entity.AssignmentProblem;
 import com.example.demo.assignment.entity.AssignmentStatus;
+import com.example.demo.assignment.mapper.AssignmentMapper;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.problem.dto.CreateProblemRequest;
@@ -26,6 +28,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final ProblemService problemService;
+    private final AssignmentMapper assignmentMapper;
 
     @Override
     public AssignmentResponse createAssignment(CreateAssignmentRequest request) {
@@ -69,6 +72,19 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .stream()
                 .map(this::mapAssignment)
                 .toList();
+    }
+
+    @Override
+    public AssignmentResponse updateAssignment(UUID assignmentId, UpdateAssignmentRequest request) {
+
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new RuntimeException("Assignment not found"));
+
+        assignmentMapper.updateAssignmentFromDto(request, assignment);
+
+        assignmentRepository.save(assignment);
+
+        return mapAssignment(assignment);
     }
 
     private AssignmentResponse mapAssignment(Assignment assignment) {

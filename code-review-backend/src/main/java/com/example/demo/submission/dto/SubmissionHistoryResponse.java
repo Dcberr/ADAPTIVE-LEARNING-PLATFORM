@@ -20,7 +20,7 @@ public class SubmissionHistoryResponse {
 
     private String code;
 
-    private Instant createdAt;
+    private Instant submittedAt;
 
     private String score;
 }
