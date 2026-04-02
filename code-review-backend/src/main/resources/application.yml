@@ -1,5 +1,7 @@
 server:
   port: 8080
+  servlet:
+    context-path: ${SERVER_SERVLET_CONTEXT_PATH}
   error:
     include-message: always
     include-binding-errors: always
@@ -8,6 +10,13 @@ server:
   
   application:
     url: ${APPLICATION_URL}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+  swagger-ui:
+    path: /v3/swagger-ui
 
 jobe:
   base-url: ${JOBE_URL}

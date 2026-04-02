@@ -71,6 +71,7 @@ services:
       minio:
         condition: service_started
     environment:
+      - SERVER_SERVLET_CONTEXT_PATH=/api
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DATABASE_NAME}
       - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DATABASE_PASSWORD}

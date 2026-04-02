@@ -25,7 +25,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final AuthService authService;
     private final JwtProvider jwtProvider;
 
-    @Value("${application.url}")
+    @Value("${server.application.url}")
     private String applicationUrl;
 
     @Override
