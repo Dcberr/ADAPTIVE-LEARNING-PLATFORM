@@ -60,7 +60,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .language(request.getLanguage())
                         .code(request.getCode())
                         .status(SubmissionStatus.SUBMITTED)
-                        // .runtime(result.getRuntime()))
+                        .runtime(result.getRuntime())
                         .passedTestcases(result.getPassedTestcases())
                         .totalTestcases(result.getTotalTestcases())
                         .score(String.valueOf((double) result.getPassedTestcases() / result.getTotalTestcases() * 100))

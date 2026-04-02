@@ -67,6 +67,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         int index = 1;
 
+        Long totalRuntimeStart = System.currentTimeMillis();
         for (Testcase tc : testcases) {
 
             int testcaseIndex = index++;
@@ -78,11 +79,15 @@ public class ExecutionServiceImpl implements ExecutionService {
                     )
             );
         }
+        
 
         List<TestcaseResult> results =
                 futures.stream()
                         .map(CompletableFuture::join)
                         .toList();
+
+        Long totalRuntime = System.currentTimeMillis() - totalRuntimeStart;
+        log.info("Total runtime for all testcases: {} ms", totalRuntime);
 
         int passed =
                 (int) results.stream()
@@ -100,6 +105,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .testcases(results)
                 .passedTestcases(passed)
                 .totalTestcases(testcases.size())
+                .runtime(totalRuntime)
                 .build();
     }
 

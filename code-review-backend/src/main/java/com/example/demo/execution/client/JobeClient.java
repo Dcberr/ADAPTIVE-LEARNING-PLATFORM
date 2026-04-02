@@ -46,8 +46,11 @@ public class JobeClient {
                 "run_spec", runSpec
         );
 
+        long startTime = System.currentTimeMillis(); 
         Map response =
                 restTemplate.postForObject(url, body, Map.class);
+        long runTime = System.currentTimeMillis() - startTime;
+        log.info("Execution time: {} ms", runTime);
 
         log.info("JOBE response: {}", response);
 
@@ -62,9 +65,7 @@ public class JobeClient {
                                 : ((Number) response.get("outcome")).intValue()
                 )
                 .runtime(
-                        response.get("time") == null
-                                ? 0
-                                : ((Number) response.get("time")).longValue()
+                        runTime
                 )
                 .build();
         }
@@ -82,8 +83,11 @@ public class JobeClient {
                 Map<String, Object> body = Map.of(
                         "run_spec", runSpec
                 );
+
+                long startTime = System.currentTimeMillis();
                 Map response =
                         restTemplate.postForObject(url, body, Map.class);
+                long runTime = System.currentTimeMillis() - startTime;
 
                 return ExecutionResult.builder()
                         .stdout((String) response.get("stdout"))
@@ -96,9 +100,7 @@ public class JobeClient {
                                         : ((Number) response.get("outcome")).intValue()
                         )
                         .runtime(
-                                response.get("time") == null
-                                        ? 0
-                                        : ((Number) response.get("time")).longValue()
+                                runTime
                         )
                         .build();
         }
