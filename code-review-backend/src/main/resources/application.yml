@@ -4,6 +4,10 @@ server:
     include-message: always
     include-binding-errors: always
     include-stacktrace: always
+  url: ${SERVICE_URL}
+  
+  application:
+    url: ${APPLICATION_URL}
 
 jobe:
   base-url: ${JOBE_URL}
@@ -55,7 +59,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: "http://localhost:8080/login/oauth2/code/google"
+            redirect-uri: "{SERVICE_URL}/login/oauth2/code/google"
 
         provider:
           google:
