@@ -7,9 +7,9 @@ server:
     include-binding-errors: always
     include-stacktrace: always
   url: ${SERVICE_URL}
-  
-  application:
-    url: ${APPLICATION_URL}
+
+application:
+  url: ${APPLICATION_URL}
 
 springdoc:
   api-docs:

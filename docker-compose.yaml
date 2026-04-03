@@ -74,7 +74,6 @@ services:
       - .env
     environment:
       - SERVER_SERVLET_CONTEXT_PATH=/api
-      - SERVICE_URL=${SERVICE_URL}
       - APPLICATION_URL=${APPLICATION_URL}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DATABASE_NAME}
       - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME}
