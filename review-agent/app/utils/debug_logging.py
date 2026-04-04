@@ -19,6 +19,7 @@ def summarize_state(state: Mapping[str, Any]) -> dict[str, Any]:
     logic_issues = state.get("logic_issues") or {}
     improvement_notes = state.get("improvement_notes") or []
     concept_issues = state.get("concept_issues") or []
+    generated_testcases = state.get("generated_testcases") or []
     review_items = state.get("review_items") or []
     sandbox_results = state.get("sandbox_results") or []
 
@@ -26,6 +27,7 @@ def summarize_state(state: Mapping[str, Any]) -> dict[str, Any]:
         "sandbox_results": len(sandbox_results),
         "logic_issues": len(logic_issues),
         "concept_issues": len(concept_issues),
+        "generated_testcases": len(generated_testcases),
         "improvement_notes": len(improvement_notes),
         "review_items": len(review_items),
         "overview_present": bool(state.get("overview")),

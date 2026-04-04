@@ -1,0 +1,1330 @@
+openapi: 3.0.1
+info:
+  title: LMS API
+  version: "1.0"
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+security:
+- bearerAuth: []
+tags:
+- name: Problem
+  description: APIs for problem management
+- name: Class
+  description: APIs for class management
+- name: Testcase
+  description: APIs for managing problem testcases
+- name: Topic
+  description: APIs for topic management
+- name: User
+  description: APIs for user management
+- name: Review
+  description: APIs for code review (AI-based)
+- name: Assignment
+  description: APIs for managing assignments
+- name: Submission
+  description: APIs for code submission and results
+- name: Execution
+  description: Code execution & judging APIs
+- name: Document
+  description: APIs for document management
+paths:
+  /users/me:
+    get:
+      tags:
+      - User
+      summary: Get current user profile
+      operationId: me
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserResponse"
+    put:
+      tags:
+      - User
+      summary: Update current user profile
+      operationId: updateProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserResponse"
+  /topics:
+    post:
+      tags:
+      - Topic
+      summary: Create a new topic
+      operationId: createTopic
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTopicRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseTopicResponse"
+  /testcases:
+    post:
+      tags:
+      - Testcase
+      summary: Create a testcase for a problem
+      operationId: createTestcase
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTestcaseRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseTestcaseResponse"
+  /submissions:
+    post:
+      tags:
+      - Submission
+      summary: Submit code for a problem
+      operationId: submit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCodeRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseSubmissionResponse"
+  /reviews/submission/{submissionId}:
+    get:
+      tags:
+      - Review
+      summary: Get review history of a submission
+      operationId: history
+      parameters:
+      - name: submissionId
+        in: path
+        description: Submission ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListReviewResponse"
+    post:
+      tags:
+      - Review
+      summary: Review a submission (AI code review)
+      operationId: review
+      parameters:
+      - name: submissionId
+        in: path
+        description: Submission ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseReviewResponse"
+  /problems:
+    post:
+      tags:
+      - Problem
+      summary: Create a new problem
+      operationId: createProblem
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProblemRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseProblemResponse"
+  /execution/run:
+    post:
+      tags:
+      - Execution
+      summary: Run code without judging
+      operationId: run
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunCodeRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseRunCodeResponse"
+  /execution/judge:
+    post:
+      tags:
+      - Execution
+      summary: Run and judge code against testcases
+      operationId: judge
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunTestcaseRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseRunCodeResponse"
+  /documents:
+    post:
+      tags:
+      - Document
+      summary: "Upload document (PDF, video, etc.)"
+      operationId: create
+      parameters:
+      - name: topicId
+        in: query
+        description: Topic ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: title
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: description
+        in: query
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                file:
+                  type: string
+                  description: File to upload
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseDocumentResponse"
+  /classes:
+    post:
+      tags:
+      - Class
+      summary: Create a new class
+      operationId: createClass
+      parameters:
+      - name: request
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/CreateClassRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseClassResponse"
+  /classes/{classId}/students:
+    post:
+      tags:
+      - Class
+      summary: Add student to class
+      operationId: addStudent
+      parameters:
+      - name: classId
+        in: path
+        description: Class ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddStudentRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseObject"
+  /assignments:
+    post:
+      tags:
+      - Assignment
+      summary: Create new assignment
+      operationId: createAssignment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssignmentRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseAssignmentResponse"
+  /users/{id}:
+    get:
+      tags:
+      - User
+      summary: Get user by ID
+      operationId: getUser
+      parameters:
+      - name: id
+        in: path
+        description: User ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserResponse"
+  /topics/{topicId}:
+    get:
+      tags:
+      - Topic
+      summary: Get topic detail (assignments + documents)
+      operationId: getTopicDetail
+      parameters:
+      - name: topicId
+        in: path
+        description: Topic ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseTopicDetailResponse"
+  /topics/class/{classId}:
+    get:
+      tags:
+      - Topic
+      summary: Get topics overview by classId
+      operationId: getTopicsByClass
+      parameters:
+      - name: classId
+        in: path
+        description: Class ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseTopicOverviewResponse"
+  /testcases/problem/{problemId}:
+    get:
+      tags:
+      - Testcase
+      summary: Get testcases by problem ID
+      operationId: getTestcases
+      parameters:
+      - name: problemId
+        in: path
+        description: Problem ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListTestcaseResponse"
+  /submissions/{submissionId}:
+    get:
+      tags:
+      - Submission
+      summary: Get submission detail
+      operationId: detail
+      parameters:
+      - name: submissionId
+        in: path
+        description: Submission ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseSubmissionDetailResponse"
+  /submissions/problem/{problemId}:
+    get:
+      tags:
+      - Submission
+      summary: Get submissions of a problem
+      operationId: getProblemSubmissions
+      parameters:
+      - name: problemId
+        in: path
+        description: Problem ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListSubmissionOverviewResponse"
+  /submissions/me:
+    get:
+      tags:
+      - Submission
+      summary: Get current user's submissions overview
+      operationId: overview
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListSubmissionOverviewResponse"
+  /problems/{problemId}:
+    get:
+      tags:
+      - Problem
+      summary: Get problem detail
+      operationId: getProblem
+      parameters:
+      - name: problemId
+        in: path
+        description: Problem ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseProblemResponse"
+  /documents/topic/{topicId}:
+    get:
+      tags:
+      - Document
+      summary: Get documents by topic
+      operationId: getByTopic
+      parameters:
+      - name: topicId
+        in: path
+        description: Topic ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListDocumentResponse"
+  /documents/stream/{id}:
+    get:
+      tags:
+      - Document
+      summary: Stream video document (supports Range header)
+      operationId: stream
+      parameters:
+      - name: id
+        in: path
+        description: Document ID
+        required: true
+        schema:
+          type: string
+      - name: Range
+        in: header
+        description: Range header for streaming
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /documents/download/{id}:
+    get:
+      tags:
+      - Document
+      summary: Download document (inline preview)
+      operationId: download
+      parameters:
+      - name: id
+        in: path
+        description: Document ID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /classes/{classId}:
+    get:
+      tags:
+      - Class
+      summary: Get class detail
+      operationId: classDetail
+      parameters:
+      - name: classId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseClassDetailResponse"
+  /classes/me:
+    get:
+      tags:
+      - Class
+      summary: Get classes of current user
+      operationId: myClasses
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListClassOverviewResponse"
+  /assignments/topic/{topicId}:
+    get:
+      tags:
+      - Assignment
+      summary: Get assignments by topicId
+      operationId: getAssignments
+      parameters:
+      - name: topicId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListAssignmentResponse"
+  /classes/{classId}/students/{studentId}:
+    delete:
+      tags:
+      - Class
+      summary: Remove student from class
+      operationId: removeStudent
+      parameters:
+      - name: classId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: studentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseObject"
+components:
+  schemas:
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        picture:
+          type: string
+    ApiResponseUserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/UserResponse"
+        timestamp:
+          type: string
+          format: date-time
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        picture:
+          type: string
+        role:
+          type: string
+    CreateTopicRequest:
+      type: object
+      properties:
+        classId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+    ApiResponseTopicResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/TopicResponse"
+        timestamp:
+          type: string
+          format: date-time
+    TopicResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        classId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+    CreateTestcaseRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        explanation:
+          type: string
+        sample:
+          type: boolean
+    ApiResponseTestcaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/TestcaseResponse"
+        timestamp:
+          type: string
+          format: date-time
+    TestcaseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        problemId:
+          type: string
+          format: uuid
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        explanation:
+          type: string
+        sample:
+          type: boolean
+    SubmitCodeRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        language:
+          type: string
+        code:
+          type: string
+    ApiResponseSubmissionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/SubmissionResponse"
+        timestamp:
+          type: string
+          format: date-time
+    SubmissionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        runtime:
+          type: integer
+          format: int64
+        passedTestcases:
+          type: integer
+          format: int32
+        totalTestcases:
+          type: integer
+          format: int32
+    ApiResponseReviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ReviewResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ReviewResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        detail:
+          type: string
+        testcaseResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResult"
+    TestcaseResult:
+      type: object
+      properties:
+        index:
+          type: integer
+          format: int32
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        output:
+          type: string
+        error:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - WRONG_ANSWER
+          - COMPILE_ERROR
+          - RUNTIME_ERROR
+          - TIME_LIMIT
+        runtime:
+          type: integer
+          format: int64
+    CreateProblemRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        assignmentId:
+          type: string
+          format: uuid
+        problemConstraint:
+          type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseRequest"
+    TestcaseRequest:
+      type: object
+      properties:
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        explanation:
+          type: string
+        sample:
+          type: boolean
+    ApiResponseProblemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ProblemResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ProblemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        problemConstraint:
+          type: string
+    RunCodeRequest:
+      type: object
+      properties:
+        language:
+          type: string
+        code:
+          type: string
+        input:
+          type: string
+    ApiResponseRunCodeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RunCodeResponse"
+        timestamp:
+          type: string
+          format: date-time
+    RunCodeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - WRONG_ANSWER
+          - COMPILE_ERROR
+          - RUNTIME_ERROR
+          - TIME_LIMIT
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResult"
+        passedTestcases:
+          type: integer
+          format: int32
+        totalTestcases:
+          type: integer
+          format: int32
+    RunTestcaseRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        language:
+          type: string
+        code:
+          type: string
+    ApiResponseDocumentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/DocumentResponse"
+        timestamp:
+          type: string
+          format: date-time
+    DocumentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        fileUrl:
+          type: string
+        type:
+          type: string
+    CreateClassRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+          format: binary
+        schedule:
+          type: string
+    ApiResponseClassResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ClassResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ClassResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        instructorId:
+          type: string
+          format: uuid
+        imageUrl:
+          type: string
+    AddStudentRequest:
+      type: object
+      properties:
+        studentId:
+          type: string
+          format: uuid
+    ApiResponseObject:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+    CreateAssignmentRequest:
+      type: object
+      properties:
+        topicId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        difficulty:
+          type: string
+          enum:
+          - EASY
+          - MEDIUM
+          - HARD
+        problem:
+          $ref: "#/components/schemas/ProblemRequest"
+    ProblemRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseRequest"
+    ApiResponseAssignmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AssignmentResponse"
+        timestamp:
+          type: string
+          format: date-time
+    AssignmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        difficulty:
+          type: string
+          enum:
+          - EASY
+          - MEDIUM
+          - HARD
+        status:
+          type: string
+          enum:
+          - PENDING
+          - SUBMITTED
+          - SCORED
+          - OVERDUE
+    ApiResponseTopicDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/TopicDetailResponse"
+        timestamp:
+          type: string
+          format: date-time
+    TopicDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssignmentResponse"
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentResponse"
+    ApiResponseTopicOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/TopicOverviewResponse"
+        timestamp:
+          type: string
+          format: date-time
+    TopicOverviewResponse:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    ApiResponseListTestcaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ApiResponseSubmissionDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/SubmissionDetailResponse"
+        timestamp:
+          type: string
+          format: date-time
+    SubmissionDetailResponse:
+      type: object
+      properties:
+        submissionId:
+          type: string
+          format: uuid
+        problemTitle:
+          type: string
+        problemDescription:
+          type: string
+        score:
+          type: string
+        difficulty:
+          type: string
+        code:
+          type: string
+        language:
+          type: string
+        status:
+          type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResponse"
+    ApiResponseListSubmissionOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmissionOverviewResponse"
+        timestamp:
+          type: string
+          format: date-time
+    SubmissionOverviewResponse:
+      type: object
+      properties:
+        submissionId:
+          type: string
+          format: uuid
+        assignmentTitle:
+          type: string
+        problemTitle:
+          type: string
+        score:
+          type: string
+        difficulty:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        status:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        studentName:
+          type: string
+    ApiResponseListReviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ApiResponseListDocumentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ApiResponseClassDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ClassDetailResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ClassDetailResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        instructorName:
+          type: string
+        enrolledStudentsCount:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+        status:
+          type: string
+        schedule:
+          type: string
+        imageUrl:
+          type: string
+    ApiResponseListClassOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassOverviewResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ClassOverviewResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        instructorName:
+          type: string
+        enrolledStudentsCount:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - FEATURED
+          - COMPLETED
+        imageUrl:
+          type: string
+    ApiResponseListAssignmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssignmentResponse"
+        timestamp:
+          type: string
+          format: date-time
+  securitySchemes:
+    bearerAuth:
+      type: http
+      name: Authorization
+      scheme: bearer
+      bearerFormat: JWT

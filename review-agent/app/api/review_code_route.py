@@ -36,6 +36,7 @@ async def review_code(
         # Create initial state using the helper function
         state_in: ReviewState = create_initial_state(
             code=request.student_submission.code,
+            assignment_language=request.assignment.language,
             sandbox_results=[
                 {
                     "id": i,

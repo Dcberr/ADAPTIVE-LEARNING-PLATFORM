@@ -26,7 +26,8 @@ and in beginner-friendly language. Focus on helping the student understand:
 
 1. Functional errors (logic issues)
 2. Style/quality warnings (improvement notes)
-3. How to improve their code step by step
+3. Additional exploratory testcases when no logic issues were found
+4. How to improve their code step by step
 
 Student code:
 {state['code']}
@@ -37,9 +38,13 @@ Logic issues (Errors):
 Improvement notes (Warnings):
 {state.get('improvement_notes', [])}
 
+Generated exploratory testcases:
+{state.get('generated_testcases', [])}
+
 Instructions:
 - Generate a clear overview paragraph that a CS1 student can easily understand.
 - Highlight the most important errors first, then warnings.
+- If there are no logic issues, mention the generated exploratory testcases briefly.
 - Keep it concise and actionable.
 - Output ONLY the overview text.
 """

@@ -2,6 +2,7 @@ import logging
 from time import perf_counter
 from app.agents.concept_mapping_agent import ConceptMappingAgent
 from app.agents.fix_hint_agent import FixHintAgent
+from app.agents.generate_testcase_agent import GenerateTestcaseAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.logic_agent import LogicAgent
 from app.agents.overview_agent import OverviewAgent
@@ -21,6 +22,7 @@ class ReviewCodeService:
         logic_agent: LogicAgent,
         concept_mapping_agent: ConceptMappingAgent,
         fix_hint_agent: FixHintAgent,
+        generate_testcase_agent: GenerateTestcaseAgent,
         improvement_agent: ImprovementAgent,
         overview_agent: OverviewAgent,
         reflection_agent: ReflectionAgent,
@@ -28,6 +30,7 @@ class ReviewCodeService:
         self.logic_agent = logic_agent
         self.concept_mapping_agent = concept_mapping_agent
         self.fix_hint_agent = fix_hint_agent
+        self.generate_testcase_agent = generate_testcase_agent
         self.improvement_agent = improvement_agent
         self.overview_agent = overview_agent
         self.reflection_agent = reflection_agent
@@ -47,6 +50,12 @@ class ReviewCodeService:
         workflow.add_node(
             "fix_hint",
             self._instrument_node("fix_hint", self.fix_hint_agent.analyze),
+        )
+        workflow.add_node(
+            "generate_testcase",
+            self._instrument_node(
+                "generate_testcase", self.generate_testcase_agent.analyze
+            ),
         )
         workflow.add_node(
             "improve",
@@ -71,17 +80,28 @@ class ReviewCodeService:
             if state.get("needs_improvement"):
                 logger.debug("Route selected: logic -> improve (needs_improvement)")
                 return "improve"
-            logger.debug("Route selected: logic -> improve (default)")
-            return "improve"
+            logger.debug("Route selected: logic -> generate_testcase (no logic issues)")
+            return "generate_testcase"
 
         def route_after_concept_map(state: ReviewState) -> str:
             return "fix_hint"
+
+        def route_after_generate_testcase(state: ReviewState) -> str:
+            if state.get("logic_issues") and len(state["logic_issues"]) > 0:
+                logger.debug("Route selected: generate_testcase -> concept_map")
+                return "concept_map"
+            logger.debug("Route selected: generate_testcase -> improve")
+            return "improve"
 
         # Add conditional edges
         workflow.add_conditional_edges(
             "logic",
             route_after_logic,
-            {"concept_map": "concept_map", "improve": "improve"},
+            {
+                "concept_map": "concept_map",
+                "improve": "improve",
+                "generate_testcase": "generate_testcase",
+            },
         )
         workflow.add_conditional_edges(
             "concept_map",
@@ -92,6 +112,11 @@ class ReviewCodeService:
             "fix_hint",
             lambda s: "improve",
             {"improve": "improve"},
+        )
+        workflow.add_conditional_edges(
+            "generate_testcase",
+            route_after_generate_testcase,
+            {"concept_map": "concept_map", "improve": "improve"},
         )
         workflow.add_conditional_edges(
             "improve",
