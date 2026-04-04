@@ -1,7 +1,10 @@
 import logging
 from typing import Dict
 
+from openai import OpenAI
+
 from app.models.review_state import LogicIssue, ReviewState
+from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
 logger = logging.getLogger(__name__)
@@ -10,7 +13,7 @@ logger = logging.getLogger(__name__)
 class FixHintAgent:
     """Generates fix suggestions for each relevant concept in CS1 submissions with assignment context."""
 
-    def __init__(self, client, model_name: str):
+    def __init__(self, client: OpenAI, model_name: str):
         self.client = client
         self.model_name = model_name
 
@@ -61,7 +64,10 @@ class FixHintAgent:
 
     def analyze(self, state: ReviewState) -> ReviewState:
         """Generate fix suggestions for all relevant logic issues."""
-        logger.debug("Starting FixHintAgent with separated system/user messages")
+        logger.debug(
+            "Starting FixHintAgent with state summary: %s",
+            summarize_state(state),
+        )
 
         new_state: ReviewState = dict(state)
         logic_issues: Dict[int, LogicIssue] = new_state.get("logic_issues", {})
@@ -69,8 +75,17 @@ class FixHintAgent:
 
         for issue_id, issue in logic_issues.items():
             if not issue.get("relevant_concept"):
+                logger.debug(
+                    "FixHintAgent skipping issue %s because it has no relevant concepts",
+                    issue_id,
+                )
                 continue  # Skip if no relevant concept
 
+            logger.debug(
+                "FixHintAgent generating hint for issue %s with concepts=%s",
+                issue_id,
+                issue.get("relevant_concept", []),
+            )
             messages = self.generate_messages(issue, assignment)
 
             try:
@@ -78,23 +93,35 @@ class FixHintAgent:
                     model=self.model_name,
                     messages=messages,
                     temperature=0.4,
-                    max_output_tokens=512,
+                    max_tokens=512,
                 )
 
                 model_text = response.choices[0].message.content
+                logger.debug(
+                    "FixHintAgent raw response preview for issue %s: %s",
+                    issue_id,
+                    truncate_text(model_text),
+                )
                 parsed = safe_parse_json_response(model_text)
 
                 issue["fix_suggestion"] = (
                     parsed.get("fix_suggestion", "").strip()
                     or "No fix suggestion generated."
                 )
+                logger.debug(
+                    "FixHintAgent stored fix suggestion for issue %s",
+                    issue_id,
+                )
                 logic_issues[issue_id] = issue
 
             except Exception as e:
-                logger.error(f"FixHintAgent error for issue {issue_id}: {e}")
+                logger.exception("FixHintAgent failed for issue %s", issue_id)
                 issue["fix_suggestion"] = "Error generating fix suggestion."
                 logic_issues[issue_id] = issue
 
         new_state["logic_issues"] = logic_issues
-        logger.debug(f"FixHintAgent output state: {new_state}")
+        logger.debug(
+            "FixHintAgent completed with state summary: %s",
+            summarize_state(new_state),
+        )
         return new_state

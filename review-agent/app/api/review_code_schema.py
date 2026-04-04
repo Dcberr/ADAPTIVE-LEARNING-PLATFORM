@@ -32,16 +32,6 @@ class ReviewRequest(BaseModel):
     test_results: List[TestResult]
 
 
-# ----------------------------------------------------------------------
-# --- 2. Agentic Models (Tool Input/Output) ---
-# ----------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------
-# --- 3. Review Response Models (Final Output) ---
-# ----------------------------------------------------------------------
-
-
 class LineContext(BaseModel):
     start: Optional[int]
     end: Optional[int]

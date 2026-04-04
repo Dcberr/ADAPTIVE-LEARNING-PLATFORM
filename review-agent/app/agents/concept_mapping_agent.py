@@ -1,7 +1,10 @@
 import logging
 from typing import Any, Dict, List
 
+from openai import OpenAI
+
 from app.models.review_state import LogicIssue, ReviewState
+from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
 logger = logging.getLogger(__name__)
@@ -10,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ConceptMappingAgent:
     """Maps logic issues to CS1 concepts using chat-based messages."""
 
-    def __init__(self, client, model_name: str, batch_size: int = 5):
+    def __init__(self, client: OpenAI, model_name: str, batch_size: int = 5):
         self.client = client
         self.model_name = model_name
         self.batch_size = batch_size
@@ -95,7 +98,10 @@ class ConceptMappingAgent:
 
     def analyze(self, state: ReviewState) -> ReviewState:
         """Run concept mapping analysis on a submission state with batching and update original issues."""
-        logger.debug("Starting ConceptMappingAgent")
+        logger.debug(
+            "Starting ConceptMappingAgent with state summary: %s",
+            summarize_state(state),
+        )
         new_state: ReviewState = dict(state)
 
         logic_issues: Dict[int, LogicIssue] = new_state.get("logic_issues", {})
@@ -104,7 +110,12 @@ class ConceptMappingAgent:
 
         all_concept_issues: List[Dict[str, Any]] = []
 
-        for batch in self.chunk_issues(logic_issues):
+        for batch_index, batch in enumerate(self.chunk_issues(logic_issues) or [], start=1):
+            logger.debug(
+                "ConceptMappingAgent processing batch %s for issue ids=%s",
+                batch_index,
+                list(batch.keys()),
+            )
             messages = self.generate_messages(
                 list(batch.values()), expected_concepts, assignment_req
             )
@@ -114,12 +125,22 @@ class ConceptMappingAgent:
                     model=self.model_name,
                     messages=messages,
                     temperature=0.3,
-                    max_output_tokens=2048,
+                    max_tokens=2048,
                 )
                 model_text = response.choices[0].message.content
+                logger.debug(
+                    "ConceptMappingAgent batch %s raw response preview: %s",
+                    batch_index,
+                    truncate_text(model_text),
+                )
                 parsed = safe_parse_json_response(model_text)
 
                 concept_issues = parsed.get("concept_issues", [])
+                logger.debug(
+                    "ConceptMappingAgent batch %s parsed %s concept mappings",
+                    batch_index,
+                    len(concept_issues),
+                )
                 for ci in concept_issues:
                     issue_ref = ci.get("issue_ref")
                     if issue_ref is None or issue_ref not in batch:
@@ -134,7 +155,7 @@ class ConceptMappingAgent:
                     all_concept_issues.append(ci)
 
             except Exception as e:
-                logger.error(f"ConceptMappingAgent error on batch: {e}")
+                logger.exception("ConceptMappingAgent batch %s failed", batch_index)
                 for issue_ref, issue in batch.items():
                     issue["relevant_concept"] = []
                     issue["other_concept"] = []
@@ -150,5 +171,8 @@ class ConceptMappingAgent:
         # Update the state with enriched issues
         new_state["logic_issues"] = logic_issues  # dict updated in-place
         new_state["concept_issues"] = all_concept_issues
-        logger.debug(f"ConceptMappingAgent output state: {new_state}")
+        logger.debug(
+            "ConceptMappingAgent completed with %s concept issue records",
+            len(new_state["concept_issues"]),
+        )
         return new_state

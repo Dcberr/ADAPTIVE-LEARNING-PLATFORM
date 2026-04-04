@@ -1,8 +1,9 @@
 import logging
 from typing import Any, Dict
-from google.genai import types
 
+from openai import OpenAI
 
+from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
 logger = logging.getLogger(__name__)
@@ -11,17 +12,28 @@ logger = logging.getLogger(__name__)
 class ReflectionAgent:
     """Performs a final sanity check, validates, and compiles feedback for CS1 students."""
 
-    def __init__(self, client, model_name: str):
+    def __init__(self, client: OpenAI, model_name: str):
         self.client = client
         self.model_name = model_name
 
-    def generate_prompt(self, state: Dict[str, Any]) -> str:
-        return f"""
-You are a CS1 (Introduction to Programming) professor reviewing the assembled feedback before it's presented to your first-year students. Your role is to ensure the feedback is:
+    def generate_messages(self, state: Dict[str, Any]) -> list[Dict[str, str]]:
+        system_message = {
+            "role": "system",
+            "content": (
+                "You are a CS1 (Introduction to Programming) professor reviewing "
+                "assembled feedback before it is shown to first-year students. "
+                "Return valid JSON only."
+            ),
+        }
+
+        user_message = {
+            "role": "user",
+            "content": f"""
+You are validating feedback for CS1 students. Ensure it is:
 1. Pedagogically sound and appropriate for CS1 level
 2. Clear and understandable for beginners
 3. Constructive and encouraging while being accurate
-4. Focused on fundamental concepts they've learned
+4. Focused on fundamental concepts they have learned
 
 Review these components:
 - Code and test results: {state.get('sandbox_result', {})}
@@ -33,7 +45,7 @@ Review these components:
 - Summary overview: {state.get('overview', '')}
 - Review items: {state.get('review_items', [])}
 
-Your task (return as JSON):
+Return JSON with this shape:
 {{
     "final_report": {{
         "feedback": [
@@ -54,52 +66,52 @@ Your task (return as JSON):
         "summary": {{
             "overview": "Overall assessment in encouraging, clear language",
             "key_concepts": ["main", "CS1", "concepts", "to", "focus", "on"],
-            "next_steps": "Clear guidance on what to learn/review"
+            "next_steps": "Clear guidance on what to learn or review"
         }},
         "meta": {{
-            "validated": true|false,
+            "validated": true,
             "pedagogical_notes": "Any concerns about complexity or prerequisites",
             "difficulty_level": "beginner|intermediate|advanced"
         }}
     }}
 }}
 
-Educational Guidelines:
-1. Use CS1 vocabulary consistently (e.g., "loop", "condition", "variable", etc.)
-2. Break down complex issues into simpler concepts
-3. Connect feedback to fundamental programming principles
-4. Provide concrete, actionable steps for improvement
-5. Include positive reinforcement when appropriate
-6. Ensure fix suggestions don't give away complete solutions
-7. Verify all feedback is based on evidence from code/tests
+Educational guidelines:
+- Use CS1 vocabulary consistently.
+- Break down complex issues into simpler concepts.
+- Connect feedback to fundamental programming principles.
+- Provide concrete, actionable steps for improvement.
+- Include positive reinforcement when appropriate.
+- Do not give away complete solutions.
+- Verify all feedback is based on evidence from code or tests.
+            """,
+        }
 
-Remember: First-year CS students are still learning basic programming concepts. All feedback should be encouraging and educational, not just identifying problems.
-"""
+        return [system_message, user_message]
 
     def analyze(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        logger.debug("Starting ReflectionAgent")
-        logger.debug(f"Input state: {state}")
+        logger.debug("Starting ReflectionAgent with state summary: %s", summarize_state(state))
 
         new_state = dict(state)
-        prompt = self.generate_prompt(state)
-
-        config = types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.2,
-            candidate_count=1,
-            max_output_tokens=2048,
-        )
+        messages = self.generate_messages(state)
 
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name, contents=prompt, config=config
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                temperature=0.2,
+                max_tokens=2048,
             )
-            parsed = safe_parse_json_response(response.text)
+            model_text = response.choices[0].message.content
+            logger.debug(
+                "ReflectionAgent raw response preview: %s",
+                truncate_text(model_text),
+            )
+            parsed = safe_parse_json_response(model_text)
 
             if parsed and parsed.get("final_report"):
                 new_state["final_report"] = parsed.get("final_report")
             else:
-                # Fallback: compile a simple final report from existing feedback
                 new_state["final_report"] = {
                     "feedback": new_state.get("categorized_feedback", [])
                     or new_state.get("improvement_notes", [])
@@ -107,12 +119,14 @@ Remember: First-year CS students are still learning basic programming concepts. 
                     "meta": {"validated": True},
                 }
         except Exception as e:
-            logger.error(f"ReflectionAgent error: {e}")
-            # Minimal final report on error
+            logger.exception("ReflectionAgent failed")
             new_state["final_report"] = {
                 "feedback": [],
                 "meta": {"validated": False, "error": str(e)},
             }
 
-        logger.debug(f"ReflectionAgent output state: {new_state}")
+        logger.debug(
+            "ReflectionAgent completed; final_report keys=%s",
+            list((new_state.get("final_report") or {}).keys()),
+        )
         return new_state

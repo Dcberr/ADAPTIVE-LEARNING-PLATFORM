@@ -4,7 +4,7 @@ import logging
 
 # Configure root logger
 logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG to show all debug/info/warning/error messages
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 

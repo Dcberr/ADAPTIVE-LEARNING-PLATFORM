@@ -3,6 +3,7 @@ import logging
 
 from app.api.review_code_schema import ReviewItem
 from app.models.review_state import ReviewState
+from app.utils.debug_logging import summarize_state, truncate_text
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ Instructions:
     def analyze(self, state: ReviewState) -> ReviewState:
         """Merge logic issues and improvement notes into review_items and generate overview."""
 
-        logger.debug("Starting OverviewAgent")
+        logger.debug("Starting OverviewAgent with state summary: %s", summarize_state(state))
         new_state: ReviewState = dict(state)
         review_items: List[ReviewItem] = []
 
@@ -77,6 +78,7 @@ Instructions:
             )
 
         new_state["review_items"] = review_items
+        logger.debug("OverviewAgent prepared %s review items", len(review_items))
 
         # Generate teacher-style overview using prompt
         try:
@@ -88,13 +90,20 @@ Instructions:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_output_tokens=1024,
+                max_tokens=1024,
             )
             overview_text = response.choices[0].message.content.strip()
             new_state["overview"] = overview_text
+            logger.debug(
+                "OverviewAgent generated overview preview: %s",
+                truncate_text(overview_text),
+            )
         except Exception as e:
-            logger.error(f"OverviewAgent error: {e}")
+            logger.exception("OverviewAgent failed")
             new_state["overview"] = "Unable to generate overview at this time."
 
-        logger.debug(f"OverviewAgent output state: {new_state}")
+        logger.debug(
+            "OverviewAgent completed with state summary: %s",
+            summarize_state(new_state),
+        )
         return new_state

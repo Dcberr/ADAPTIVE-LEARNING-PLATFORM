@@ -1,24 +1,25 @@
 from ast import List
 import logging
 from typing import Any, Dict
-from together import Together
+from openai import OpenAI
 
 from app.models.review_state import ReviewState
+from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
 logger = logging.getLogger(__name__)
 
 
 class ImprovementAgent:
-    """Analyzes code style and quality using Together AI (e.g., Qwen or Llama)."""
+    """Analyzes code style and quality using a chat model."""
 
-    def __init__(self, client: Together, model_name: str):
+    def __init__(self, client: OpenAI, model_name: str):
         self.client = client
         self.model_name = model_name
 
     def generate_messages(self, code: str) -> List[Dict[str, str]]:
         """
-        Build the conversation messages for Together AI, separating system and user roles.
+        Build the conversation messages, separating system and user roles.
         The model acts as a CS1 code-style coach.
         """
 
@@ -71,7 +72,10 @@ class ImprovementAgent:
 
     def analyze(self, state: ReviewState) -> Dict[str, Any]:
         """Run style/quality analysis and update the review state."""
-        logger.debug("Starting ImprovementAgent (Together AI)")
+        logger.debug(
+            "Starting ImprovementAgent with state summary: %s",
+            summarize_state(state),
+        )
 
         new_state: ReviewState = dict(state)
         code = state["code"]
@@ -83,17 +87,28 @@ class ImprovementAgent:
                 model=self.model_name,
                 messages=messages,
                 temperature=0.3,
-                max_output_tokens=2048,
+                max_tokens=2048,
             )
 
             model_text = response.choices[0].message.content
+            logger.debug(
+                "ImprovementAgent raw response preview: %s",
+                truncate_text(model_text),
+            )
             parsed = safe_parse_json_response(model_text)
 
             new_state["improvement_notes"] = parsed.get("improvement_notes", [])
+            logger.debug(
+                "ImprovementAgent parsed %s improvement notes",
+                len(new_state["improvement_notes"]),
+            )
 
         except Exception as e:
-            logger.error(f"ImprovementAgent error: {e}")
+            logger.exception("ImprovementAgent failed")
             new_state["improvement_notes"] = []
 
-        logger.debug(f"ImprovementAgent output state: {new_state}")
+        logger.debug(
+            "ImprovementAgent completed with state summary: %s",
+            summarize_state(new_state),
+        )
         return new_state
