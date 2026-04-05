@@ -11,6 +11,7 @@ from app.api.review_code_schema import (
 )
 from app.models.review_state import ReviewState, create_initial_state
 from app.services.review_code_service import ReviewCodeService
+from app.utils.debug_logging import summarize_state
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,16 @@ async def review_code(
     Endpoint that uses the LangGraph workflow with Gemini for code review.
     """
     try:
+        logger.debug(
+            "Received review request with %s test results and %s expected concepts",
+            len(request.test_results),
+            len(request.assignment.expected_concepts),
+        )
+
         # Create initial state using the helper function
         state_in: ReviewState = create_initial_state(
             code=request.student_submission.code,
+            assignment_language=request.assignment.language,
             sandbox_results=[
                 {
                     "id": i,
@@ -47,10 +55,14 @@ async def review_code(
             assignment_requirements=request.assignment.content,
             expected_concepts=request.assignment.expected_concepts,
         )
-        logger.debug(f"Creating initial state: {state_in}")
+        logger.debug("Created initial workflow state summary: %s", summarize_state(state_in))
 
         # Run the review graph
         result_state = await review_code_service.review_code(state_in)
+        logger.debug(
+            "Workflow completed with result summary: %s",
+            summarize_state(result_state),
+        )
         # Get the overview and review items from the result state
         overview = result_state["overview"]
         review_items = [
@@ -78,4 +90,5 @@ async def review_code(
         )
 
     except Exception as e:
+        logger.exception("Review process failed")
         raise HTTPException(status_code=500, detail=f"Review process failed: {str(e)}")
