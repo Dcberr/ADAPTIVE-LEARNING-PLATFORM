@@ -7,6 +7,13 @@ import type {
 } from "@/data/lms/extendedMockData"
 import { baseApi } from "@/store/redux/api/baseApi"
 
+type ApiResponse<T> = {
+  success: boolean
+  message: string
+  data: T
+  timestamp: string
+}
+
 type CreateTopicRequest = Pick<CourseTopic, "courseId" | "title" | "summary">
 type UpdateTopicRequest = {
   id: string
@@ -23,9 +30,72 @@ type SaveProblemRequest = {
   id?: string
   payload: Omit<ProblemBankEntry, "id">
 }
+type CreateClassRequest = {
+  name: string
+  description: string
+}
+type CreatedClass = {
+  id: string
+  name: string
+  description: string
+  instructorId: string
+}
+export type LecturerClassSummary = {
+  id: string
+  name: string
+  instructorName: string
+  enrolledStudentsCount: number
+  status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | string
+}
+export type LecturerClassDetail = {
+  name: string
+  instructorName: string
+  enrolledStudentsCount: number
+  createdAt: string
+  status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | string
+  schedule: string | null
+}
+type AddStudentToClassRequest = {
+  classId: string
+  studentId: string
+}
 
 export const lmsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getMyClasses: builder.query<LecturerClassSummary[], void>({
+      query: () => "/classes/me",
+      transformResponse: (response: ApiResponse<LecturerClassSummary[]>) => response.data,
+      providesTags: (result) => [
+        { type: "Class" as const, id: "LIST" },
+        ...(result?.map((item) => ({ type: "Class" as const, id: item.id })) ?? []),
+      ],
+    }),
+    getClassById: builder.query<LecturerClassDetail, string>({
+      query: (classId) => `/classes/${classId}`,
+      transformResponse: (response: ApiResponse<LecturerClassDetail>) => response.data,
+      providesTags: (_result, _error, classId) => [{ type: "Class" as const, id: classId }],
+    }),
+    createClass: builder.mutation<CreatedClass, CreateClassRequest>({
+      query: (body) => ({
+        url: "/classes",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<CreatedClass>) => response.data,
+      invalidatesTags: [{ type: "Class" as const, id: "LIST" }],
+    }),
+    addStudentToClass: builder.mutation<null, AddStudentToClassRequest>({
+      query: ({ classId, studentId }) => ({
+        url: `/classes/${classId}/students`,
+        method: "POST",
+        body: { studentId },
+      }),
+      transformResponse: (response: ApiResponse<null>) => response.data,
+      invalidatesTags: (_result, _error, { classId }) => [
+        { type: "Class" as const, id: "LIST" },
+        { type: "Class" as const, id: classId },
+      ],
+    }),
     getCourses: builder.query<Course[], void>({
       query: () => "/courses",
       providesTags: ["Course"],
@@ -123,6 +193,10 @@ export const lmsApi = baseApi.injectEndpoints({
 })
 
 export const {
+  useGetMyClassesQuery,
+  useGetClassByIdQuery,
+  useCreateClassMutation,
+  useAddStudentToClassMutation,
   useGetCoursesQuery,
   useGetCourseTopicsQuery,
   useGetCourseMaterialsQuery,

@@ -4,13 +4,14 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react"
 
-import type { UserRole } from "@/data/lms/extendedMockData"
 import { AuroraBackground } from "@/components/ui/shadcn-io/aurora-background"
 import GoogleLoginButton from "@/components/lms/GoogleLoginButton"
 import RoleSelector from "@/components/lms/RoleSelector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { dashboardPathByRole, useAuthStore } from "@/store/authStore"
+import { buildGoogleLoginUrl } from "@/lib/auth"
+import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
+import { authActions, dashboardPathByRole } from "@/store/redux/slices/authSlice"
 
 const platformHighlights = [
   "Adaptive exercise recommendations from the shared problem bank",
@@ -20,25 +21,20 @@ const platformHighlights = [
 
 export default function LoginPage() {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const [loading, setLoading] = useState(false)
-  const hasHydrated = useAuthStore((state) => state.hasHydrated)
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const selectedRole = useAuthStore((state) => state.selectedRole ?? "student")
-  const setSelectedRole = useAuthStore((state) => state.setSelectedRole)
-  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle)
+  const { hasHydrated, isAuthenticated, selectedRole } = useAppSelector((state) => state.auth)
+  const resolvedRole = selectedRole ?? "student"
 
   useEffect(() => {
     if (hasHydrated && isAuthenticated) {
-      router.replace(dashboardPathByRole[selectedRole])
+      router.replace(dashboardPathByRole[resolvedRole])
     }
-  }, [hasHydrated, isAuthenticated, router, selectedRole])
+  }, [hasHydrated, isAuthenticated, resolvedRole, router])
 
-  const handleLogin = async () => {
-    const role: UserRole = selectedRole
+  const handleLogin = () => {
     setLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 650))
-    signInWithGoogle(role)
-    router.push(dashboardPathByRole[role])
+    window.location.href = buildGoogleLoginUrl(resolvedRole)
   }
 
   return (
@@ -70,7 +66,7 @@ export default function LoginPage() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-white/75">
             <ShieldCheck className="size-4 text-[#7ed0ff]" />
-            Mocked Google authentication is enabled when backend auth is not available.
+            Google OAuth uses backend cookies and restores the LMS session after redirect.
           </div>
         </section>
 
@@ -81,26 +77,35 @@ export default function LoginPage() {
             </p>
             <h2 className="mt-3 text-3xl font-bold text-[#030391]">Choose role before authentication</h2>
             <p className="mt-2 text-sm text-slate-600">
-              The selected role is persisted locally so routing can send you to the correct dashboard.
+              Your FE role is mapped to the backend OAuth flow as `student` or `instructor`.
             </p>
           </div>
 
-          <RoleSelector value={selectedRole} onChange={setSelectedRole} />
+          <RoleSelector
+            value={resolvedRole}
+            onChange={(role) => dispatch(authActions.setSelectedRole(role))}
+          />
 
           <div className="mt-6 rounded-3xl border border-[#030391]/10 bg-[#f8fbff] p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-500">Selected role</p>
-                <p className="text-xl font-semibold text-[#030391]">{selectedRole}</p>
+                <p className="text-xl font-semibold text-[#030391]">{resolvedRole}</p>
               </div>
               <ArrowRight className="size-5 text-[#1488D8]" />
             </div>
-            <GoogleLoginButton role={selectedRole} loading={loading} onClick={handleLogin} />
+            <GoogleLoginButton role={resolvedRole} loading={loading} onClick={handleLogin} />
             <Button
               type="button"
               variant="ghost"
               className="mt-3 w-full rounded-2xl text-[#030391] hover:bg-[#E3F2FD]"
-              onClick={() => setSelectedRole(selectedRole === "student" ? "lecturer" : "student")}
+              onClick={() =>
+                dispatch(
+                  authActions.setSelectedRole(
+                    resolvedRole === "student" ? "lecturer" : "student"
+                  )
+                )
+              }
             >
               Switch role
             </Button>

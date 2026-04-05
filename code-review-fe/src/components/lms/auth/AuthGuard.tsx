@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 import type { UserRole } from "@/data/lms/extendedMockData"
-import { useAuthStore } from "@/store/authStore"
+import { useAppSelector } from "@/store/redux/hooks"
 
 export default function AuthGuard({
   children,
@@ -14,9 +14,7 @@ export default function AuthGuard({
   requiredRole: UserRole
 }) {
   const router = useRouter()
-  const hasHydrated = useAuthStore((state) => state.hasHydrated)
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const selectedRole = useAuthStore((state) => state.selectedRole)
+  const { hasHydrated, isAuthenticated, selectedRole } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     if (!hasHydrated) {

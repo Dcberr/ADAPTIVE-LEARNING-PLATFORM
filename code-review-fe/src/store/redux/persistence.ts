@@ -40,9 +40,6 @@ export function loadPersistedLmsState() {
 export function persistAuthState(state: RootState["auth"]) {
   writeStorage(AUTH_KEY, {
     selectedRole: state.selectedRole,
-    isAuthenticated: state.isAuthenticated,
-    user: state.user,
-    hasHydrated: state.hasHydrated,
   })
 }
 

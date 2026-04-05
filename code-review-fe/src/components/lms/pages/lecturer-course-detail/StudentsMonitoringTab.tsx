@@ -23,6 +23,15 @@ function StudentsMonitoringTabComponent({
         <CardTitle className="text-base text-[#030391]">Student monitoring</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {students.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
+            <p className="font-medium text-[#030391]">Chưa có dữ liệu monitoring cho lớp này.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Khi backend có API danh sách sinh viên theo lớp, phần này có thể nối thẳng dữ liệu thật.
+            </p>
+          </div>
+        ) : null}
+
         {students.map((student) => (
           <div key={student.id} className="rounded-2xl border border-slate-200 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -1,61 +1,87 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ArrowRight, Users } from "lucide-react"
+import { type FormEvent, useState } from "react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getLecturerCourses } from "@/services/lms/mockLmsService"
+import {
+  useCreateClassMutation,
+  useGetMyClassesQuery,
+} from "@/store/redux/api/lmsApi"
+import ClassesGrid from "@/components/lms/pages/lecturer-courses/ClassesGrid"
+import ClassesOverviewCard from "@/components/lms/pages/lecturer-courses/ClassesOverviewCard"
+import CreateClassCard from "@/components/lms/pages/lecturer-courses/CreateClassCard"
 
-type ManagedCourse = Awaited<ReturnType<typeof getLecturerCourses>>[number]
+type FeedbackState =
+  | {
+      tone: "success" | "error"
+      message: string
+    }
+  | null
 
 export default function LecturerCoursesPage() {
-  const [courses, setCourses] = useState<ManagedCourse[]>([])
+  const [draft, setDraft] = useState({ name: "", description: "" })
+  const [feedback, setFeedback] = useState<FeedbackState>(null)
+  const [highlightedClassId, setHighlightedClassId] = useState<string | null>(null)
+  const {
+    data: classes = [],
+    error,
+    isLoading,
+    refetch,
+  } = useGetMyClassesQuery()
+  const [createClass, { isLoading: isCreating }] = useCreateClassMutation()
 
-  useEffect(() => {
-    getLecturerCourses().then(setCourses)
-  }, [])
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const name = draft.name.trim()
+    const description = draft.description.trim()
+
+    if (!name || !description) {
+      setFeedback({
+        tone: "error",
+        message: "Tên lớp và mô tả là bắt buộc.",
+      })
+      return
+    }
+
+    try {
+      const createdClass = await createClass({ name, description }).unwrap()
+      setDraft({ name: "", description: "" })
+      setHighlightedClassId(createdClass.id)
+      setFeedback({
+        tone: "success",
+        message: `Đã tạo lớp "${createdClass.name}".`,
+      })
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Không thể tạo lớp. Kiểm tra lại backend hoặc quyền hiện tại.",
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl text-[#030391]">Managed Courses</CardTitle>
-          <p className="text-sm text-slate-500">
-            Open a course to manage topics, upload materials, configure coding assignments, and
-            inspect student submissions.
-          </p>
-        </CardHeader>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {courses.map((course) => (
-          <Card key={course.id} className="border border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <Badge className={`${course.color} text-white`}>{course.code}</Badge>
-                  <h3 className="mt-3 text-xl font-semibold text-[#030391]">{course.name}</h3>
-                  <p className="mt-2 text-sm text-slate-600">{course.description}</p>
-                </div>
-                <Users className="size-6 text-[#1488D8]" />
-              </div>
-              <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                <span>{course.enrolled} students</span>
-                <span>Progress {course.progress}%</span>
-                <span>{course.schedule}</span>
-              </div>
-              <Link href={`/lecturer/courses/${course.id}`}>
-                <Button className="mt-5 rounded-xl bg-[#030391] text-white hover:bg-[#030391]/90">
-                  Open course <ArrowRight className="size-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <ClassesOverviewCard
+          classCount={classes.length}
+          enrolledStudentCount={classes.reduce((sum, item) => sum + item.enrolledStudentsCount, 0)}
+        />
+        <CreateClassCard
+          draft={draft}
+          feedback={feedback}
+          isCreating={isCreating}
+          onChange={(patch) => setDraft((state) => ({ ...state, ...patch }))}
+          onSubmit={handleSubmit}
+        />
       </div>
+
+      <ClassesGrid
+        classes={classes}
+        isLoading={isLoading}
+        hasError={Boolean(error)}
+        highlightedClassId={highlightedClassId}
+        onRetry={refetch}
+      />
     </div>
   )
 }

@@ -2,5 +2,5 @@ import LecturerCourseDetailPage from "@/components/lms/pages/LecturerCourseDetai
 
 export default async function Page({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params
-  return <LecturerCourseDetailPage courseId={courseId} />
+  return <LecturerCourseDetailPage classId={courseId} />
 }

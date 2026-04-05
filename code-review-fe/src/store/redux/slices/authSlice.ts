@@ -1,12 +1,12 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 
 import type { UserRole } from "@/data/lms/extendedMockData"
-import { lecturerProfile, studentProfile } from "@/data/lms/extendedMockData"
 
 export type StoredUser = {
   id: string
   name: string
   email: string
+  picture?: string | null
 }
 
 export type AuthSliceState = {
@@ -14,6 +14,11 @@ export type AuthSliceState = {
   isAuthenticated: boolean
   user: StoredUser | null
   hasHydrated: boolean
+}
+
+export const dashboardPathByRole: Record<UserRole, string> = {
+  student: "/student/dashboard",
+  lecturer: "/lecturer/dashboard",
 }
 
 const initialState: AuthSliceState = {
@@ -33,15 +38,17 @@ const authSlice = createSlice({
         state.isAuthenticated = action.payload.isAuthenticated ?? state.isAuthenticated
         state.user = action.payload.user ?? state.user
       }
-      state.hasHydrated = true
     },
     setSelectedRole: (state, action: PayloadAction<UserRole>) => {
       state.selectedRole = action.payload
     },
-    signInWithGoogle: (state, action: PayloadAction<UserRole>) => {
-      state.selectedRole = action.payload
+    setSession: (
+      state,
+      action: PayloadAction<{ selectedRole: UserRole; user: StoredUser }>
+    ) => {
+      state.selectedRole = action.payload.selectedRole
       state.isAuthenticated = true
-      state.user = action.payload === "student" ? studentProfile : lecturerProfile
+      state.user = action.payload.user
     },
     logout: (state) => {
       state.selectedRole = "student"

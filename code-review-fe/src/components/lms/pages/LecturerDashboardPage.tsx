@@ -44,7 +44,7 @@ export default function LecturerDashboardPage() {
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/lecturer/courses">
             <Button className="rounded-xl bg-white text-[#030391] hover:bg-white/90">
-              Open managed courses
+              Open managed classes
             </Button>
           </Link>
           <Link href="/lecturer/problem-bank">
@@ -62,7 +62,7 @@ export default function LecturerDashboardPage() {
         <Card>
           <CardContent className="flex items-center justify-between p-6">
             <div>
-              <p className="text-sm text-slate-500">Managed courses</p>
+              <p className="text-sm text-slate-500">Managed classes</p>
               <p className="mt-1 text-3xl font-bold text-[#030391]">{overview?.managedCourses ?? "--"}</p>
             </div>
             <BookOpen className="size-8 text-[#1488D8]" />
@@ -100,7 +100,7 @@ export default function LecturerDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg text-[#030391]">Courses managed</CardTitle>
+            <CardTitle className="text-lg text-[#030391]">Classes managed</CardTitle>
             <Link href="/lecturer/courses">
               <Button variant="ghost" size="sm" className="text-[#030391]">
                 View all <ArrowRight className="size-4" />

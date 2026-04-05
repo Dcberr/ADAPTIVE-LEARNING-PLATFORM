@@ -1,7 +1,10 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react"
 
+import { getBackendBaseUrl } from "@/lib/auth"
+
 export const apiTagTypes = [
   "Auth",
+  "Class",
   "Course",
   "Topic",
   "Material",
@@ -14,7 +17,7 @@ export const apiTagTypes = [
 export const baseApi = createApi({
   reducerPath: "baseApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api",
+    baseUrl: getBackendBaseUrl(),
     credentials: "include",
   }),
   tagTypes: [...apiTagTypes],

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { Provider } from "react-redux"
 
+import { getCurrentUser } from "@/lib/auth"
 import {
   loadPersistedAuthState,
   loadPersistedLmsState,
@@ -21,6 +22,8 @@ export default function StoreProvider({ children }: { children: React.ReactNode 
       return
     }
 
+    let cancelled = false
+
     store.dispatch(authActions.hydrateAuthState(loadPersistedAuthState()))
     store.dispatch(lmsActions.hydrateLmsState(loadPersistedLmsState()))
 
@@ -30,9 +33,36 @@ export default function StoreProvider({ children }: { children: React.ReactNode 
       persistLmsState(state.lms)
     })
 
+    void (async () => {
+      try {
+        const session = await getCurrentUser()
+
+        if (cancelled) {
+          return
+        }
+
+        if (session) {
+          store.dispatch(authActions.setSession(session))
+        } else {
+          store.dispatch(authActions.logout())
+        }
+      } catch {
+        if (!cancelled) {
+          store.dispatch(authActions.logout())
+        }
+      } finally {
+        if (!cancelled) {
+          store.dispatch(authActions.setHasHydrated(true))
+        }
+      }
+    })()
+
     initialized.current = true
 
-    return unsubscribe
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
   }, [])
 
   return <Provider store={store}>{children}</Provider>

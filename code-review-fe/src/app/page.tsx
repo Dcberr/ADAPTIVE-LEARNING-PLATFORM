@@ -3,21 +3,21 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-import { dashboardPathByRole, useAuthStore } from "@/store/authStore"
+import { useAppSelector } from "@/store/redux/hooks"
+import { dashboardPathByRole } from "@/store/redux/slices/authSlice"
 
 export default function Page() {
   const router = useRouter()
-  const hasHydrated = useAuthStore((state) => state.hasHydrated)
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const selectedRole = useAuthStore((state) => state.selectedRole ?? "student")
+  const { hasHydrated, isAuthenticated, selectedRole } = useAppSelector((state) => state.auth)
+  const resolvedRole = selectedRole ?? "student"
 
   useEffect(() => {
     if (!hasHydrated) {
       return
     }
 
-    router.replace(isAuthenticated ? dashboardPathByRole[selectedRole] : "/login")
-  }, [hasHydrated, isAuthenticated, router, selectedRole])
+    router.replace(isAuthenticated ? dashboardPathByRole[resolvedRole] : "/login")
+  }, [hasHydrated, isAuthenticated, resolvedRole, router])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f8f9fc]">

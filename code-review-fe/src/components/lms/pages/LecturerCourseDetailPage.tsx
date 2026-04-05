@@ -1,82 +1,43 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
-import { ArrowLeft, FilePenLine, Plus } from "lucide-react"
 
-import AssignmentDraftModalForm from "@/components/lms/pages/lecturer-course-detail/AssignmentDraftModalForm"
-import ContentTab from "@/components/lms/pages/lecturer-course-detail/ContentTab"
-import ResourceModalForm, {
-  type ResourceDraft,
-} from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
-import StudentsMonitoringTab from "@/components/lms/pages/lecturer-course-detail/StudentsMonitoringTab"
+import ClassWorkspaceHeader from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceHeader"
+import ClassWorkspaceModals from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceModals"
+import ClassWorkspaceTabs from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceTabs"
+import {
+  emptyAssignmentDraft,
+  emptyResourceDraft,
+  formatClassDate,
+  getClassStatusClassName,
+} from "@/components/lms/pages/lecturer-course-detail/constants"
+import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 import type {
   AssignmentDraft,
   LecturerCourseBundle,
 } from "@/components/lms/pages/lecturer-course-detail/types"
-import SimpleModal from "@/components/lms/SimpleModal"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
-import { studentPerformance, type CourseMaterial } from "@/data/lms/extendedMockData"
+import { studentPerformance } from "@/data/lms/extendedMockData"
 import { assignments as baseAssignments } from "@/data/lms/mockData"
-import { getStudentCourseById } from "@/services/lms/mockLmsService"
+import {
+  useAddStudentToClassMutation,
+  useGetClassByIdQuery,
+} from "@/store/redux/api/lmsApi"
 import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
 import { lmsActions } from "@/store/redux/slices/lmsSlice"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { EditableTestCase } from "@/components/lms/TestCaseManager"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type LecturerTab = "content" | "students"
+type FeedbackState =
+  | {
+      tone: "success" | "error"
+      message: string
+    }
+  | null
 
-const defaultDraftTests: EditableTestCase[] = [
-  {
-    id: "draft-test-1",
-    input: "nums = [2, 7, 11, 15], target = 9",
-    expectedOutput: "[0, 1]",
-    hidden: false,
-  },
-  {
-    id: "draft-test-2",
-    input: "nums = [3, 2, 4], target = 6",
-    expectedOutput: "[1, 2]",
-    hidden: true,
-  },
-]
-
-const emptyResourceDraft: ResourceDraft = {
-  topicId: "",
-  title: "",
-  type: "file" as CourseMaterial["type"],
-  resourceUrl: "",
-  fileSize: "",
-  previewLabel: "",
-}
-
-const emptyAssignmentDraft: AssignmentDraft = {
-  id: "",
-  topicId: "",
-  title: "",
-  description: "",
-  difficulty: "Easy",
-  score: "100",
-  timeLimit: "45 phút",
-  openAt: "",
-  deadline: "",
-  attemptsAllowed: "2",
-  constraints: "",
-  examples: "",
-  topics: "",
-  starterCode: {
-    python: "def solve(nums, target):\n    pass",
-    javascript: "function solve(nums, target) {\n  return []\n}",
-    java: "class Solution {\n    public int[] solve(int[] nums, int target) {\n        return new int[]{};\n    }\n}",
-    cpp: "#include <vector>\nusing namespace std;\n\nvector<int> solve(vector<int>& nums, int target) {\n    return {};\n}",
-  },
-  testCases: defaultDraftTests,
-}
-
-export default function LecturerCourseDetailPage({ courseId }: { courseId: string }) {
+export default function LecturerCourseDetailPage({ classId }: { classId: string }) {
   const [editMode, setEditMode] = useState(false)
   const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({})
   const [assignmentDrafts, setAssignmentDrafts] = useState<AssignmentDraft[]>([])
@@ -84,35 +45,55 @@ export default function LecturerCourseDetailPage({ courseId }: { courseId: strin
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null)
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
-  const [resourceDraft, setResourceDraft] = useState(emptyResourceDraft)
+  const [resourceDraft, setResourceDraft] = useState<ResourceDraft>(emptyResourceDraft)
   const [assignmentDraft, setAssignmentDraft] = useState(emptyAssignmentDraft)
+  const [studentId, setStudentId] = useState("")
+  const [feedback, setFeedback] = useState<FeedbackState>(null)
+  const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<LecturerTab>("content")
   const dispatch = useAppDispatch()
   const topicsState = useAppSelector((state) => state.lms.topics)
   const materialsState = useAppSelector((state) => state.lms.materials)
+  const {
+    data: classroom,
+    error,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useGetClassByIdQuery(classId)
+  const [addStudentToClass, { isLoading: isAddingStudent }] = useAddStudentToClassMutation()
 
-  const course = getStudentCourseById(courseId)
   const bundle = useMemo<LecturerCourseBundle | null>(() => {
-    if (!course) {
+    if (!classroom) {
       return null
     }
 
     const topics = topicsState
-      .filter((topic) => topic.courseId === courseId)
+      .filter((topic) => topic.courseId === classId)
       .sort((left, right) => left.order - right.order)
       .map((topic) => ({
         ...topic,
         materials: materialsState.filter((material) => material.topicId === topic.id),
-        assignments: baseAssignments.filter((assignment) => topic.assignmentIds.includes(assignment.id)),
+        assignments: baseAssignments.filter((assignment) =>
+          topic.assignmentIds.includes(assignment.id)
+        ),
       }))
 
     return {
-      course,
+      course: {
+        id: classId,
+        code: classroom.status,
+        name: classroom.name,
+        description: `Instructor ${classroom.instructorName} • ${classroom.enrolledStudentsCount} students • ${
+          classroom.schedule ?? "Schedule chưa cấu hình"
+        } • Created ${formatClassDate(classroom.createdAt)}`,
+        color: "bg-[#030391]",
+      },
       topics,
-      students: studentPerformance.filter((student) => student.courseId === courseId),
-      assignments: baseAssignments.filter((assignment) => assignment.courseId === courseId),
+      students: studentPerformance.filter((student) => student.courseId === classId),
+      assignments: baseAssignments.filter((assignment) => assignment.courseId === classId),
     }
-  }, [course, courseId, materialsState, topicsState])
+  }, [classId, classroom, materialsState, topicsState])
 
   const topicCards = useMemo(
     () =>
@@ -122,7 +103,6 @@ export default function LecturerCourseDetailPage({ courseId }: { courseId: strin
       })) ?? [],
     [assignmentDrafts, bundle]
   )
-  const topicCount = bundle?.topics.length ?? 0
 
   const resetResourceModal = () => {
     setResourceModalOpen(false)
@@ -136,47 +116,45 @@ export default function LecturerCourseDetailPage({ courseId }: { courseId: strin
     setAssignmentDraft(emptyAssignmentDraft)
   }
 
-  const openResourceModal = useCallback((topicId: string, materialId?: string) => {
-    const material = topicCards
-      .flatMap((topic) => topic.materials)
-      .find((item) => item.id === materialId)
+  const openResourceModal = useCallback(
+    (topicId: string, materialId?: string) => {
+      const material = topicCards
+        .flatMap((topic) => topic.materials)
+        .find((item) => item.id === materialId)
 
-    setEditingMaterialId(material?.id ?? null)
-    setResourceDraft(
-      material
-        ? {
-            topicId,
-            title: material.title,
-            type: material.type,
-            resourceUrl: material.resourceUrl,
-            fileSize: material.fileSize,
-            previewLabel: material.previewLabel,
-          }
-        : { ...emptyResourceDraft, topicId }
-    )
-    setResourceModalOpen(true)
-  }, [topicCards])
+      setEditingMaterialId(material?.id ?? null)
+      setResourceDraft(
+        material
+          ? {
+              topicId,
+              title: material.title,
+              type: material.type,
+              resourceUrl: material.resourceUrl,
+              fileSize: material.fileSize,
+              previewLabel: material.previewLabel,
+            }
+          : { ...emptyResourceDraft, topicId }
+      )
+      setResourceModalOpen(true)
+    },
+    [topicCards]
+  )
 
   const openAssignmentModal = useCallback((topicId: string, draft?: AssignmentDraft) => {
     setEditingDraftId(draft?.id ?? null)
-    setAssignmentDraft(
-      draft
-        ? draft
-        : {
-            ...emptyAssignmentDraft,
-            topicId,
-          }
-    )
+    setAssignmentDraft(draft ? draft : { ...emptyAssignmentDraft, topicId })
     setAssignmentModalOpen(true)
   }, [])
 
   const handleAddSection = useCallback(() => {
-    dispatch(lmsActions.addTopic({
-      courseId,
-      title: `New section ${topicCount + 1}`,
-      summary: "Mô tả nội dung học phần cho section này.",
-    }))
-  }, [courseId, dispatch, topicCount])
+    dispatch(
+      lmsActions.addTopic({
+        courseId: classId,
+        title: `New section ${topicCards.length + 1}`,
+        summary: "Mô tả nội dung học phần cho section này.",
+      })
+    )
+  }, [classId, dispatch, topicCards.length])
 
   const handleSaveMaterial = useCallback(() => {
     if (!resourceDraft.title.trim()) {
@@ -186,10 +164,12 @@ export default function LecturerCourseDetailPage({ courseId }: { courseId: strin
     if (editingMaterialId) {
       dispatch(lmsActions.updateMaterial({ id: editingMaterialId, patch: resourceDraft }))
     } else {
-      dispatch(lmsActions.addMaterial({
-        ...resourceDraft,
-        uploadedAt: new Date().toISOString(),
-      }))
+      dispatch(
+        lmsActions.addMaterial({
+          ...resourceDraft,
+          uploadedAt: new Date().toISOString(),
+        })
+      )
     }
 
     resetResourceModal()
@@ -205,13 +185,11 @@ export default function LecturerCourseDetailPage({ courseId }: { courseId: strin
       id: editingDraftId ?? `draft-${Date.now()}`,
     }
 
-    setAssignmentDrafts((state) => {
-      if (editingDraftId) {
-        return state.map((item) => (item.id === editingDraftId ? nextDraft : item))
-      }
-
-      return [nextDraft, ...state]
-    })
+    setAssignmentDrafts((state) =>
+      editingDraftId
+        ? state.map((item) => (item.id === editingDraftId ? nextDraft : item))
+        : [nextDraft, ...state]
+    )
 
     resetAssignmentModal()
   }, [assignmentDraft, editingDraftId])
@@ -223,143 +201,128 @@ export default function LecturerCourseDetailPage({ courseId }: { courseId: strin
     }))
   }, [])
 
-  const handleUpdateTopic = useCallback(
-    (topicId: string, patch: { title?: string; summary?: string }) => {
-      dispatch(lmsActions.updateTopic({ id: topicId, patch }))
-    },
-    [dispatch]
-  )
+  const handleAddStudent = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
 
-  const handleDeleteTopic = useCallback(
-    (topicId: string) => {
-      dispatch(lmsActions.deleteTopic(topicId))
-    },
-    [dispatch]
-  )
+    const normalizedStudentId = studentId.trim()
+    if (!normalizedStudentId) {
+      setFeedback({
+        tone: "error",
+        message: "Student ID là bắt buộc.",
+      })
+      return
+    }
 
-  const handleDeleteMaterial = useCallback(
-    (materialId: string) => {
-      dispatch(lmsActions.deleteMaterial(materialId))
-    },
-    [dispatch]
-  )
+    try {
+      await addStudentToClass({
+        classId,
+        studentId: normalizedStudentId,
+      }).unwrap()
+      setRecentStudentIds((state) =>
+        [normalizedStudentId, ...state.filter((id) => id !== normalizedStudentId)].slice(0, 5)
+      )
+      setStudentId("")
+      setFeedback({
+        tone: "success",
+        message: `Đã thêm student ${normalizedStudentId} vào lớp.`,
+      })
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Không thể thêm học sinh vào lớp. Kiểm tra lại student ID hoặc quyền hiện tại.",
+      })
+    }
+  }
 
-  const handleDeleteDraftAssignment = useCallback((draftId: string) => {
-    setAssignmentDrafts((state) => state.filter((item) => item.id !== draftId))
-  }, [])
-
-  if (!bundle) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Loading course workspace...</CardTitle>
+          <CardTitle>Loading class workspace...</CardTitle>
         </CardHeader>
+      </Card>
+    )
+  }
+
+  if (error || !bundle || !classroom) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Unable to load class workspace</CardTitle>
+        </CardHeader>
+        <CardContent className="flex gap-3">
+          <Button variant="outline" onClick={() => refetch()}>
+            Retry
+          </Button>
+          <Link href="/lecturer/courses">
+            <Button className="bg-[#030391] text-white hover:bg-[#030391]/90">
+              Back to classes
+            </Button>
+          </Link>
+        </CardContent>
       </Card>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/lecturer/courses">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 size-4" /> Back to Courses
-          </Button>
-        </Link>
-        <div className="flex gap-3">
-          <Button
-            variant={editMode ? "default" : "outline"}
-            className="rounded-2xl"
-            onClick={() => setEditMode((value) => !value)}
-          >
-            <FilePenLine className="size-4" />
-            {editMode ? "Thoát chỉnh sửa" : "Chỉnh sửa nội dung"}
-          </Button>
-          {editMode ? (
-            <Button
-              className="rounded-2xl bg-[#1488D8] text-white hover:bg-[#1488D8]/90"
-              onClick={handleAddSection}
-            >
-              <Plus className="size-4" />
-              Add section
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      <ClassWorkspaceHeader
+        className={bundle.course.name}
+        classDescription={bundle.course.description}
+        classStatus={classroom.status}
+        statusClassName={getClassStatusClassName(classroom.status)}
+        editMode={editMode}
+        isRefreshing={isFetching}
+        onRefresh={refetch}
+        onToggleEditMode={() => setEditMode((value) => !value)}
+        onAddSection={handleAddSection}
+      />
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className={`${bundle.course.color} text-white`}>{bundle.course.code}</Badge>
-            <CardTitle className="text-2xl text-[#030391]">{bundle.course.name}</CardTitle>
-          </div>
-          <p className="text-sm text-slate-600">{bundle.course.description}</p>
-        </CardHeader>
-      </Card>
+      <ClassWorkspaceTabs
+        activeTab={activeTab}
+        hasMountedContent={hasMounted("content")}
+        hasMountedStudents={hasMounted("students")}
+        editMode={editMode}
+        topicCards={topicCards}
+        collapsedTopics={collapsedTopics}
+        classroom={classroom}
+        studentId={studentId}
+        feedback={feedback}
+        recentStudentIds={recentStudentIds}
+        students={bundle.students}
+        isAddingStudent={isAddingStudent}
+        formattedCreatedAt={formatClassDate(classroom.createdAt)}
+        onTabChange={handleTabChange}
+        onToggleTopic={handleToggleTopic}
+        onUpdateTopic={(topicId, patch) => dispatch(lmsActions.updateTopic({ id: topicId, patch }))}
+        onDeleteTopic={(topicId) => dispatch(lmsActions.deleteTopic(topicId))}
+        onDeleteMaterial={(materialId) => dispatch(lmsActions.deleteMaterial(materialId))}
+        onOpenResourceModal={openResourceModal}
+        onOpenAssignmentModal={openAssignmentModal}
+        onDeleteDraftAssignment={(draftId) =>
+          setAssignmentDrafts((state) => state.filter((item) => item.id !== draftId))
+        }
+        onAddSection={handleAddSection}
+        onStudentIdChange={setStudentId}
+        onAddStudent={handleAddStudent}
+      />
 
-      <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as LecturerTab)}>
-        <TabsList>
-          <TabsTrigger value="content">Nội dung khóa học</TabsTrigger>
-          <TabsTrigger value="students">Sinh viên</TabsTrigger>
-        </TabsList>
-
-        <TabsContent
-          value="content"
-          forceMount={hasMounted("content") ? true : undefined}
-          hidden={activeTab !== "content"}
-        >
-          <ContentTab
-            topicCards={topicCards}
-            editMode={editMode}
-            collapsedTopics={collapsedTopics}
-            onToggleTopic={handleToggleTopic}
-            onUpdateTopic={handleUpdateTopic}
-            onDeleteTopic={handleDeleteTopic}
-            onDeleteMaterial={handleDeleteMaterial}
-            onOpenResourceModal={openResourceModal}
-            onOpenAssignmentModal={openAssignmentModal}
-            onDeleteDraftAssignment={handleDeleteDraftAssignment}
-            onAddSection={handleAddSection}
-          />
-        </TabsContent>
-
-        <TabsContent
-          value="students"
-          forceMount={hasMounted("students") ? true : undefined}
-          hidden={activeTab !== "students"}
-          className="mt-6"
-        >
-          <StudentsMonitoringTab students={bundle.students} />
-        </TabsContent>
-      </Tabs>
-
-      <SimpleModal
-        open={resourceModalOpen}
-        title={editingMaterialId ? "Chỉnh sửa tài nguyên" : "Thêm tài nguyên"}
-        description="Nhập thông tin file, video hoặc image resource cho section hiện tại."
-        onClose={resetResourceModal}
-      >
-        <ResourceModalForm
-          draft={resourceDraft}
-          onChange={(patch) => setResourceDraft((state) => ({ ...state, ...patch }))}
-          onCancel={resetResourceModal}
-          onSave={handleSaveMaterial}
-        />
-      </SimpleModal>
-
-      <SimpleModal
-        open={assignmentModalOpen}
-        title={editingDraftId ? "Chỉnh sửa assignment" : "Thêm assignment"}
-        description="Popup này mô phỏng form tạo assignment như bên LMS."
-        onClose={resetAssignmentModal}
-      >
-        <AssignmentDraftModalForm
-          draft={assignmentDraft}
-          onChange={(patch) => setAssignmentDraft((state) => ({ ...state, ...patch }))}
-          onCancel={resetAssignmentModal}
-          onSave={handleSaveAssignmentDraft}
-        />
-      </SimpleModal>
+      <ClassWorkspaceModals
+        resourceModalOpen={resourceModalOpen}
+        assignmentModalOpen={assignmentModalOpen}
+        editingMaterialId={editingMaterialId}
+        editingDraftId={editingDraftId}
+        resourceDraft={resourceDraft}
+        assignmentDraft={assignmentDraft}
+        onCloseResourceModal={resetResourceModal}
+        onCloseAssignmentModal={resetAssignmentModal}
+        onResourceDraftChange={(patch) => setResourceDraft((state) => ({ ...state, ...patch }))}
+        onAssignmentDraftChange={(patch) =>
+          setAssignmentDraft((state) => ({ ...state, ...patch }))
+        }
+        onSaveResource={handleSaveMaterial}
+        onSaveAssignment={handleSaveAssignmentDraft}
+      />
     </div>
   )
 }

@@ -31,7 +31,7 @@ export const studentNavItems: NavItem[] = [
 
 export const lecturerNavItems: NavItem[] = [
   { name: "Dashboard", href: "/lecturer/dashboard", icon: Gauge },
-  { name: "Courses", href: "/lecturer/courses", icon: BookOpen },
+  { name: "Lớp học", href: "/lecturer/courses", icon: BookOpen },
   { name: "Problem Bank", href: "/lecturer/problem-bank", icon: Library },
   { name: "Lịch", href: "/lecturer/calendar", icon: Calendar },
   { name: "Tin nhắn", href: "/lecturer/messages", icon: MessageSquare },
