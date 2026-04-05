@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import { ChevronDown, ChevronRight, Link2, Plus, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronRight, Download, ExternalLink, Link2, Plus, Trash2 } from "lucide-react"
 
 import MaterialIcon from "@/components/lms/pages/lecturer-course-detail/MaterialIcon"
 import type {
@@ -39,6 +39,30 @@ function TopicSectionCardComponent({
   onOpenAssignmentModal,
   onDeleteDraftAssignment,
 }: TopicSectionCardProps) {
+  const getMaterialMeta = (description: string, previewLabel: string, fileSize: string) =>
+    [description, previewLabel, fileSize].filter(Boolean).join(" • ")
+
+  const handleDownloadMaterial = async (title: string, resourceUrl: string) => {
+    const response = await fetch(resourceUrl, {
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      throw new Error("Unable to download resource")
+    }
+
+    const blob = await response.blob()
+    const objectUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement("a")
+
+    link.href = objectUrl
+    link.download = title
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(objectUrl)
+  }
+
   return (
     <Card className="overflow-hidden rounded-[2rem] border border-slate-200">
       <CardContent className="p-0">
@@ -103,14 +127,41 @@ function TopicSectionCardComponent({
                   <div className="flex items-center gap-4">
                     <MaterialIcon type={material.type} />
                     <div>
-                      <p className="text-xl font-medium text-[#0f84c2]">{material.title}</p>
+                      <a
+                        href={material.resourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xl font-medium text-[#0f84c2] transition hover:text-[#1557d6] hover:underline"
+                      >
+                        {material.title}
+                      </a>
                       <p className="mt-1 text-sm text-slate-500">
-                        {material.previewLabel} • {material.fileSize}
+                        {getMaterialMeta(material.description, material.previewLabel, material.fileSize)}
                       </p>
                     </div>
                   </div>
-                  {editMode ? (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="rounded-xl">
+                      <a href={material.resourceUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-4" />
+                        Xem file
+                      </a>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => {
+                        void handleDownloadMaterial(material.title, material.resourceUrl).catch(() => {
+                          window.open(material.resourceUrl, "_blank", "noopener,noreferrer")
+                        })
+                      }}
+                    >
+                        <Download className="size-4" />
+                        Tải xuống
+                    </Button>
+                    {editMode ? (
+                      <>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -126,10 +177,11 @@ function TopicSectionCardComponent({
                       >
                         Xóa
                       </Button>
-                    </div>
-                  ) : (
-                    <Badge variant="outline">Resource</Badge>
-                  )}
+                      </>
+                    ) : (
+                      <Badge variant="outline">Resource</Badge>
+                    )}
+                  </div>
                 </div>
               ))}
 
@@ -143,7 +195,8 @@ function TopicSectionCardComponent({
                     <div>
                       <p className="text-xl font-medium text-[#0f84c2]">{assignment.title}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        {assignment.points} điểm • {assignment.difficulty}
+                        {assignment.difficulty}
+                        {assignment.deadline ? ` • Deadline ${assignment.deadline}` : ""}
                       </p>
                     </div>
                   </div>
@@ -242,10 +295,12 @@ function areEqual(left: TopicSectionCardProps, right: TopicSectionCardProps) {
   }
 
   const leftMaterialKeys = left.topic.materials.map(
-    (item) => `${item.id}:${item.title}:${item.type}:${item.resourceUrl}:${item.fileSize}:${item.previewLabel}`
+    (item) =>
+      `${item.id}:${item.title}:${item.description}:${item.type}:${item.resourceUrl}:${item.fileSize}:${item.previewLabel}`
   )
   const rightMaterialKeys = right.topic.materials.map(
-    (item) => `${item.id}:${item.title}:${item.type}:${item.resourceUrl}:${item.fileSize}:${item.previewLabel}`
+    (item) =>
+      `${item.id}:${item.title}:${item.description}:${item.type}:${item.resourceUrl}:${item.fileSize}:${item.previewLabel}`
   )
 
   if (!shallowStringArrayEqual(leftMaterialKeys, rightMaterialKeys)) {
@@ -253,10 +308,10 @@ function areEqual(left: TopicSectionCardProps, right: TopicSectionCardProps) {
   }
 
   const leftAssignmentKeys = left.topic.assignments.map(
-    (item) => `${item.id}:${item.title}:${item.points}:${item.difficulty}`
+    (item) => `${item.id}:${item.title}:${item.deadline}:${item.difficulty}:${item.status}`
   )
   const rightAssignmentKeys = right.topic.assignments.map(
-    (item) => `${item.id}:${item.title}:${item.points}:${item.difficulty}`
+    (item) => `${item.id}:${item.title}:${item.deadline}:${item.difficulty}:${item.status}`
   )
 
   if (!shallowStringArrayEqual(leftAssignmentKeys, rightAssignmentKeys)) {

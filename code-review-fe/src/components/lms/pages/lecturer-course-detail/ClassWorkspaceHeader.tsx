@@ -3,25 +3,44 @@
 import Link from "next/link"
 import { ArrowLeft, FilePenLine, Plus } from "lucide-react"
 
+import { getClassCoverBackgroundImage } from "@/lib/class-cover"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+
+function formatClassStatus(status: string) {
+  const labels: Record<string, string> = {
+    PLANNED: "Sắp mở",
+    IN_PROGRESS: "Đang diễn ra",
+    COMPLETED: "Đã kết thúc",
+  }
+
+  return labels[status] ?? status
+}
 
 export default function ClassWorkspaceHeader({
+  classId,
   className,
-  classDescription,
+  instructorName,
+  enrolledStudentsCount,
+  schedule,
   classStatus,
   statusClassName,
+  imageUrl,
   editMode,
   isRefreshing,
   onRefresh,
   onToggleEditMode,
   onAddSection,
 }: {
+  classId: string
   className: string
-  classDescription: string
+  instructorName: string
+  enrolledStudentsCount: number
+  schedule: string | null
   classStatus: string
   statusClassName: string
+  imageUrl?: string | null
   editMode: boolean
   isRefreshing: boolean
   onRefresh: () => void
@@ -33,12 +52,12 @@ export default function ClassWorkspaceHeader({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/lecturer/courses">
           <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 size-4" /> Back to Classes
+            <ArrowLeft className="mr-2 size-4" /> Quay lại danh sách lớp
           </Button>
         </Link>
         <div className="flex gap-3">
           <Button variant="outline" className="rounded-2xl" onClick={onRefresh}>
-            {isRefreshing ? "Refreshing..." : "Refresh class"}
+            {isRefreshing ? "Đang làm mới..." : "Làm mới lớp"}
           </Button>
           <Button
             variant={editMode ? "default" : "outline"}
@@ -54,21 +73,45 @@ export default function ClassWorkspaceHeader({
               onClick={onAddSection}
             >
               <Plus className="size-4" />
-              Add section
+              Thêm section
             </Button>
           ) : null}
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-[#030391] text-white">CLASS</Badge>
-            <Badge className={statusClassName}>{classStatus}</Badge>
-            <CardTitle className="text-2xl text-[#030391]">{className}</CardTitle>
+      <Card className="overflow-hidden">
+        <div
+          className="relative h-56 border-b border-slate-200 bg-slate-100 bg-cover bg-center"
+          style={{
+            backgroundImage: getClassCoverBackgroundImage({
+              seed: classId,
+              title: className,
+              imageUrl,
+            }),
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute bottom-6 left-6 text-white">
+            <h1 className="text-3xl font-semibold">{className}</h1>
+            <p className="mt-2 text-lg text-gray-200">{instructorName}</p>
           </div>
-          <p className="text-sm text-slate-600">{classDescription}</p>
-        </CardHeader>
+        </div>
+        <CardContent className="p-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr]">
+            <div>
+              <p className="text-sm text-gray-500">Lịch học</p>
+              <p className="mt-2 text-xl font-medium text-slate-900">
+                {schedule ?? "Chưa cấu hình"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Sinh viên tham gia</p>
+              <p className="mt-2 text-xl font-medium text-slate-900">
+                {enrolledStudentsCount} sinh viên
+              </p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
     </>
   )

@@ -13,19 +13,22 @@ import {
   getClassStatusClassName,
 } from "@/components/lms/pages/lecturer-course-detail/constants"
 import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
+import { type TopicDraft } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
 import type {
   AssignmentDraft,
   LecturerCourseBundle,
 } from "@/components/lms/pages/lecturer-course-detail/types"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { studentPerformance } from "@/data/lms/extendedMockData"
-import { assignments as baseAssignments } from "@/data/lms/mockData"
+import { getBackendBaseUrl } from "@/lib/auth"
 import {
   useAddStudentToClassMutation,
+  useCreateAssignmentMutation,
+  useCreateDocumentMutation,
+  useCreateTopicMutation,
   useGetClassByIdQuery,
+  useGetClassTopicsQuery,
 } from "@/store/redux/api/lmsApi"
-import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
-import { lmsActions } from "@/store/redux/slices/lmsSlice"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -40,20 +43,23 @@ type FeedbackState =
 export default function LecturerCourseDetailPage({ classId }: { classId: string }) {
   const [editMode, setEditMode] = useState(false)
   const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({})
+  const [topicDrafts, setTopicDrafts] = useState<
+    Record<string, { title?: string; summary?: string }>
+  >({})
+  const [topicModalOpen, setTopicModalOpen] = useState(false)
   const [assignmentDrafts, setAssignmentDrafts] = useState<AssignmentDraft[]>([])
   const [resourceModalOpen, setResourceModalOpen] = useState(false)
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null)
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
+  const [topicDraft, setTopicDraft] = useState<TopicDraft>({ title: "", description: "" })
   const [resourceDraft, setResourceDraft] = useState<ResourceDraft>(emptyResourceDraft)
   const [assignmentDraft, setAssignmentDraft] = useState(emptyAssignmentDraft)
   const [studentId, setStudentId] = useState("")
   const [feedback, setFeedback] = useState<FeedbackState>(null)
+  const [contentFeedback, setContentFeedback] = useState<FeedbackState>(null)
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<LecturerTab>("content")
-  const dispatch = useAppDispatch()
-  const topicsState = useAppSelector((state) => state.lms.topics)
-  const materialsState = useAppSelector((state) => state.lms.materials)
   const {
     data: classroom,
     error,
@@ -61,23 +67,53 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     isLoading,
     refetch,
   } = useGetClassByIdQuery(classId)
+  const {
+    data: topicDetails = [],
+    isFetching: isFetchingTopics,
+    refetch: refetchTopics,
+  } = useGetClassTopicsQuery(classId)
   const [addStudentToClass, { isLoading: isAddingStudent }] = useAddStudentToClassMutation()
+  const [createDocument, { isLoading: isCreatingDocument }] = useCreateDocumentMutation()
+  const [createAssignment, { isLoading: isCreatingAssignment }] = useCreateAssignmentMutation()
+  const [createTopic, { isLoading: isCreatingTopic }] = useCreateTopicMutation()
+  const backendBaseUrl = getBackendBaseUrl()
 
   const bundle = useMemo<LecturerCourseBundle | null>(() => {
     if (!classroom) {
       return null
     }
 
-    const topics = topicsState
-      .filter((topic) => topic.courseId === classId)
-      .sort((left, right) => left.order - right.order)
-      .map((topic) => ({
-        ...topic,
-        materials: materialsState.filter((material) => material.topicId === topic.id),
-        assignments: baseAssignments.filter((assignment) =>
-          topic.assignmentIds.includes(assignment.id)
-        ),
-      }))
+    const normalizeMaterialType = (value: string): "file" | "video" | "image" => {
+      if (value === "video" || value === "image") {
+        return value
+      }
+
+      return "file"
+    }
+
+    const topics = topicDetails.map((topic, index) => ({
+      id: topic.id,
+      courseId: classId,
+      order: index + 1,
+      title: topicDrafts[topic.id]?.title ?? topic.title,
+      summary: topicDrafts[topic.id]?.summary ?? topic.description,
+      materials: topic.documents.map((document) => ({
+        id: document.id,
+        title: document.title,
+        description: document.description,
+        resourceUrl: `${backendBaseUrl}/documents/download/${document.id}`,
+        type: normalizeMaterialType(document.type),
+        fileSize: "",
+        previewLabel: document.type?.toUpperCase?.() ?? "FILE",
+      })),
+      assignments: topic.assignments.map((assignment) => ({
+        id: assignment.id,
+        title: assignment.title,
+        deadline: assignment.deadline,
+        difficulty: assignment.difficulty,
+        status: assignment.status,
+      })),
+    }))
 
     return {
       course: {
@@ -91,9 +127,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       },
       topics,
       students: studentPerformance.filter((student) => student.courseId === classId),
-      assignments: baseAssignments.filter((assignment) => assignment.courseId === classId),
+      assignments: topics.flatMap((topic) => topic.assignments),
     }
-  }, [classId, classroom, materialsState, topicsState])
+  }, [backendBaseUrl, classId, classroom, topicDetails, topicDrafts])
 
   const topicCards = useMemo(
     () =>
@@ -104,17 +140,22 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     [assignmentDrafts, bundle]
   )
 
-  const resetResourceModal = () => {
+  const resetResourceModal = useCallback(() => {
     setResourceModalOpen(false)
     setEditingMaterialId(null)
     setResourceDraft(emptyResourceDraft)
-  }
+  }, [])
 
-  const resetAssignmentModal = () => {
+  const resetTopicModal = useCallback(() => {
+    setTopicModalOpen(false)
+    setTopicDraft({ title: "", description: "" })
+  }, [])
+
+  const resetAssignmentModal = useCallback(() => {
     setAssignmentModalOpen(false)
     setEditingDraftId(null)
     setAssignmentDraft(emptyAssignmentDraft)
-  }
+  }, [])
 
   const openResourceModal = useCallback(
     (topicId: string, materialId?: string) => {
@@ -128,10 +169,8 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           ? {
               topicId,
               title: material.title,
-              type: material.type,
-              resourceUrl: material.resourceUrl,
-              fileSize: material.fileSize,
-              previewLabel: material.previewLabel,
+              description: material.description,
+              file: null,
             }
           : { ...emptyResourceDraft, topicId }
       )
@@ -147,52 +186,129 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   }, [])
 
   const handleAddSection = useCallback(() => {
-    dispatch(
-      lmsActions.addTopic({
-        courseId: classId,
-        title: `New section ${topicCards.length + 1}`,
-        summary: "Mô tả nội dung học phần cho section này.",
+    setTopicModalOpen(true)
+  }, [])
+
+  const handleSaveTopic = useCallback(() => {
+    const title = topicDraft.title.trim()
+    const description = topicDraft.description.trim()
+
+    if (!title || !description) {
+      setContentFeedback({
+        tone: "error",
+        message: "Tên section và mô tả là bắt buộc.",
       })
-    )
-  }, [classId, dispatch, topicCards.length])
+      return
+    }
+
+    void createTopic({
+      classId,
+      title,
+      description,
+    })
+      .unwrap()
+      .then(() => {
+        resetTopicModal()
+        setContentFeedback({
+          tone: "success",
+          message: "Đã thêm section mới cho lớp học.",
+        })
+      })
+      .catch(() => {
+        setContentFeedback({
+          tone: "error",
+          message: "Không thể tạo topic mới. Kiểm tra lại backend rồi thử lại.",
+        })
+      })
+  }, [classId, createTopic, resetTopicModal, topicDraft])
 
   const handleSaveMaterial = useCallback(() => {
-    if (!resourceDraft.title.trim()) {
+    if (editingMaterialId) {
+      setContentFeedback({
+        tone: "error",
+        message: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
+      })
       return
     }
 
-    if (editingMaterialId) {
-      dispatch(lmsActions.updateMaterial({ id: editingMaterialId, patch: resourceDraft }))
-    } else {
-      dispatch(
-        lmsActions.addMaterial({
-          ...resourceDraft,
-          uploadedAt: new Date().toISOString(),
-        })
-      )
+    const title = resourceDraft.title.trim()
+    const description = resourceDraft.description.trim()
+    const file = resourceDraft.file
+
+    if (!resourceDraft.topicId || !title || !description || !file) {
+      setContentFeedback({
+        tone: "error",
+        message: "Tên tài nguyên, mô tả và file upload là bắt buộc.",
+      })
+      return
     }
 
-    resetResourceModal()
-  }, [dispatch, editingMaterialId, resourceDraft])
+    void createDocument({
+      topicId: resourceDraft.topicId,
+      title,
+      description,
+      file,
+    })
+      .unwrap()
+      .then(() => {
+        resetResourceModal()
+        setContentFeedback({
+          tone: "success",
+          message: "Đã thêm tài nguyên cho section.",
+        })
+      })
+      .catch(() => {
+        setContentFeedback({
+          tone: "error",
+          message: "Không thể upload tài nguyên. Kiểm tra lại backend rồi thử lại.",
+        })
+      })
+  }, [createDocument, editingMaterialId, resetResourceModal, resourceDraft])
 
   const handleSaveAssignmentDraft = useCallback(() => {
-    if (!assignmentDraft.title.trim()) {
+    if (editingDraftId) {
+      setContentFeedback({
+        tone: "error",
+        message: "Chưa tích hợp API chỉnh sửa assignment ở màn hình này.",
+      })
       return
     }
 
-    const nextDraft: AssignmentDraft = {
-      ...assignmentDraft,
-      id: editingDraftId ?? `draft-${Date.now()}`,
+    if (!assignmentDraft.title.trim() || !assignmentDraft.description.trim() || !assignmentDraft.deadline) {
+      setContentFeedback({
+        tone: "error",
+        message: "Tiêu đề, mô tả bài toán và deadline là bắt buộc.",
+      })
+      return
     }
 
-    setAssignmentDrafts((state) =>
-      editingDraftId
-        ? state.map((item) => (item.id === editingDraftId ? nextDraft : item))
-        : [nextDraft, ...state]
-    )
-
-    resetAssignmentModal()
-  }, [assignmentDraft, editingDraftId])
+    void createAssignment({
+      topicId: assignmentDraft.topicId,
+      title: assignmentDraft.title.trim(),
+      deadline: new Date(assignmentDraft.deadline).toISOString(),
+      difficulty: assignmentDraft.difficulty,
+      description: assignmentDraft.description.trim(),
+      testcases: assignmentDraft.testCases.map((item) => ({
+        input: item.input,
+        expectedOutput: item.expectedOutput,
+        hidden: item.hidden,
+      })),
+    })
+      .unwrap()
+      .then(() => {
+        resetAssignmentModal()
+        setContentFeedback({
+          tone: "success",
+          message: "Đã tạo assignment cho section.",
+        })
+      })
+      .catch(() => {
+        setContentFeedback({
+          tone: "error",
+          message: "Không thể tạo assignment. Kiểm tra lại payload hoặc backend rồi thử lại.",
+        })
+      })
+  }, [assignmentDraft, createAssignment, editingDraftId, resetAssignmentModal])
 
   const handleToggleTopic = useCallback((topicId: string) => {
     setCollapsedTopics((state) => ({
@@ -267,13 +383,26 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   return (
     <div className="space-y-6">
       <ClassWorkspaceHeader
+        classId={classId}
         className={bundle.course.name}
-        classDescription={bundle.course.description}
+        instructorName={classroom.instructorName}
+        enrolledStudentsCount={classroom.enrolledStudentsCount}
+        schedule={classroom.schedule}
         classStatus={classroom.status}
         statusClassName={getClassStatusClassName(classroom.status)}
+        imageUrl={classroom.imageUrl}
         editMode={editMode}
-        isRefreshing={isFetching}
-        onRefresh={refetch}
+        isRefreshing={
+          isFetching ||
+          isFetchingTopics ||
+          isCreatingTopic ||
+          isCreatingDocument ||
+          isCreatingAssignment
+        }
+        onRefresh={() => {
+          void refetch()
+          void refetchTopics()
+        }}
         onToggleEditMode={() => setEditMode((value) => !value)}
         onAddSection={handleAddSection}
       />
@@ -285,6 +414,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         editMode={editMode}
         topicCards={topicCards}
         collapsedTopics={collapsedTopics}
+        contentFeedback={contentFeedback}
         classroom={classroom}
         studentId={studentId}
         feedback={feedback}
@@ -294,9 +424,27 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         formattedCreatedAt={formatClassDate(classroom.createdAt)}
         onTabChange={handleTabChange}
         onToggleTopic={handleToggleTopic}
-        onUpdateTopic={(topicId, patch) => dispatch(lmsActions.updateTopic({ id: topicId, patch }))}
-        onDeleteTopic={(topicId) => dispatch(lmsActions.deleteTopic(topicId))}
-        onDeleteMaterial={(materialId) => dispatch(lmsActions.deleteMaterial(materialId))}
+        onUpdateTopic={(topicId, patch) =>
+          setTopicDrafts((state) => ({
+            ...state,
+            [topicId]: {
+              ...state[topicId],
+              ...patch,
+            },
+          }))
+        }
+        onDeleteTopic={() =>
+          setContentFeedback({
+            tone: "error",
+            message: "Chưa tích hợp API xóa topic ở màn hình này.",
+          })
+        }
+        onDeleteMaterial={() =>
+          setContentFeedback({
+            tone: "error",
+            message: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
+          })
+        }
         onOpenResourceModal={openResourceModal}
         onOpenAssignmentModal={openAssignmentModal}
         onDeleteDraftAssignment={(draftId) =>
@@ -308,18 +456,26 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       />
 
       <ClassWorkspaceModals
+        topicModalOpen={topicModalOpen}
         resourceModalOpen={resourceModalOpen}
         assignmentModalOpen={assignmentModalOpen}
+        topicDraft={topicDraft}
         editingMaterialId={editingMaterialId}
         editingDraftId={editingDraftId}
         resourceDraft={resourceDraft}
         assignmentDraft={assignmentDraft}
+        isSubmittingTopic={isCreatingTopic}
+        isSubmittingResource={isCreatingDocument}
+        isSubmittingAssignment={isCreatingAssignment}
+        onCloseTopicModal={resetTopicModal}
         onCloseResourceModal={resetResourceModal}
         onCloseAssignmentModal={resetAssignmentModal}
+        onTopicDraftChange={(patch) => setTopicDraft((state) => ({ ...state, ...patch }))}
         onResourceDraftChange={(patch) => setResourceDraft((state) => ({ ...state, ...patch }))}
         onAssignmentDraftChange={(patch) =>
           setAssignmentDraft((state) => ({ ...state, ...patch }))
         }
+        onSaveTopic={handleSaveTopic}
         onSaveResource={handleSaveMaterial}
         onSaveAssignment={handleSaveAssignmentDraft}
       />

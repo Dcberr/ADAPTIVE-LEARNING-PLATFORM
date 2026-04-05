@@ -17,7 +17,6 @@ import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getStudentCourseById, getStudentCourseTopics } from "@/services/lms/mockLmsService"
 
@@ -91,42 +90,25 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
       </Link>
 
       <Card className="overflow-hidden">
-        <div className="relative h-48">
+        <div className="relative h-56">
           <img src={courseImages[course.image]} alt={course.name} className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          <div className="absolute bottom-4 left-6 text-white">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute bottom-6 left-6 text-white">
             <Badge className={`${course.color} mb-2 text-white`}>{course.code}</Badge>
-            <h1 className="text-2xl font-semibold">{course.name}</h1>
-            <p className="mt-1 text-sm text-gray-200">{course.instructor}</p>
+            <h1 className="text-3xl font-semibold">{course.name}</h1>
+            <p className="mt-2 text-lg text-gray-200">{course.instructor}</p>
           </div>
         </div>
         <CardContent className="p-6">
-          <div className="mb-6 grid grid-cols-2 gap-6 md:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               <p className="text-sm text-gray-500">Schedule</p>
-              <p className="mt-1 text-sm font-medium">{course.schedule}</p>
+              <p className="mt-2 text-xl font-medium text-slate-900">{course.schedule}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Enrolled</p>
-              <p className="mt-1 text-sm font-medium">{course.enrolled} students</p>
+              <p className="mt-2 text-xl font-medium text-slate-900">{course.enrolled} students</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Progress</p>
-              <p className="mt-1 text-sm font-medium">{course.progress}%</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Grade</p>
-              <p className="mt-1 text-sm font-medium text-green-600">
-                {courseGrade ? `${courseGrade.grade}%` : "N/A"}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Course Progress</span>
-              <span className="font-semibold">{course.progress}%</span>
-            </div>
-            <Progress value={course.progress} className="h-2" />
           </div>
         </CardContent>
       </Card>

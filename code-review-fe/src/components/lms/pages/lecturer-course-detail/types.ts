@@ -1,8 +1,23 @@
-import type { Assignment } from "@/data/lms/mockData"
-import type { CourseMaterial, StudentPerformanceRecord } from "@/data/lms/extendedMockData"
+import type { StudentPerformanceRecord } from "@/data/lms/extendedMockData"
 import type { EditableTestCase } from "@/components/lms/TestCaseManager"
 
-export type TopicAssignment = Assignment
+export type TopicMaterial = {
+  id: string
+  title: string
+  description: string
+  resourceUrl: string
+  type: "file" | "video" | "image"
+  fileSize: string
+  previewLabel: string
+}
+
+export type TopicAssignment = {
+  id: string
+  title: string
+  deadline: string
+  difficulty: string
+  status: string
+}
 
 export type TopicBundle = {
   id: string
@@ -10,7 +25,7 @@ export type TopicBundle = {
   order: number
   title: string
   summary: string
-  materials: CourseMaterial[]
+  materials: TopicMaterial[]
   assignments: TopicAssignment[]
 }
 

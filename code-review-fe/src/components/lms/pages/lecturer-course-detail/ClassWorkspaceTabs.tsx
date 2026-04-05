@@ -26,6 +26,7 @@ export default function ClassWorkspaceTabs({
   editMode,
   topicCards,
   collapsedTopics,
+  contentFeedback,
   classroom,
   studentId,
   feedback,
@@ -51,6 +52,7 @@ export default function ClassWorkspaceTabs({
   editMode: boolean
   topicCards: TopicCard[]
   collapsedTopics: Record<string, boolean>
+  contentFeedback: FeedbackState
   classroom: {
     instructorName: string
     enrolledStudentsCount: number
@@ -89,6 +91,7 @@ export default function ClassWorkspaceTabs({
         <ContentTab
           topicCards={topicCards}
           editMode={editMode}
+          feedback={contentFeedback}
           collapsedTopics={collapsedTopics}
           onToggleTopic={onToggleTopic}
           onUpdateTopic={onUpdateTopic}

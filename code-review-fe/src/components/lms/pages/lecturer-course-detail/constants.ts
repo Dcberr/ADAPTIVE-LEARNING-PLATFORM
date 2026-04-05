@@ -1,4 +1,3 @@
-import type { CourseMaterial } from "@/data/lms/extendedMockData"
 import type { EditableTestCase } from "@/components/lms/TestCaseManager"
 import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types"
 import type { ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
@@ -27,10 +26,8 @@ export const defaultDraftTests: EditableTestCase[] = [
 export const emptyResourceDraft: ResourceDraft = {
   topicId: "",
   title: "",
-  type: "file" as CourseMaterial["type"],
-  resourceUrl: "",
-  fileSize: "",
-  previewLabel: "",
+  description: "",
+  file: null,
 }
 
 export const emptyAssignmentDraft: AssignmentDraft = {

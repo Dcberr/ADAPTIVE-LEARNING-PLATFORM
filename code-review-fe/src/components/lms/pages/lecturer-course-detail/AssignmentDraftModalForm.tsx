@@ -11,11 +11,13 @@ const starterLanguages = ["python", "javascript", "java", "cpp"] as const
 
 export default function AssignmentDraftModalForm({
   draft,
+  isSubmitting,
   onChange,
   onCancel,
   onSave,
 }: {
   draft: AssignmentDraft
+  isSubmitting: boolean
   onChange: (patch: Partial<AssignmentDraft>) => void
   onCancel: () => void
   onSave: () => void
@@ -141,10 +143,12 @@ export default function AssignmentDraftModalForm({
       </div>
 
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Hủy
         </Button>
-        <Button onClick={onSave}>Lưu assignment</Button>
+        <Button onClick={onSave} disabled={isSubmitting}>
+          {isSubmitting ? "Đang tạo..." : "Lưu assignment"}
+        </Button>
       </div>
     </div>
   )

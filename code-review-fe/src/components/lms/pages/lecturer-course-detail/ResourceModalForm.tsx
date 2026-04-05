@@ -1,29 +1,39 @@
 "use client"
 
+import { useEffect, useRef } from "react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { CourseMaterial } from "@/data/lms/extendedMockData"
+import { Textarea } from "@/components/ui/textarea"
 
 export type ResourceDraft = {
   topicId: string
   title: string
-  type: CourseMaterial["type"]
-  resourceUrl: string
-  fileSize: string
-  previewLabel: string
+  description: string
+  file: File | null
 }
 
 export default function ResourceModalForm({
   draft,
+  isSubmitting,
   onChange,
   onCancel,
   onSave,
 }: {
   draft: ResourceDraft
+  isSubmitting: boolean
   onChange: (patch: Partial<ResourceDraft>) => void
   onCancel: () => void
   onSave: () => void
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!draft.file && fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }, [draft.file])
+
   return (
     <div className="space-y-4">
       <Input
@@ -31,37 +41,29 @@ export default function ResourceModalForm({
         value={draft.title}
         onChange={(event) => onChange({ title: event.target.value })}
       />
-      <div className="grid gap-4 md:grid-cols-2">
-        <select
-          value={draft.type}
-          onChange={(event) => onChange({ type: event.target.value as CourseMaterial["type"] })}
-          className="h-11 rounded-xl border bg-background px-3 text-sm"
-        >
-          <option value="file">File</option>
-          <option value="video">Video</option>
-          <option value="image">Image</option>
-        </select>
+      <Textarea
+        rows={4}
+        placeholder="Mô tả tài nguyên"
+        value={draft.description}
+        onChange={(event) => onChange({ description: event.target.value })}
+      />
+      <div className="space-y-2">
         <Input
-          placeholder="Preview label"
-          value={draft.previewLabel}
-          onChange={(event) => onChange({ previewLabel: event.target.value })}
+          ref={fileInputRef}
+          type="file"
+          onChange={(event) => onChange({ file: event.target.files?.[0] ?? null })}
         />
+        <p className="text-xs text-slate-500">
+          {draft.file ? `Selected: ${draft.file.name}` : "Chọn file tài nguyên để upload."}
+        </p>
       </div>
-      <Input
-        placeholder="Link tài nguyên"
-        value={draft.resourceUrl}
-        onChange={(event) => onChange({ resourceUrl: event.target.value })}
-      />
-      <Input
-        placeholder="Kích thước / thời lượng"
-        value={draft.fileSize}
-        onChange={(event) => onChange({ fileSize: event.target.value })}
-      />
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Hủy
         </Button>
-        <Button onClick={onSave}>Lưu tài nguyên</Button>
+        <Button onClick={onSave} disabled={isSubmitting}>
+          {isSubmitting ? "Đang upload..." : "Lưu tài nguyên"}
+        </Button>
       </div>
     </div>
   )

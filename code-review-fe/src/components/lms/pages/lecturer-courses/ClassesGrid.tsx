@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { ArrowRight, Users } from "lucide-react"
 
+import { getClassCoverBackgroundImage } from "@/lib/class-cover"
 import type { LecturerClassSummary } from "@/store/redux/api/lmsApi"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -76,20 +77,40 @@ export default function ClassesGrid({
       {classes.map((item) => (
         <Card
           key={item.id}
-          className={`border ${
+          className={`overflow-hidden border ${
             highlightedClassId === item.id
               ? "border-emerald-300 shadow-lg shadow-emerald-100"
               : "border-slate-200"
           }`}
         >
+          <div
+            className="relative h-40 border-b border-slate-200 bg-slate-100 bg-cover bg-center"
+            style={{
+              backgroundImage: getClassCoverBackgroundImage({
+                seed: item.id,
+                title: item.name,
+                imageUrl: item.imageUrl,
+              }),
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-slate-900/10 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
+              <div className="min-w-0">
+                <Badge className={getStatusClassName(item.status)}>{item.status}</Badge>
+                <h3 className="mt-3 truncate text-xl font-semibold text-white">{item.name}</h3>
+                <p className="mt-1 text-sm text-white/80">Managed by {item.instructorName}</p>
+              </div>
+              <div className="rounded-full border border-white/25 bg-white/12 p-3 backdrop-blur-sm">
+                <Users className="size-6 text-white" />
+              </div>
+            </div>
+          </div>
           <CardContent className="p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <Badge className={getStatusClassName(item.status)}>{item.status}</Badge>
-                <h3 className="mt-3 text-xl font-semibold text-[#030391]">{item.name}</h3>
-                <p className="mt-2 text-sm text-slate-600">Managed by {item.instructorName}</p>
+                <p className="text-sm font-medium text-slate-600">Lớp học đang quản lý</p>
+                <p className="mt-2 text-lg font-semibold text-[#030391]">{item.name}</p>
               </div>
-              <Users className="size-6 text-[#1488D8]" />
             </div>
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
               <span>{item.enrolledStudentsCount} students</span>

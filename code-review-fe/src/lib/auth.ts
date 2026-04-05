@@ -28,7 +28,7 @@ export function getBackendBaseUrl() {
     return trimTrailingSlash(configuredBaseUrl)
   }
 
-  return "http://localhost:8080"
+  return "http://localhost:8080/api"
 }
 
 export function buildGoogleLoginUrl(role: UserRole) {

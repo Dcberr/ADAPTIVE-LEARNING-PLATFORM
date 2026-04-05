@@ -25,6 +25,8 @@ export default function GoogleLoginButton({
   loading: boolean
   onClick: () => void
 }) {
+  const roleLabel = role === "student" ? "Sinh viên" : "Giảng viên"
+
   return (
     <Button
       type="button"
@@ -33,7 +35,7 @@ export default function GoogleLoginButton({
       className="h-12 w-full rounded-2xl bg-white text-slate-900 shadow-lg hover:bg-white/95"
     >
       {loading ? <LoaderCircle className="size-4 animate-spin" /> : <GoogleMark />}
-      {loading ? "Signing in..." : `Continue with Google as ${role}`}
+      {loading ? "Đang đăng nhập..." : `Tiếp tục với Google với vai trò ${roleLabel}`}
     </Button>
   )
 }

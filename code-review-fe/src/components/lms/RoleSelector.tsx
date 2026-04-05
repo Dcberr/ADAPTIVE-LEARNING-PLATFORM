@@ -13,14 +13,14 @@ const options: {
 }[] = [
   {
     role: "student",
-    title: "Student",
-    description: "Open enrolled courses, solve coding assignments, and view adaptive recommendations.",
+    title: "Sinh viên",
+    description: "Vào các khóa học đã đăng ký, làm bài tập lập trình và xem gợi ý học tập phù hợp.",
     Icon: GraduationCap,
   },
   {
     role: "lecturer",
-    title: "Lecturer",
-    description: "Manage courses, build coding problems, and monitor student submissions.",
+    title: "Giảng viên",
+    description: "Quản lý lớp học, xây dựng bài tập lập trình và theo dõi bài nộp của sinh viên.",
     Icon: School,
   },
 ]
