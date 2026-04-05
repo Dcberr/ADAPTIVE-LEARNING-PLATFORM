@@ -16,5 +16,6 @@ public class RunCodeResponse {
 
     private int passedTestcases;
     private int totalTestcases;
+    private Long runtime;
 
 }

@@ -1,9 +1,22 @@
 server:
   port: 8080
+  servlet:
+    context-path: ${SERVER_SERVLET_CONTEXT_PATH}
   error:
     include-message: always
     include-binding-errors: always
     include-stacktrace: always
+  url: ${SERVICE_URL}
+
+application:
+  url: ${APPLICATION_URL}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+  swagger-ui:
+    path: /v3/swagger-ui
 
 jobe:
   base-url: ${JOBE_URL}
@@ -55,7 +68,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: "http://localhost:8080/login/oauth2/code/google"
+            redirect-uri: "{SERVICE_URL}/login/oauth2/code/google"
 
         provider:
           google:

@@ -13,5 +13,6 @@ public interface AssignmentProblemRepository
         extends JpaRepository<AssignmentProblem, UUID> {
 
     List<AssignmentProblem> findByAssignmentId(UUID assignmentId);
+    AssignmentProblem findByProblemId(UUID problemId);
 
 }

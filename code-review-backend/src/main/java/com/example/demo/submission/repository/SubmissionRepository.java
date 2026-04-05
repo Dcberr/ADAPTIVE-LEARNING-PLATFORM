@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.example.demo.submission.dto.SubmissionOverviewResponse;
+import com.example.demo.submission.dto.SubmissionResponse;
 import com.example.demo.submission.entity.Submission;
 
 @Repository
@@ -27,7 +28,7 @@ public interface SubmissionRepository
             p.difficulty AS difficulty,
             a.deadline AS deadline,
             s.status AS status,
-            s.created_at AS submittedAt,
+            s.submitted_at AS submittedAt,
             u.name as studentName
         FROM submissions s
         JOIN problems p ON s.problem_id = p.id
@@ -49,7 +50,7 @@ public interface SubmissionRepository
             p.difficulty AS difficulty,
             a.deadline AS deadline,
             s.status AS status,
-            s.created_at AS submittedAt,
+            s.submitted_at AS submittedAt,
             u.name as studentName
         FROM submissions s
         JOIN problems p ON s.problem_id = p.id
@@ -60,5 +61,43 @@ public interface SubmissionRepository
         ORDER BY s.created_at DESC
     """, nativeQuery = true)
     List<SubmissionOverviewResponse> getSubmissionOverviewByProblem(UUID problemId);
+    
+    @Query(value = """
+        SELECT new com.example.demo.submission.dto.SubmissionResponse(
+            s.id,
+            s.status,
+            a.createdAt,
+            s.submittedAt,
+            s.score,
+            u.name
+        )
+        FROM Submission s
+        JOIN Problem p ON s.problemId = p.id
+        JOIN AssignmentProblem ap ON ap.problemId = p.id
+        JOIN Assignment a ON ap.assignmentId = a.id
+        LEFT JOIN User u ON s.userId = u.id
+        WHERE s.userId = :userId AND a.id = :assignmentId
+        ORDER BY s.submittedAt DESC
+    """)
+    List<SubmissionResponse> getUserSubmissionsByAssignmentId(UUID userId, UUID assignmentId);
+
+        @Query(value = """
+            SELECT new com.example.demo.submission.dto.SubmissionResponse(
+                s.id,
+                s.status,
+                a.createdAt,
+                s.submittedAt,
+                s.score,
+                u.name
+            )
+            FROM Submission s
+            JOIN Problem p ON s.problemId = p.id
+            JOIN AssignmentProblem ap ON ap.problemId = p.id
+            JOIN Assignment a ON ap.assignmentId = a.id
+            LEFT JOIN User u ON s.userId = u.id
+            WHERE a.id = :assignmentId
+            ORDER BY s.submittedAt DESC
+        """)
+        List<SubmissionResponse> getAllSubmissionsByAssignmentId(UUID assignmentId);
 
 }

@@ -2,37 +2,43 @@ package com.example.demo.assignment.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
+import com.example.demo.assignment.entity.AssigmentDifficulty;
 import com.example.demo.assignment.entity.AssignmentStatus;
+import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 public class UpdateAssignmentRequest {
+
+    private UUID topicId;
 
     private String title;
 
     // private String description;
+    
+    private AssignmentStatus status;
 
     private Instant deadline;
 
-    private List<String> tag;
+    private AssigmentDifficulty difficulty;
 
-    // private String title;
+    private ProblemRequest problem;
+    
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ProblemRequest {
+        // private String title;
 
-    private String description;
+        private String description;
 
-    private String difficulty;
-
-    private AssignmentStatus status;
-
-    // private UUID assignmentId;  
-
-    // private String source;
-
-    private String input;
-
-    private String expectedOutput;
-
-    private boolean isSample;
+        private List<TestcaseRequest> testcases;
+    }
 }
