@@ -63,10 +63,10 @@ export default function LecturerCoursesPage() {
     const image = draft.image
     const schedule = draft.schedule.trim()
 
-    if (!name || !description || !image) {
+    if (!name || !description) {
       setFeedback({
         tone: "error",
-        message: "Tên lớp, mô tả và ảnh là bắt buộc.",
+        message: "Tên lớp và mô tả là bắt buộc.",
       })
       return
     }

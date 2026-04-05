@@ -10,7 +10,6 @@ import {
   emptyAssignmentDraft,
   emptyResourceDraft,
   formatClassDate,
-  getClassStatusClassName,
 } from "@/components/lms/pages/lecturer-course-detail/constants"
 import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 import { type TopicDraft } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
@@ -388,8 +387,6 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         instructorName={classroom.instructorName}
         enrolledStudentsCount={classroom.enrolledStudentsCount}
         schedule={classroom.schedule}
-        classStatus={classroom.status}
-        statusClassName={getClassStatusClassName(classroom.status)}
         imageUrl={classroom.imageUrl}
         editMode={editMode}
         isRefreshing={

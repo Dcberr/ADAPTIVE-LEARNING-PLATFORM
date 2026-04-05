@@ -94,7 +94,7 @@ type SaveProblemRequest = {
 type CreateClassRequest = {
   name: string
   description: string
-  image: File
+  image: File | null
   schedule: string
 }
 type CreatedClass = {
@@ -102,7 +102,7 @@ type CreatedClass = {
   name: string
   description: string
   instructorId: string
-  imageUrl: string
+  imageUrl: string | null
 }
 export type LecturerClassSummary = {
   id: string
@@ -219,8 +219,11 @@ export const lmsApi = baseApi.injectEndpoints({
         const formData = new FormData()
         formData.append("name", name)
         formData.append("description", description)
-        formData.append("image", image)
         formData.append("schedule", schedule)
+
+        if (image) {
+          formData.append("image", image)
+        }
 
         return {
           url: "/classes",

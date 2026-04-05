@@ -4,19 +4,8 @@ import Link from "next/link"
 import { ArrowLeft, FilePenLine, Plus } from "lucide-react"
 
 import { getClassCoverBackgroundImage } from "@/lib/class-cover"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-
-function formatClassStatus(status: string) {
-  const labels: Record<string, string> = {
-    PLANNED: "Sắp mở",
-    IN_PROGRESS: "Đang diễn ra",
-    COMPLETED: "Đã kết thúc",
-  }
-
-  return labels[status] ?? status
-}
 
 export default function ClassWorkspaceHeader({
   classId,
@@ -24,8 +13,6 @@ export default function ClassWorkspaceHeader({
   instructorName,
   enrolledStudentsCount,
   schedule,
-  classStatus,
-  statusClassName,
   imageUrl,
   editMode,
   isRefreshing,
@@ -38,8 +25,6 @@ export default function ClassWorkspaceHeader({
   instructorName: string
   enrolledStudentsCount: number
   schedule: string | null
-  classStatus: string
-  statusClassName: string
   imageUrl?: string | null
   editMode: boolean
   isRefreshing: boolean

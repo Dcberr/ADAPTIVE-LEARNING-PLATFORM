@@ -70,7 +70,7 @@ export default function CreateClassCard({
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-image">
-          Class image
+          Class image (optional)
         </label>
         <Input
           ref={fileInputRef}
@@ -80,7 +80,7 @@ export default function CreateClassCard({
           onChange={(event) => onChange({ image: event.target.files?.[0] ?? null })}
         />
         <p className="text-xs text-slate-500">
-          {draft.image ? `Selected: ${draft.image.name}` : "Upload ảnh bìa cho lớp học."}
+          {draft.image ? `Selected: ${draft.image.name}` : "Có thể bỏ qua nếu chưa muốn thêm ảnh bìa."}
         </p>
       </div>
 
