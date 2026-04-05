@@ -18,7 +18,7 @@ class ConceptMappingAgent:
         self.model_name = model_name
         self.batch_size = batch_size
 
-    def chunk_issues(self, issues: Dict[int, LogicIssue]):
+    def chunk_issues(self, issues: Dict[str, LogicIssue]):
         """Split logic issues dict into batches."""
         if not issues:
             return
@@ -27,7 +27,7 @@ class ConceptMappingAgent:
         batch_size = max(1, self.batch_size)
 
         for i in range(0, len(issue_items), batch_size):
-            yield dict(issue_items[i : i + batch_size])
+            yield issue_items[i : i + batch_size]
 
     def format_issue(self, issue: LogicIssue) -> str:
         """Format a LogicIssue into a concise string for the prompt."""
@@ -104,20 +104,24 @@ class ConceptMappingAgent:
         )
         new_state: ReviewState = dict(state)
 
-        logic_issues: Dict[int, LogicIssue] = new_state.get("logic_issues", {})
+        logic_issues: Dict[str, LogicIssue] = new_state.get("logic_issues", {})
         expected_concepts: List[str] = new_state.get("expected_concepts", [])
         assignment_req: str = new_state.get("assignment_requirements", "")
 
         all_concept_issues: List[Dict[str, Any]] = []
 
-        for batch_index, batch in enumerate(self.chunk_issues(logic_issues) or [], start=1):
+        for batch_index, batch_items in enumerate(
+            self.chunk_issues(logic_issues) or [], start=1
+        ):
+            batch = dict(batch_items)
+            batch_issue_list = [issue for _, issue in batch_items]
             logger.debug(
                 "ConceptMappingAgent processing batch %s for issue ids=%s",
                 batch_index,
                 list(batch.keys()),
             )
             messages = self.generate_messages(
-                list(batch.values()), expected_concepts, assignment_req
+                batch_issue_list, expected_concepts, assignment_req
             )
 
             try:
@@ -143,10 +147,12 @@ class ConceptMappingAgent:
                 )
                 for ci in concept_issues:
                     issue_ref = ci.get("issue_ref")
-                    if issue_ref is None or issue_ref not in batch:
+                    if not isinstance(issue_ref, int):
+                        continue
+                    if issue_ref < 0 or issue_ref >= len(batch_items):
                         continue
 
-                    original_issue = batch[issue_ref]
+                    original_issue = batch_items[issue_ref][1]
                     original_issue["relevant_concept"].extend(
                         ci.get("relevant_concept", [])
                     )

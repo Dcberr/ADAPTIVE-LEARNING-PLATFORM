@@ -1,10 +1,14 @@
 from typing import TypedDict, Any, Dict, List
 
 from app.api.review_code_schema import ReviewItem
-from app.models.generate_testcase import GenerateTestcase
 from app.models.improvement_note import ImprovementNote
 from app.models.logic_issue import LogicIssue
 from app.models.sandbox_result import SandBoxResult
+
+
+class SubmissionHistory(TypedDict):
+    code: str
+    failed_test_case_ids: List[str]
 
 
 class ReviewState(TypedDict):
@@ -13,12 +17,17 @@ class ReviewState(TypedDict):
     sandbox_results: List[SandBoxResult]
     assignment_requirements: str
     expected_concepts: List[str]
-    logic_issues: Dict[int, LogicIssue]
+    history: List[SubmissionHistory]
+    previous_failed_test_case_ids: List[str]
+    persistent_failed_test_case_ids: List[str]
+    fixed_test_case_ids: List[str]
+    regressed_test_case_ids: List[str]
+    logic_issues: Dict[str, LogicIssue]
     concept_issues: List[Dict[str, Any]]
-    generated_testcases: List[GenerateTestcase]
     improvement_notes: List[ImprovementNote]
     overview: str
     review_items: List[ReviewItem]
+    scorecard: Dict[str, Any]
 
 
 def create_initial_state(
@@ -27,17 +36,42 @@ def create_initial_state(
     sandbox_results: List[SandBoxResult],
     assignment_requirements: str,
     expected_concepts: List[str],
+    history: List[SubmissionHistory],
 ) -> ReviewState:
     """Helper function to create a properly initialized ReviewState"""
+    current_failed_test_case_ids = [result["id"] for result in sandbox_results]
+    previous_failed_test_case_ids = (
+        history[0].get("failed_test_case_ids", []) if history else []
+    )
+    persistent_failed_test_case_ids = [
+        testcase_id
+        for testcase_id in current_failed_test_case_ids
+        if testcase_id in previous_failed_test_case_ids
+    ]
+    fixed_test_case_ids = [
+        testcase_id
+        for testcase_id in previous_failed_test_case_ids
+        if testcase_id not in current_failed_test_case_ids
+    ]
+    regressed_test_case_ids = [
+        testcase_id
+        for testcase_id in current_failed_test_case_ids
+        if testcase_id not in previous_failed_test_case_ids
+    ]
+
     return {
         "code": code,
         "assignment_language": assignment_language,
         "sandbox_results": sandbox_results,
         "assignment_requirements": assignment_requirements,
         "expected_concepts": expected_concepts,
-        "logic_issues": [],
+        "history": history,
+        "previous_failed_test_case_ids": previous_failed_test_case_ids,
+        "persistent_failed_test_case_ids": persistent_failed_test_case_ids,
+        "fixed_test_case_ids": fixed_test_case_ids,
+        "regressed_test_case_ids": regressed_test_case_ids,
+        "logic_issues": {},
         "concept_issues": [],
-        "generated_testcases": [],
         "categorized_feedback": [],
         "improvement_notes": [],
         "advanced_suggestions": [],
@@ -48,4 +82,5 @@ def create_initial_state(
         "needs_improvement": False,
         "overview": "",
         "review_items": [],
+        "scorecard": [],
     }

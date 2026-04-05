@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 
     base_url = os.environ.get("FIREWORKS_BASE_URL", DEFAULT_FIREWORKS_BASE_URL)
     app.state.fireworks_client = OpenAI(api_key=api_key, base_url=base_url)
-    logger.info("Initialized Fireworks client at application startup")
+    logger.info("Initialized Fireworks client at application startup with base_url=%s", base_url)
 
     yield
 
