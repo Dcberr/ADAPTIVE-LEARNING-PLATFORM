@@ -1,5 +1,9 @@
 package com.example.demo.classmanagement.dto;
 
+import java.util.List;
+
+import com.example.demo.user.dto.UserResponse;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,6 +16,8 @@ public class ClassDetailResponse {
     private String instructorName;
 
     private int enrolledStudentsCount;
+    
+    private List<UserResponse> enrolledStudents;
     
     private String createdAt;
 
