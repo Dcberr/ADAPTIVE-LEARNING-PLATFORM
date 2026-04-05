@@ -32,6 +32,8 @@ public class ReviewAgentClient {
         HttpEntity<Map<String, Object>> request =
                 new HttpEntity<>(body, headers);
 
+        log.info("Review request: {}", request);
+
         ResponseEntity<ReviewResponse> response =
                 restTemplate.postForEntity(
                         reviewUrl,

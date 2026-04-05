@@ -33,8 +33,10 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public ClassResponse createClass(UUID instructorId, CreateClassRequest req) {
-
-        UploadFilleResponse uploadResult = storageService.upload(req.getImage());       
+        UploadFilleResponse uploadResult = null;
+        if (req.getImage() != null && !req.getImage().isEmpty()) {
+            uploadResult = storageService.upload(req.getImage()); 
+        }
 
         Class cls = Class.builder()
                 .name(req.getName())
@@ -42,11 +44,9 @@ public class ClassServiceImpl implements ClassService {
                 .instructorId(instructorId)
                 .createdAt(Instant.now())
                 .status(ClassStatus.IN_PROGRESS)
-                .imageUrl(uploadResult.getFileUrl())
+                .imageUrl(uploadResult != null ? uploadResult.getFileUrl() : null)
                 .schedule(req.getSchedule())    
                 .build();
-
-        
 
         classRepository.save(cls);
 
