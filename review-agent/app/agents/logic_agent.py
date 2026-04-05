@@ -27,7 +27,28 @@ class LogicAgent:
         for i in range(0, len(cases), self.batch_size):
             yield cases[i : i + self.batch_size]
 
-    def generate_messages(self, code: str, failed_tests: list[SandBoxResult]) -> list:
+    def format_history(self, history: list[dict[str, Any]]) -> str:
+        """Format prior submission attempts for the model prompt."""
+        if not history:
+            return "None"
+
+        return "\n".join(
+            [
+                (
+                    f"Submission {index}: "
+                    f"failed_test_case_ids={submission.get('failed_test_case_ids', [])}\n"
+                    f"Code:\n{submission.get('code', '')}"
+                )
+                for index, submission in enumerate(history, start=1)
+            ]
+        )
+
+    def generate_messages(
+        self,
+        code: str,
+        failed_tests: list[SandBoxResult],
+        history: list[dict[str, Any]],
+    ) -> list:
         """
         Generate messages to instruct the model to detect errors from failing test cases
         and link each failure to the code snippet causing it.
@@ -38,6 +59,7 @@ class LogicAgent:
             "content": (
                 "You are a CS1-level programming tutor. "
                 "Your job is to analyze student code and failing test cases, "
+                "optionally using prior submission history as context, "
                 "and identify the specific code snippets causing each failure. "
                 "You must respond in valid JSON only."
             ),
@@ -46,16 +68,20 @@ class LogicAgent:
         # Format the failing tests
         tests_str = "\n".join(
             [
-                f"ID: {tc["id"]} | Input: {tc["input"]} | Expected: {tc["expected"]} | Actual: {tc["actual"]}"
+                f"ID: {tc['id']} | Input: {tc['input']} | Expected: {tc['expected']} | Actual: {tc['actual']}"
                 for tc in failed_tests
             ]
         )
+        history_str = self.format_history(history)
 
         user_msg = {
             "role": "user",
             "content": f"""
                 Student code:
                 {code}
+
+                Submission history:
+                {history_str}
 
                 Failing test cases:
                 {tests_str}
@@ -88,13 +114,48 @@ class LogicAgent:
 
         return [system_msg, user_msg]
 
+    def classify_history_status(self, state: ReviewState, testcase_id: str) -> str:
+        """Classify a failing testcase relative to the first history entry."""
+        if testcase_id in state.get("persistent_failed_test_case_ids", []):
+            return "persistent"
+        if testcase_id in state.get("regressed_test_case_ids", []):
+            return "regression"
+        return "current_only"
+
+    def create_fallback_issue(
+        self, state: ReviewState, failed_test: SandBoxResult
+    ) -> LogicIssue:
+        """Create a deterministic issue when model parsing fails or returns nothing."""
+        input_value = failed_test.get("input", "")
+        actual_output = failed_test.get("actual", "")
+        expected_output = failed_test.get("expected", "")
+        issue = create_logic_issue(
+            issue=(
+                "The program output does not match the expected result for this testcase. "
+                f"For input '{input_value}', it returned '{actual_output}' but expected '{expected_output}'."
+            ),
+            evidence=failed_test["id"],
+            code_snippet=state.get("code", ""),
+            location=None,
+        )
+        issue["history_status"] = self.classify_history_status(
+            state, failed_test["id"]
+        )
+        issue["fix_suggestion"] = (
+            f"Start with the failing input '{input_value}' and trace the code line by line. "
+            f"Write down the important variable values after each step, then note exactly where the program produces '{actual_output}' "
+            f"instead of the expected '{expected_output}'. From there, replace any special-case or hard-coded behavior with logic that works for the general case."
+        )
+        return issue
+
     def analyze(self, state: ReviewState) -> Dict[str, Any]:
         """Run logic analysis on a submission state and return updated state."""
         logger.debug("Starting LogicAgent with state summary: %s", summarize_state(state))
 
         new_state: ReviewState = dict(state)
         cases = state.get("sandbox_results", [])
-        all_issues: Dict[int, LogicIssue] = {}
+        history = state.get("history", [])
+        all_issues: Dict[str, LogicIssue] = {}
 
         for batch_index, batch in enumerate(self.chunk_test_cases(cases), start=1):
             logger.debug(
@@ -102,7 +163,7 @@ class LogicAgent:
                 batch_index,
                 [case["id"] for case in batch],
             )
-            messages = self.generate_messages(state.get("code", ""), batch)
+            messages = self.generate_messages(state.get("code", ""), batch, history)
 
             try:
                 response = self.client.chat.completions.create(
@@ -126,16 +187,36 @@ class LogicAgent:
                     len(batch_issues),
                 )
                 for issue_data in batch_issues:
+                    evidence = str(issue_data.get("evidence", "")).strip()
+                    if not evidence:
+                        continue
                     issue = create_logic_issue(
                         issue=issue_data.get("issue", ""),
-                        evidence=int(issue_data.get("evidence", -1)),
+                        evidence=evidence,
                         code_snippet=issue_data.get("code_snippet", ""),
                         location=issue_data.get("location"),
                     )
+                    issue["history_status"] = self.classify_history_status(
+                        new_state, evidence
+                    )
                     all_issues[issue["evidence"]] = issue
+
+                if not batch_issues:
+                    logger.debug(
+                        "LogicAgent batch %s produced no parsed issues, using fallback issues",
+                        batch_index,
+                    )
+                    for failed_test in batch:
+                        fallback_issue = self.create_fallback_issue(
+                            new_state, failed_test
+                        )
+                        all_issues[fallback_issue["evidence"]] = fallback_issue
 
             except Exception as e:
                 logger.exception("LogicAgent batch %s failed", batch_index)
+                for failed_test in batch:
+                    fallback_issue = self.create_fallback_issue(new_state, failed_test)
+                    all_issues[fallback_issue["evidence"]] = fallback_issue
 
         new_state["logic_issues"] = all_issues
 

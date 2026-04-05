@@ -19,17 +19,23 @@ def summarize_state(state: Mapping[str, Any]) -> dict[str, Any]:
     logic_issues = state.get("logic_issues") or {}
     improvement_notes = state.get("improvement_notes") or []
     concept_issues = state.get("concept_issues") or []
-    generated_testcases = state.get("generated_testcases") or []
     review_items = state.get("review_items") or []
+    scorecard = state.get("scorecard") or []
     sandbox_results = state.get("sandbox_results") or []
+    persistent_failed_test_case_ids = state.get("persistent_failed_test_case_ids") or []
+    fixed_test_case_ids = state.get("fixed_test_case_ids") or []
+    regressed_test_case_ids = state.get("regressed_test_case_ids") or []
 
     return {
         "sandbox_results": len(sandbox_results),
         "logic_issues": len(logic_issues),
         "concept_issues": len(concept_issues),
-        "generated_testcases": len(generated_testcases),
+        "persistent_failed_testcases": len(persistent_failed_test_case_ids),
+        "fixed_testcases": len(fixed_test_case_ids),
+        "regressed_testcases": len(regressed_test_case_ids),
         "improvement_notes": len(improvement_notes),
         "review_items": len(review_items),
+        "scorecard": len(scorecard),
         "overview_present": bool(state.get("overview")),
         "expected_concepts": len(state.get("expected_concepts") or []),
         "code_preview": truncate_text(state.get("code", ""), limit=80),

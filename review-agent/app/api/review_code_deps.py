@@ -1,18 +1,19 @@
 import os
+import logging
 from fastapi import Depends, Request
 from openai import OpenAI
 from app.agents.logic_agent import LogicAgent
 from app.agents.concept_mapping_agent import ConceptMappingAgent
 from app.agents.fix_hint_agent import FixHintAgent
-from app.agents.generate_testcase_agent import GenerateTestcaseAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.overview_agent import OverviewAgent
-from app.agents.reflection_agent import ReflectionAgent
+from app.agents.scoring_agent import ScoringAgent
 from app.services.review_code_service import ReviewCodeService
-from app.tools.execution_run_tool import ExecutionRunTool
 
 
-DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct"
+logger = logging.getLogger(__name__)
+
+DEFAULT_FIREWORKS_MODEL = "fireworks/deepseek-v3p2"
 
 
 def get_fireworks_client(request: Request) -> OpenAI:
@@ -23,7 +24,12 @@ def get_fireworks_client(request: Request) -> OpenAI:
 
 
 def get_fireworks_model_name() -> str:
-    return os.environ.get("FIREWORKS_MODEL", DEFAULT_FIREWORKS_MODEL)
+    model_name = os.environ.get("FIREWORKS_MODEL", DEFAULT_FIREWORKS_MODEL)
+    if model_name != DEFAULT_FIREWORKS_MODEL:
+        logger.info("Using FIREWORKS_MODEL from environment: %s", model_name)
+    else:
+        logger.info("Using default Fireworks model: %s", model_name)
+    return model_name
 
 
 def get_logic_agent(client=Depends(get_fireworks_client)) -> LogicAgent:
@@ -43,21 +49,6 @@ def get_fix_hint_agent(client=Depends(get_fireworks_client)) -> FixHintAgent:
     return FixHintAgent(client=client, model_name=get_fireworks_model_name())
 
 
-def get_execution_run_tool() -> ExecutionRunTool:
-    return ExecutionRunTool.from_env()
-
-
-def get_generate_testcase_agent(
-    client=Depends(get_fireworks_client),
-    execution_tool: ExecutionRunTool = Depends(get_execution_run_tool),
-) -> GenerateTestcaseAgent:
-    return GenerateTestcaseAgent(
-        client=client,
-        model_name=get_fireworks_model_name(),
-        execution_tool=execution_tool,
-    )
-
-
 def get_improvement_agent(client=Depends(get_fireworks_client)) -> ImprovementAgent:
     return ImprovementAgent(client=client, model_name=get_fireworks_model_name())
 
@@ -66,8 +57,8 @@ def get_overview_agent(client=Depends(get_fireworks_client)) -> OverviewAgent:
     return OverviewAgent(client=client, model_name=get_fireworks_model_name())
 
 
-def get_reflection_agent(client=Depends(get_fireworks_client)) -> ReflectionAgent:
-    return ReflectionAgent(client=client, model_name=get_fireworks_model_name())
+def get_scoring_agent(client=Depends(get_fireworks_client)) -> ScoringAgent:
+    return ScoringAgent(client=client, model_name=get_fireworks_model_name())
 
 
 # -----------------------------
@@ -77,17 +68,15 @@ def get_review_service(
     logic_agent: LogicAgent = Depends(get_logic_agent),
     concept_mapping_agent: ConceptMappingAgent = Depends(get_concept_mapping_agent),
     fix_hint_agent: FixHintAgent = Depends(get_fix_hint_agent),
-    generate_testcase_agent: GenerateTestcaseAgent = Depends(get_generate_testcase_agent),
     improvement_agent: ImprovementAgent = Depends(get_improvement_agent),
     overview_agent: OverviewAgent = Depends(get_overview_agent),
-    reflection_agent: ReflectionAgent = Depends(get_reflection_agent),
+    scoring_agent: ScoringAgent = Depends(get_scoring_agent),
 ) -> ReviewCodeService:
     return ReviewCodeService(
         logic_agent=logic_agent,
         concept_mapping_agent=concept_mapping_agent,
         fix_hint_agent=fix_hint_agent,
-        generate_testcase_agent=generate_testcase_agent,
         improvement_agent=improvement_agent,
         overview_agent=overview_agent,
-        reflection_agent=reflection_agent,
+        scoring_agent=scoring_agent,
     )
