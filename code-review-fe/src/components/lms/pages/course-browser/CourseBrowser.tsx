@@ -184,7 +184,7 @@ export default function CourseBrowser({
               >
                 <CardContent className="grid gap-5 p-5 lg:grid-cols-[280px_1fr_auto] lg:items-center">
                   <div
-                    className="relative h-44 rounded-[1.5rem] bg-slate-100 bg-cover bg-center lg:h-36"
+                    className="relative h-44 rounded-3xl bg-slate-100 bg-cover bg-center lg:h-36"
                     style={{
                       backgroundImage: getClassCoverBackgroundImage({
                         seed: item.seed,
@@ -193,7 +193,7 @@ export default function CourseBrowser({
                       }),
                     }}
                   >
-                    <div className="absolute inset-0 rounded-[1.5rem] bg-gradient-to-t from-slate-950/45 via-slate-900/5 to-transparent" />
+                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-t from-slate-950/45 via-slate-900/5 to-transparent" />
                     {item.code ? (
                       <Badge className="absolute left-4 top-4 rounded-full bg-[#1717ad] px-4 py-2 text-sm text-white hover:bg-[#1717ad]">
                         {item.code}

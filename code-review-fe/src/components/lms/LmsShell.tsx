@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -50,8 +51,6 @@ export default function LmsShell({
   const user = useAppSelector((state) => state.auth.user)
   const compactWorkspace = /^\/student\/assignments\/[^/]+\/attempt$/.test(pathname)
   const navItems = navItemsByRole[role]
-  const dashboardHref =
-    role === "student" ? "/student/dashboard" : "/lecturer/dashboard"
   const profileHref = role === "student" ? "/student/profile" : "/lecturer/dashboard"
   const handleLogout = async () => {
     setIsSigningOut(true)
@@ -110,14 +109,21 @@ export default function LmsShell({
                   <Menu className="size-6 text-[#030391]" />
                 )}
               </button>
-              <Link href={dashboardHref} className="flex items-center gap-3">
-                <div className="size-11 rounded-xl bg-gradient-to-br from-[#030391] to-[#1488D8]" />
-                <div className="hidden sm:block">
-                  <h1 className="text-sm font-bold tracking-tight text-[#1488D8]">
-                    ĐẠI HỌC BÁCH KHOA
+              <Link href="/" className="group flex items-center gap-3">
+                <Image
+                  src="/hcmut.png"
+                  alt="BK Logo"
+                  width={96}
+                  height={96}
+                  className="h-12 w-auto object-contain transition-transform group-hover:scale-105"
+                  priority
+                />
+                <div className="hidden flex-col items-center justify-center sm:flex">
+                  <h1 className="text-center text-sm font-bold tracking-tight text-[#1488D8]">
+                    ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH
                   </h1>
-                  <p className="text-lg font-bold tracking-tight text-[#030391]">
-                    BK LEARNING HUB
+                  <p className="text-center text-xl font-bold tracking-tight text-[#030391]">
+                    TRƯỜNG ĐẠI HỌC BÁCH KHOA
                   </p>
                 </div>
               </Link>
