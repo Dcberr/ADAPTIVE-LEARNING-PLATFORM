@@ -38,6 +38,8 @@ public class CreateAssignmentRequest {
 
         private String description;
 
+        private String problemConstraint;
+
         private List<TestcaseRequest> testcases;
     }
 

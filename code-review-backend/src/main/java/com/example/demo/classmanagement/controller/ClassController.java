@@ -3,6 +3,7 @@ package com.example.demo.classmanagement.controller;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,7 +12,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.classmanagement.dto.AddStudentRequest;
 import com.example.demo.classmanagement.dto.ClassDetailResponse;
@@ -34,18 +37,26 @@ public class ClassController {
 
     private final ClassService classService;
 
-    @Operation(summary = "Create a new class")
-    @PostMapping
-    public ApiResponse<ClassResponse> createClass(
-            Authentication auth,
-            @ModelAttribute CreateClassRequest request
-    ) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ApiResponse<ClassResponse> createClass(
+                Authentication auth,
+                @RequestPart("name") String name,
+                @RequestPart("description") String description,
+                @RequestPart("schedule") String schedule,
+                @RequestPart(value = "image", required = false) MultipartFile image
+        ) {
+        CreateClassRequest request = new CreateClassRequest();
+        request.setName(name);
+        request.setDescription(description);
+        request.setSchedule(schedule);
+        request.setImage(image);
+
         UUID instructorId = (UUID) auth.getPrincipal();
 
         return ApiResponse.success(
                 classService.createClass(instructorId, request)
         );
-    }
+        }
 
     @Operation(summary = "Get classes of current user")
     @GetMapping("/me")
