@@ -6,28 +6,21 @@ import lombok.Data;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import com.example.demo.execution.dto.TestcaseResult;
 import com.example.demo.problem.dto.TestcaseResponse;
 
 @Data
 @Builder
 public class SubmissionDetailResponse {
 
-    private UUID submissionId;
-
-    private String problemTitle;
-
-    private String problemDescription;
-
-    private String score;
-
-    private String difficulty;
-
     private String code;
 
     private String language;
 
-    private String status;
-
-    private List<TestcaseResponse> testcases;
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<TestcaseResult> testcaseResults;
 
 }

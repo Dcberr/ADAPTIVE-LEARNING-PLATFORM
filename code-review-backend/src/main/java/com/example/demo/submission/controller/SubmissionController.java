@@ -9,9 +9,14 @@ import com.example.demo.common.response.ApiResponse;
 import com.example.demo.submission.dto.*;
 import com.example.demo.submission.service.SubmissionService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Submission", description = "APIs for code submission and results")
 @RestController
 @RequestMapping("/submissions")
 @RequiredArgsConstructor
@@ -19,12 +24,12 @@ public class SubmissionController {
 
     private final SubmissionService submissionService;
 
+    @Operation(summary = "Submit code for a problem")
     @PostMapping
     public ApiResponse<SubmissionResponse> submit(
             Authentication auth,
             @RequestBody SubmitCodeRequest request
     ) {
-
         UUID userId = (UUID) auth.getPrincipal();
 
         return ApiResponse.success(
@@ -32,35 +37,48 @@ public class SubmissionController {
         );
     }
 
-    @GetMapping("/me")
-    public ApiResponse<List<SubmissionOverviewResponse>> overview(
-            Authentication auth
+    @Operation(summary = "Get my submissions by assignmennt")
+    @GetMapping("/assignment/{assignmentId}/me")
+    public ApiResponse<List<SubmissionResponse>> overview(
+            Authentication auth,
+            @PathVariable UUID assignmentId
     ) {
-
         UUID userId = (UUID) auth.getPrincipal();
 
         return ApiResponse.success(
-                submissionService.getUserSubmissionOverview(userId)
+                submissionService.getUserSubmissionsByAssignmentId(userId, assignmentId)
         );
     }
 
+    @Operation(summary = "Get current user's submissions by assignmennt")
+    @GetMapping("/assignment/{assignmentId}/{userId}")
+    public ApiResponse<List<SubmissionResponse>> overview(
+            @PathVariable UUID userId,
+            @PathVariable UUID assignmentId
+    ) {
+        return ApiResponse.success(
+                submissionService.getUserSubmissionsByAssignmentId(userId, assignmentId)
+        );
+    }
+
+    @Operation(summary = "Get all submissions by assignmennt")
+    @GetMapping("/assignment/{assignmentId}")
+    public ApiResponse<List<SubmissionResponse>> overview(
+            @PathVariable UUID assignmentId
+    ) {
+        return ApiResponse.success(
+                submissionService.getAllSubmissionsByAssignmentId(assignmentId)
+        );
+    }
+
+    @Operation(summary = "Get submission detail")
     @GetMapping("/{submissionId}")
     public ApiResponse<SubmissionDetailResponse> detail(
+            @Parameter(description = "Submission ID")
             @PathVariable UUID submissionId
     ) {
-
         return ApiResponse.success(
                 submissionService.getSubmissionDetail(submissionId)
-        );
-    }
-
-    @GetMapping("/problem/{problemId}")
-        public ApiResponse<List<SubmissionOverviewResponse>> getProblemSubmissions(
-                @PathVariable UUID problemId
-        ) {
-
-        return ApiResponse.success(
-                submissionService.getProblemSubmissions(problemId)
         );
     }
 }

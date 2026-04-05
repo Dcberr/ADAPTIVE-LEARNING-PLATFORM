@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "review-agent"
 version = "0.1.0"
@@ -16,6 +20,11 @@ dependencies = [
     "openai>=2.7.1",
     "pydantic>=2.12.3",
     "python-dotenv>=1.2.1",
-    "together>=1.5.30",
     "uvicorn>=0.38.0",
 ]
+
+[project.scripts]
+review-agent = "app.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

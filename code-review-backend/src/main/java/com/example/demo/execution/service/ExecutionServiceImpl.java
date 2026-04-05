@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.execution.client.JobeClient;
 import com.example.demo.execution.dto.ExecutionResult;
+import com.example.demo.execution.dto.RunCodeRequest;
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.dto.TestcaseResult;
@@ -67,6 +68,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         int index = 1;
 
+        Long totalRuntimeStart = System.currentTimeMillis();
         for (Testcase tc : testcases) {
 
             int testcaseIndex = index++;
@@ -78,11 +80,15 @@ public class ExecutionServiceImpl implements ExecutionService {
                     )
             );
         }
+        
 
         List<TestcaseResult> results =
                 futures.stream()
                         .map(CompletableFuture::join)
                         .toList();
+
+        Long totalRuntime = System.currentTimeMillis() - totalRuntimeStart;
+        log.info("Total runtime for all testcases: {} ms", totalRuntime);
 
         int passed =
                 (int) results.stream()
@@ -100,6 +106,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .testcases(results)
                 .passedTestcases(passed)
                 .totalTestcases(testcases.size())
+                .runtime(totalRuntime)
                 .build();
     }
 
@@ -162,5 +169,33 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             default -> JudgeStatus.RUNTIME_ERROR;
         };
+    }
+
+    @Override
+    public RunCodeResponse runByCustomInput(RunCodeRequest request) {
+        ExecutionResult result =
+                jobeClient.runCode(
+                        request.getLanguage(),
+                        request.getCode(),
+                        request.getInput()
+                );
+
+        JudgeStatus status = mapOutcome(result);
+
+        return RunCodeResponse.builder()
+                .status(status)
+                .testcases(List.of(
+                        TestcaseResult.builder()
+                                .index(1)
+                                .input(request.getInput())
+                                .output(result.getStdout())
+                                .error(result.getStderr())
+                                .runtime(result.getRuntime())
+                                .status(status)
+                                .build()
+                ))
+                .passedTestcases(status == JudgeStatus.ACCEPTED ? 1 : 0)
+                .totalTestcases(1)
+                .build();
     }
 }

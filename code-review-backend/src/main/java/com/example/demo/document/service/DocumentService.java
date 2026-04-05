@@ -13,7 +13,7 @@ public interface DocumentService {
 
     DocumentResponse create(CreateDocumentRequest request);
 
-    List<DocumentResponse> getByTopic(UUID topicId);
+    List<DocumentResponse> getDocumentsByTopic(UUID topicId);
 
     public ResponseEntity<Resource> download(String documentId);
 

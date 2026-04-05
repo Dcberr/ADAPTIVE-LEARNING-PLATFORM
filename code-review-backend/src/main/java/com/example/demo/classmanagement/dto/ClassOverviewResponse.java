@@ -20,4 +20,6 @@ public class ClassOverviewResponse {
     private int enrolledStudentsCount;
     
     private ClassStatus status;
+
+    private String imageUrl;
 }

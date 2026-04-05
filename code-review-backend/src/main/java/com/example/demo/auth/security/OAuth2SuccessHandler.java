@@ -2,6 +2,7 @@ package com.example.demo.auth.security;
 
 import java.io.IOException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -23,6 +24,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final AuthService authService;
     private final JwtProvider jwtProvider;
+
+    @Value("${application.url}")
+    private String applicationUrl;
 
     @Override
     public void onAuthenticationSuccess(
@@ -56,7 +60,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         getRedirectStrategy().sendRedirect(
                 request,
                 response,
-                "http://localhost:3000/oauth-success"
+                applicationUrl + "/oauth-success"
         );
     }
 }

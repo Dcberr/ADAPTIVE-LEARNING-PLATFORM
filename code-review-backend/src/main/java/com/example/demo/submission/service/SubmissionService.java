@@ -9,12 +9,16 @@ public interface SubmissionService {
 
     SubmissionResponse submit(UUID userId, SubmitCodeRequest request);
 
-    List<SubmissionHistoryResponse> getUserSubmissions(UUID userId);
+    // List<SubmissionHistoryResponse> getUserSubmissions(UUID userId);
 
     public List<SubmissionOverviewResponse> getUserSubmissionOverview(UUID userId);
 
     public SubmissionDetailResponse getSubmissionDetail(UUID submissionId); 
 
     public List<SubmissionOverviewResponse> getProblemSubmissions(UUID problemId);
+
+    public List<SubmissionResponse> getUserSubmissionsByAssignmentId(UUID userId, UUID assignmentId);
+
+    public List<SubmissionResponse> getAllSubmissionsByAssignmentId(UUID assignmentId);
 
 }

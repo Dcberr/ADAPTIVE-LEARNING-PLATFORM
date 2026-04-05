@@ -1,21 +1,31 @@
 package com.example.demo.submission.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.UUID;
+
+import com.example.demo.submission.entity.SubmissionStatus;
+
 
 @Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class SubmissionResponse {
 
-    private UUID id;
+    private UUID submissionId;
 
-    private String status;
+    private SubmissionStatus status;
 
-    private Long runtime;
+    private Instant startedAt;
 
-    private Integer passedTestcases;
+    private Instant submittedAt;
+    
+    private String score;
 
-    private Integer totalTestcases;
+    private String studentName;
 }

@@ -6,6 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.execution.dto.RunTestcaseRequest;
+import com.example.demo.assignment.dto.UpdateAssignmentRequest;
+import com.example.demo.assignment.entity.AssignmentProblem;
+import com.example.demo.assignment.entity.AssignmentStatus;
+import com.example.demo.assignment.repository.AssignmentProblemRepository;
+import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.service.ExecutionService;
 import com.example.demo.problem.dto.TestcaseResponse;
@@ -14,6 +19,7 @@ import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.submission.dto.*;
 import com.example.demo.submission.entity.Submission;
+import com.example.demo.submission.entity.SubmissionStatus;
 import com.example.demo.submission.repository.SubmissionRepository;
 
 import java.time.Instant;
@@ -29,6 +35,8 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final ExecutionService executionService;
     private final ProblemRepository problemRepository;
     private final TestcaseRepository testcaseRepository;
+    private final AssignmentService assignmentService;
+    private final AssignmentProblemRepository assignmentProblemRepository;
 
     @Override
     public SubmissionResponse submit(
@@ -45,46 +53,45 @@ public class SubmissionServiceImpl implements SubmissionService {
         RunCodeResponse result =
                 executionService.runByTestcase(judgeRequest);
 
-        Submission submission =
+        Submission submission = submissionRepository.save(
                 Submission.builder()
                         .userId(userId)
                         .problemId(request.getProblemId())
                         .language(request.getLanguage())
                         .code(request.getCode())
-                        .status(result.getStatus().name())
-                        // .runtime(result.getRuntime())
+                        .status(SubmissionStatus.SUBMITTED)
+                        .runtime(result.getRuntime())
                         .passedTestcases(result.getPassedTestcases())
                         .totalTestcases(result.getTotalTestcases())
                         .score(String.valueOf((double) result.getPassedTestcases() / result.getTotalTestcases() * 100))
-                        .createdAt(Instant.now())
-                        .build();
+                        .submittedAt(Instant.now())
+                        .testcaseResults(result.getTestcases())
+                        .build()
+        );
 
-        submissionRepository.save(submission);
+        AssignmentProblem ap = assignmentProblemRepository.findByProblemId(request.getProblemId());
+                
+        assignmentService.updateAssignment(ap.getAssignmentId(),UpdateAssignmentRequest.builder()
+                .status(AssignmentStatus.SUBMITTED)
+                .build());
+
+        // submissionRepository.save(submission);
+
+        
 
         return SubmissionResponse.builder()
-                .id(submission.getId())
-                .status(submission.getStatus())
-                .runtime(submission.getRuntime())
-                .passedTestcases(submission.getPassedTestcases())
-                .totalTestcases(submission.getTotalTestcases())
+                .submissionId(submission.getId())
+                .status(SubmissionStatus.SUBMITTED)
+                // .startedAt(request.getStartedAt())
+                .submittedAt(submission.getSubmittedAt())
+                .score(submission.getScore())
                 .build();
     }
 
     @Override
-    public List<SubmissionHistoryResponse> getUserSubmissions(UUID userId) {
+    public List<SubmissionResponse> getUserSubmissionsByAssignmentId(UUID userId, UUID assignmentId) {
 
-        return submissionRepository.findByUserId(userId)
-                .stream()
-                .map(s -> SubmissionHistoryResponse.builder()
-                        .id(s.getId())
-                        .problemId(s.getProblemId())
-                        .status(s.getStatus())
-                        .language(s.getLanguage())
-                        .code(s.getCode())
-                        .createdAt(s.getCreatedAt())
-                        .score(String.valueOf((double) s.getPassedTestcases() / s.getTotalTestcases() * 100))
-                        .build())
-                .toList();
+        return submissionRepository.getUserSubmissionsByAssignmentId(userId, assignmentId);     
     }
 
     @Override
@@ -95,38 +102,20 @@ public class SubmissionServiceImpl implements SubmissionService {
     }
 
     @Override
+    public List<SubmissionResponse> getAllSubmissionsByAssignmentId(UUID assignmentId) {
+        return submissionRepository.getAllSubmissionsByAssignmentId(assignmentId);
+    }
+    
+    @Override
     public SubmissionDetailResponse getSubmissionDetail(UUID submissionId) {
 
-        Submission submission =
-                submissionRepository.findById(submissionId)
-                        .orElseThrow();
-
-        Problem problem =
-                problemRepository.findById(submission.getProblemId())
-                        .orElseThrow();
-
-        List<TestcaseResponse> testcases =
-                testcaseRepository.findByProblemId(problem.getId())
-                        .stream()
-                        .map(tc -> TestcaseResponse.builder()
-                                .id(tc.getId())
-                                .input(tc.getInput())
-                                .problemId(problem.getId())
-                                .expectedOutput(tc.getExpectedOutput())
-                                .isSample(tc.isSample())
-                                .build())
-                        .toList();
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
 
         return SubmissionDetailResponse.builder()
-                .submissionId(submission.getId())
-                .problemTitle(problem.getTitle())
-                .score(String.valueOf((double) submission.getPassedTestcases() / submission.getTotalTestcases() * 100))
-                .problemDescription(problem.getDescription())
-                .difficulty(problem.getDifficulty())
                 .code(submission.getCode())
                 .language(submission.getLanguage())
-                .status(submission.getStatus())
-                .testcases(testcases)
+                .testcaseResults(submission.getTestcaseResults())
                 .build();
         }
 

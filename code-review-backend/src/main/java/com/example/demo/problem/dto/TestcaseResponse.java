@@ -19,4 +19,6 @@ public class TestcaseResponse {
 
     private boolean isSample;
 
+    private String explanation;
+
 }

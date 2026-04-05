@@ -18,7 +18,7 @@ public class ProblemDetailResponse {
 
     private String difficulty;
 
-    private String source;
+    // private String source;
 
     private List<TestcaseResponse> sampleTestcases;
 

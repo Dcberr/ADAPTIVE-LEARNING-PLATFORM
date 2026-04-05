@@ -53,7 +53,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - TOGETHER_API_KEY=your_key_here
+      - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
     restart: always
     networks:
       - app-network
@@ -70,17 +70,25 @@ services:
         condition: service_started
       minio:
         condition: service_started
+    env_file:
+      - .env
     environment:
+      - SERVER_SERVLET_CONTEXT_PATH=/api
+      - APPLICATION_URL=${APPLICATION_URL}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DATABASE_NAME}
       - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DATABASE_PASSWORD}
 
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - CLIENT_ID=${CLIENT_ID}
+
       - JOBE_URL=http://jobe-server/jobe/index.php/restapi
       - REVIEW_AGENT_URL=http://review-agent:8000/api/v1/review_code
 
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=minio
-      - MINIO_SECRET_KEY=minio123
+      - MINIO_URL=${MINIO_URL}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
     restart: always
     networks:
       - app-network

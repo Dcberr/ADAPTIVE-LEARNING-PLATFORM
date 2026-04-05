@@ -1,23 +1,23 @@
-from ast import List
 import logging
 from typing import Any, Dict
-from together import Together
+from openai import OpenAI
 
+from app.models.logic_issue import create_logic_issue
 from app.models.review_state import (
     LogicIssue,
     ReviewState,
     SandBoxResult,
-    create_logic_issue,
 )
+from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
 logger = logging.getLogger(__name__)
 
 
 class LogicAgent:
-    """Analyzes sandbox outputs and produces logic_issues using Qwen Coder via Together AI."""
+    """Analyzes sandbox outputs and produces logic issues with a chat model."""
 
-    def __init__(self, client: Together, model_name: str):
+    def __init__(self, client: OpenAI, model_name: str):
         self.client = client
         self.model_name = model_name
         self.batch_size = 5
@@ -90,13 +90,18 @@ class LogicAgent:
 
     def analyze(self, state: ReviewState) -> Dict[str, Any]:
         """Run logic analysis on a submission state and return updated state."""
-        logger.debug("Starting LogicAgent (Together AI / Qwen Coder)")
+        logger.debug("Starting LogicAgent with state summary: %s", summarize_state(state))
 
         new_state: ReviewState = dict(state)
         cases = state.get("sandbox_results", [])
         all_issues: Dict[int, LogicIssue] = {}
 
-        for batch in self.chunk_test_cases(cases):
+        for batch_index, batch in enumerate(self.chunk_test_cases(cases), start=1):
+            logger.debug(
+                "LogicAgent processing batch %s with test ids=%s",
+                batch_index,
+                [case["id"] for case in batch],
+            )
             messages = self.generate_messages(state.get("code", ""), batch)
 
             try:
@@ -104,12 +109,23 @@ class LogicAgent:
                     model=self.model_name,
                     messages=messages,
                     temperature=0.3,
-                    max_output_tokens=2048,
+                    max_tokens=2048,
                 )
 
                 model_text = response.choices[0].message.content
+                logger.debug(
+                    "LogicAgent batch %s raw response preview: %s",
+                    batch_index,
+                    truncate_text(model_text),
+                )
                 parsed = safe_parse_json_response(model_text)
-                for issue_data in parsed.get("logic_issues") or []:
+                batch_issues = parsed.get("logic_issues") or []
+                logger.debug(
+                    "LogicAgent batch %s parsed %s issues",
+                    batch_index,
+                    len(batch_issues),
+                )
+                for issue_data in batch_issues:
                     issue = create_logic_issue(
                         issue=issue_data.get("issue", ""),
                         evidence=int(issue_data.get("evidence", -1)),
@@ -119,9 +135,12 @@ class LogicAgent:
                     all_issues[issue["evidence"]] = issue
 
             except Exception as e:
-                logger.error(f"LogicAgent batch error: {e}")
+                logger.exception("LogicAgent batch %s failed", batch_index)
 
         new_state["logic_issues"] = all_issues
 
-        logger.debug(f"LogicAgent output state: {new_state}")
+        logger.debug(
+            "LogicAgent completed with %s total logic issues",
+            len(new_state["logic_issues"]),
+        )
         return new_state

@@ -35,6 +35,9 @@ public class MinioStorageService {
     @Value("${minio.bucket}")
     private String bucket;
 
+    @Value("${minio.url}")
+    private String minioUrl;
+
     public UploadFilleResponse upload(MultipartFile file) {
         try {
             String objectName = generateFileName(file.getOriginalFilename());
@@ -79,7 +82,7 @@ public class MinioStorageService {
 
     private String getFileUrl(String objectName) {
         return String.format("%s/%s/%s",
-                "http://localhost:9000",
+                minioUrl,
                 bucket,
                 objectName);
     }

@@ -9,16 +9,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.common.response.ApiResponse;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Auth", description = "Authentication APIs")
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {
 
-    @GetMapping("/me")
-    public ApiResponse<?> me(Authentication authentication) {
+    // @Operation(summary = "Get current user info")
+    // @GetMapping("/me")
+    // public ApiResponse<?> me(Authentication authentication) {
 
-        UUID userId = (UUID) authentication.getPrincipal();
+    //     UUID userId = (UUID) authentication.getPrincipal();
 
-        return ApiResponse.success(userId);
-    }
-
+    //     return ApiResponse.success(userId);
+    // }
 }

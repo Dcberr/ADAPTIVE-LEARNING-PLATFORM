@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.CreateAssignmentRequest;
+import com.example.demo.assignment.dto.UpdateAssignmentRequest;
 import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.entity.Assignment;
 import com.example.demo.assignment.entity.AssignmentProblem;
 import com.example.demo.assignment.entity.AssignmentStatus;
+import com.example.demo.assignment.mapper.AssignmentMapper;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.problem.dto.CreateProblemRequest;
@@ -26,6 +28,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final ProblemService problemService;
+    private final AssignmentMapper assignmentMapper;
 
     @Override
     public AssignmentResponse createAssignment(CreateAssignmentRequest request) {
@@ -59,7 +62,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .build()
         );
 
-        return map(assignment);
+        return mapAssignment(assignment);
     }
 
     @Override
@@ -67,18 +70,30 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         return assignmentRepository.findByTopicId(topicId)
                 .stream()
-                .map(this::map)
+                .map(this::mapAssignment)
                 .toList();
     }
 
-    private AssignmentResponse map(Assignment assignment) {
+    @Override
+    public AssignmentResponse updateAssignment(UUID assignmentId, UpdateAssignmentRequest request) {
 
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new RuntimeException("Assignment not found"));
+
+        assignmentMapper.updateAssignmentFromDto(request, assignment);
+
+        assignmentRepository.save(assignment);
+
+        return mapAssignment(assignment);
+    }
+
+    private AssignmentResponse mapAssignment(Assignment assignment) {
         return AssignmentResponse.builder()
                 .id(assignment.getId())
-                // .topicId(assignment.getTopicId())
                 .title(assignment.getTitle())
-                // .description(assignment.getDescription())
                 .deadline(assignment.getDeadline())
+                .difficulty(assignment.getDifficulty())
+                .status(assignment.getStatus())
                 .build();
     }
 

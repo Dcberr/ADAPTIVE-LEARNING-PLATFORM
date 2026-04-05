@@ -12,6 +12,7 @@ public class CreateProblemRequest {
 
     private String description;
     private UUID assignmentId;
+    private String problemConstraint;
 
     private List<TestcaseRequest> testcases;
 

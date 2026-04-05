@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.entity.Assignment;
 import com.example.demo.assignment.repository.AssignmentRepository;
+import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.document.dto.DocumentResponse;
 import com.example.demo.document.entity.Document;
 import com.example.demo.document.repository.DocumentRepository;
+import com.example.demo.document.service.DocumentService;
 import com.example.demo.topic.dto.CreateTopicRequest;
 import com.example.demo.topic.dto.TopicDetailResponse;
 import com.example.demo.topic.dto.TopicOverviewResponse;
@@ -26,8 +28,10 @@ import lombok.RequiredArgsConstructor;
 public class TopicServiceImpl implements TopicService {
 
     private final TopicRepository topicRepository;
-    private final AssignmentRepository assignmentRepository;
-    private final DocumentRepository documentRepository;
+//     private final AssignmentRepository assignmentRepository;
+//     private final DocumentRepository documentRepository;
+    private final AssignmentService assignmentService;
+    private final DocumentService documentService;   
 
     @Override
     public TopicResponse createTopic(CreateTopicRequest req) {
@@ -69,17 +73,9 @@ public class TopicServiceImpl implements TopicService {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new RuntimeException("Topic not found"));
 
-        List<AssignmentResponse> assignments =
-                assignmentRepository.findByTopicId(topicId)
-                        .stream()
-                        .map(this::mapAssignment)
-                        .toList();
+        List<AssignmentResponse> assignments = assignmentService.getAssignmentsByTopic(topicId);
 
-        List<DocumentResponse> documents =
-                documentRepository.findByTopicId(topicId)
-                        .stream()
-                        .map(this::mapDocument)
-                        .toList();
+        List<DocumentResponse> documents = documentService.getDocumentsByTopic(topicId);
 
         return TopicDetailResponse.builder()
                 .id(topic.getId())
@@ -100,23 +96,4 @@ public class TopicServiceImpl implements TopicService {
                 .build();
     }
 
-    private AssignmentResponse mapAssignment(Assignment assignment) {
-        return AssignmentResponse.builder()
-                .id(assignment.getId())
-                .title(assignment.getTitle())
-                .deadline(assignment.getDeadline())
-                .difficulty(assignment.getDifficulty())
-                .status(assignment.getStatus())
-                .build();
-    }
-
-    private DocumentResponse mapDocument(Document doc) {
-        return DocumentResponse.builder()
-                .id(doc.getId())
-                .title(doc.getTitle())
-                .description(doc.getDescription())
-                .fileUrl(doc.getFileUrl())
-                .type(doc.getType())
-                .build();
-    }
 }
