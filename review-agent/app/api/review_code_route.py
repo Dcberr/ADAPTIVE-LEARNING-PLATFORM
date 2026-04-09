@@ -1,6 +1,8 @@
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.api.knowledge_graph_deps import get_knowledge_graph_repository
 from app.api.review_code_deps import get_review_service
 from app.api.review_code_schema import (
     ColumnContext,
@@ -12,6 +14,7 @@ from app.api.review_code_schema import (
     ScoreCardItem,
 )
 from app.models.review_state import ReviewState, create_initial_state
+from app.services.knowledge_graph_repository import KnowledgeGraphRepository
 from app.services.review_code_service import ReviewCodeService
 from app.utils.debug_logging import summarize_state
 
@@ -24,6 +27,9 @@ router = APIRouter()
 async def review_code(
     request: ReviewRequest,
     review_code_service: ReviewCodeService = Depends(get_review_service),
+    knowledge_graph_repository: KnowledgeGraphRepository = Depends(
+        get_knowledge_graph_repository
+    ),
 ):
     """
     Endpoint that uses the LangGraph workflow with Gemini for code review.
@@ -90,7 +96,9 @@ async def review_code(
             for item in result_state["review_items"]
         ]
 
-        return ReviewResponse(
+        review_id = str(uuid4())
+        response = ReviewResponse(
+            review_id=review_id,
             summary=overview,
             detail="Review completed",
             review_items=review_items,
@@ -147,6 +155,32 @@ async def review_code(
                 ),
             ),
         )
+        knowledge_graph_repository.upsert_review(
+            student_id=request.student_id,
+            exercise_id=request.exercise_id,
+            submission_id=request.submission_id,
+            summary=response.summary,
+            detail=response.detail,
+            review_items=[item.model_dump() for item in response.review_items],
+            scorecard=response.scorecard.model_dump(),
+            current_concept=(
+                request.assignment.expected_concepts[0]
+                if request.assignment.expected_concepts
+                else ""
+            ),
+            review_id=review_id,
+        )
+        knowledge_graph_repository.recalculate_student_profile_from_review(
+            student_id=request.student_id,
+            exercise_id=request.exercise_id,
+            current_concept=(
+                request.assignment.expected_concepts[0]
+                if request.assignment.expected_concepts
+                else ""
+            ),
+            scorecard=response.scorecard.model_dump(),
+        )
+        return response
 
     except Exception as e:
         logger.exception("Review process failed")
