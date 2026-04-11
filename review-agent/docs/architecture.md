@@ -29,16 +29,24 @@ Client
 
 ```text
 Client
-  -> POST /api/v1/knowledgegraph/concepts
+  -> PATCH /api/v1/knowledgegraph/concepts/{concept_id}
   -> Neo4j concept upsert
 
 Client
-  -> POST /api/v1/knowledgegraph/exercises
+  -> PATCH /api/v1/knowledgegraph/exercises/{exercise_id}
   -> Neo4j exercise upsert
 
 Client
-  -> POST /api/v1/knowledgegraph/students
+  -> PATCH /api/v1/knowledgegraph/students/{student_id}
   -> Neo4j student upsert
+
+Client
+  -> PATCH /api/v1/knowledgegraph/submissions/{submission_id}
+  -> Neo4j submission upsert
+
+Client
+  -> PATCH /api/v1/knowledgegraph/reviews/{review_id}
+  -> Neo4j review upsert
 
 Client
   -> GET /api/v1/knowledgegraph
@@ -87,9 +95,11 @@ Current endpoints:
 
 - `POST /api/v1/review_code`
 - `POST /api/v1/recommendation`
-- `POST /api/v1/knowledgegraph/concepts`
-- `POST /api/v1/knowledgegraph/exercises`
-- `POST /api/v1/knowledgegraph/students`
+- `PATCH /api/v1/knowledgegraph/concepts/{concept_id}`
+- `PATCH /api/v1/knowledgegraph/exercises/{exercise_id}`
+- `PATCH /api/v1/knowledgegraph/students/{student_id}`
+- `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
+- `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
 - `GET /api/v1/knowledgegraph`
 
 ## Review Architecture
@@ -183,11 +193,10 @@ Responsibilities:
 Concept write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `POST /api/v1/knowledgegraph/concepts`
+- endpoint: `PATCH /api/v1/knowledgegraph/concepts/{concept_id}`
 
 Concept payload:
 
-- `concept_id`
 - `name`
 - `description`
 - `difficulty`
@@ -196,11 +205,10 @@ Concept payload:
 Exercise write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `POST /api/v1/knowledgegraph/exercises`
+- endpoint: `PATCH /api/v1/knowledgegraph/exercises/{exercise_id}`
 
 Exercise payload:
 
-- `exercise_id`
 - `title`
 - `description`
 - `content`
@@ -212,16 +220,37 @@ Exercise payload:
 Student write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `POST /api/v1/knowledgegraph/students`
+- endpoint: `PATCH /api/v1/knowledgegraph/students/{student_id}`
 
 Student payload:
 
-- `student_id`
-- `current_concept`
-- `mastered_concepts`
-- `attempted_exercise_ids`
 - `student_profile`
-- `notes`
+
+Submission write API:
+
+- file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
+- endpoint: `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
+
+Submission payload:
+
+- `student_id`
+- `exercise_id`
+- `code`
+- `testcase_outputs`
+
+Review write API:
+
+- file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
+- endpoint: `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
+
+Review payload:
+
+- `submission_id`
+- `summary`
+- `detail`
+- `review_items`
+- `scorecard`
+- `current_concept`
 
 Graph read API:
 
@@ -263,7 +292,7 @@ The student profile scoring object captures long-lived learner signals:
 - `learning_velocity`
 - `notes`
 
-Each metric is currently scored from `1` to `5`.
+Each metric is currently normalized from `0.0` to `1.0`.
 
 ### Recommendation Scoring Framework
 
@@ -455,9 +484,8 @@ Important models:
 
 1. Client submits:
    - `student_id`
-   - `StudentProfileScoring`
-   - current concept and learning history context
-2. The student is upserted into Neo4j with profile, mastered concepts, and attempted exercise links.
+   - `exercise_id`
+2. The recommendation service loads the latest stored student profile and review context from Neo4j.
 3. `ReviewContextLoader` loads the latest review and recent linked review history from Neo4j.
 4. `ProfileScorer` computes recommendation-specific learner signals.
 5. `GraphRAGRetriever` retrieves candidate exercises from Neo4j using student-aware filtering.

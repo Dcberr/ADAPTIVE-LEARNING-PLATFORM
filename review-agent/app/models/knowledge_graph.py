@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from app.models.exercise_record import ExerciseRecord
 from app.models.review_record import ReviewRecord
+from app.models.submission_record import SubmissionRecord
 from app.models.student_record import StudentRecord
 
 
@@ -40,4 +41,5 @@ class KnowledgeGraphDocument(BaseModel):
     exercise_concept_links: list[ExerciseConceptLink] = Field(default_factory=list)
     exercise_path_links: list[ExercisePathLink] = Field(default_factory=list)
     students: list[StudentRecord] = Field(default_factory=list)
+    submissions: list[SubmissionRecord] = Field(default_factory=list)
     reviews: list[ReviewRecord] = Field(default_factory=list)
