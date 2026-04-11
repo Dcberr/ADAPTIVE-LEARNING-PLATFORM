@@ -5,11 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.knowledge_graph_deps import get_knowledge_graph_repository
 from app.api.knowledge_graph_schema import (
     KnowledgeGraphConceptResponse,
+    KnowledgeGraphReviewResponse,
     KnowledgeGraphExerciseResponse,
     KnowledgeGraphSnapshotResponse,
+    KnowledgeGraphStudentProfileResponse,
     KnowledgeGraphStudentResponse,
+    RecalculateStudentProfileRequest,
     UpsertConceptRequest,
     UpsertExerciseRequest,
+    UpsertReviewRequest,
     UpsertStudentRequest,
 )
 from app.models.exercise_record import ExerciseRecord
@@ -87,6 +91,59 @@ async def upsert_student(
     except Exception as exc:
         logger.exception("Student upsert failed")
         raise HTTPException(status_code=500, detail=f"Student upsert failed: {exc}")
+
+
+@router.post("/knowledgegraph/reviews", response_model=KnowledgeGraphReviewResponse)
+async def upsert_review(
+    request: UpsertReviewRequest,
+    repository: KnowledgeGraphRepository = Depends(get_knowledge_graph_repository),
+):
+    try:
+        review = repository.upsert_review(
+            student_id=request.student_id,
+            exercise_id=request.exercise_id,
+            submission_id=request.submission_id,
+            summary=request.summary,
+            detail=request.detail,
+            review_items=[item.model_dump() for item in request.review_items],
+            scorecard=request.scorecard.model_dump(),
+            current_concept=request.current_concept,
+            review_id=request.review_id,
+        )
+        return KnowledgeGraphReviewResponse(review=review)
+    except Exception as exc:
+        logger.exception("Review upsert failed")
+        raise HTTPException(status_code=500, detail=f"Review upsert failed: {exc}")
+
+
+@router.patch(
+    "/knowledgegraph/students/{student_id}/profile",
+    response_model=KnowledgeGraphStudentProfileResponse,
+)
+async def recalculate_student_profile(
+    student_id: str,
+    request: RecalculateStudentProfileRequest,
+    repository: KnowledgeGraphRepository = Depends(get_knowledge_graph_repository),
+):
+    try:
+        student_profile = repository.recalculate_student_profile_from_review(
+            student_id=student_id,
+            exercise_id=request.exercise_id,
+            current_concept=request.current_concept,
+            scorecard=request.scorecard.model_dump(),
+        )
+        return KnowledgeGraphStudentProfileResponse(
+            student_id=student_id,
+            exercise_id=request.exercise_id,
+            current_concept=request.current_concept,
+            student_profile=student_profile,
+        )
+    except Exception as exc:
+        logger.exception("Student profile recalculation failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Student profile recalculation failed: {exc}",
+        )
 
 
 @router.get("/knowledgegraph", response_model=KnowledgeGraphSnapshotResponse)

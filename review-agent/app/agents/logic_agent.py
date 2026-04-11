@@ -27,6 +27,18 @@ class LogicAgent:
         for i in range(0, len(cases), self.batch_size):
             yield cases[i : i + self.batch_size]
 
+    def _normalize_output(self, value: Any) -> str:
+        """Normalize sandbox outputs before comparing expected vs actual."""
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    def _is_meaningfully_failed(self, case: SandBoxResult) -> bool:
+        """Keep only cases where expected and actual differ after normalization."""
+        return self._normalize_output(case.get("expected")) != self._normalize_output(
+            case.get("actual")
+        )
+
     def format_history(self, history: list[dict[str, Any]]) -> str:
         """Format prior submission attempts for the model prompt."""
         if not history:
@@ -153,9 +165,16 @@ class LogicAgent:
         logger.debug("Starting LogicAgent with state summary: %s", summarize_state(state))
 
         new_state: ReviewState = dict(state)
-        cases = state.get("sandbox_results", [])
+        raw_cases = state.get("sandbox_results", [])
+        cases = [case for case in raw_cases if self._is_meaningfully_failed(case)]
         history = state.get("history", [])
         all_issues: Dict[str, LogicIssue] = {}
+
+        if len(cases) != len(raw_cases):
+            logger.debug(
+                "LogicAgent filtered out %s sandbox results where expected matched actual",
+                len(raw_cases) - len(cases),
+            )
 
         for batch_index, batch in enumerate(self.chunk_test_cases(cases), start=1):
             logger.debug(

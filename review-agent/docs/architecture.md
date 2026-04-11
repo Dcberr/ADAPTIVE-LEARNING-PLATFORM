@@ -101,8 +101,8 @@ File: [app/services/review_code_service.py](/Users/thaibao/projects/review-code-
 The review pipeline uses `StateGraph(ReviewState)` with these nodes:
 
 - `logic`
-- `concept_map`
 - `fix_hint`
+- `review_link`
 - `improve`
 - `overview`
 - `scoring`

@@ -16,14 +16,6 @@ class TestResult(BaseModel):
 class AssignmentContext(BaseModel):
     content: str
     language: str = Field(..., description="E.g., C, C++, Python")
-    expected_concepts: List[str] = Field(
-        default_factory=list,
-        description="List of CS concepts expected to be demonstrated",
-    )
-
-
-class Submission(BaseModel):
-    code: str
 
 
 class SubmissionHistoryItem(BaseModel):
@@ -37,11 +29,8 @@ class SubmissionHistoryItem(BaseModel):
 class ReviewRequest(BaseModel):
     """The complete input payload for the code review endpoint."""
 
-    student_id: str
-    exercise_id: str
-    submission_id: str
     assignment: AssignmentContext
-    student_submission: Submission
+    code: str
     test_results: List[TestResult]
     history: List[SubmissionHistoryItem] = Field(default_factory=list)
 
@@ -66,6 +55,17 @@ class ReviewItem(BaseModel):
         description="For a 'Warning', this must describe a case where it can lead to a bug.",
     )
     fix_suggestion: str
+    review_link: Optional["ReviewLink"] = None
+
+
+class ReviewLink(BaseModel):
+    current_issue: str
+    current_code_snippet: str
+    previous_submission_indexes: List[int] = Field(default_factory=list)
+    previous_code_snippet: str
+    what_improved: str
+    what_still_needs_work: str
+    relation_summary: str
 
 
 class ScoreCardItem(BaseModel):

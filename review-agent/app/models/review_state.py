@@ -3,6 +3,7 @@ from typing import TypedDict, Any, Dict, List
 from app.api.review_code_schema import ReviewItem
 from app.models.improvement_note import ImprovementNote
 from app.models.logic_issue import LogicIssue
+from app.models.review_link import ReviewLink
 from app.models.sandbox_result import SandBoxResult
 
 
@@ -16,15 +17,14 @@ class ReviewState(TypedDict):
     assignment_language: str
     sandbox_results: List[SandBoxResult]
     assignment_requirements: str
-    expected_concepts: List[str]
     history: List[SubmissionHistory]
     previous_failed_test_case_ids: List[str]
     persistent_failed_test_case_ids: List[str]
     fixed_test_case_ids: List[str]
     regressed_test_case_ids: List[str]
     logic_issues: Dict[str, LogicIssue]
-    concept_issues: List[Dict[str, Any]]
     improvement_notes: List[ImprovementNote]
+    review_links: List[ReviewLink]
     overview: str
     review_items: List[ReviewItem]
     scorecard: Dict[str, Any]
@@ -35,7 +35,6 @@ def create_initial_state(
     assignment_language: str,
     sandbox_results: List[SandBoxResult],
     assignment_requirements: str,
-    expected_concepts: List[str],
     history: List[SubmissionHistory],
 ) -> ReviewState:
     """Helper function to create a properly initialized ReviewState"""
@@ -64,16 +63,15 @@ def create_initial_state(
         "assignment_language": assignment_language,
         "sandbox_results": sandbox_results,
         "assignment_requirements": assignment_requirements,
-        "expected_concepts": expected_concepts,
         "history": history,
         "previous_failed_test_case_ids": previous_failed_test_case_ids,
         "persistent_failed_test_case_ids": persistent_failed_test_case_ids,
         "fixed_test_case_ids": fixed_test_case_ids,
         "regressed_test_case_ids": regressed_test_case_ids,
         "logic_issues": {},
-        "concept_issues": [],
         "categorized_feedback": [],
         "improvement_notes": [],
+        "review_links": [],
         "advanced_suggestions": [],
         "final_report": {},
         "static_issues": [],

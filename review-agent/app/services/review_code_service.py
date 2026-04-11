@@ -1,10 +1,10 @@
 import logging
 from time import perf_counter
-from app.agents.concept_mapping_agent import ConceptMappingAgent
 from app.agents.fix_hint_agent import FixHintAgent
 from app.agents.improvement_agent import ImprovementAgent
 from app.agents.logic_agent import LogicAgent
 from app.agents.overview_agent import OverviewAgent
+from app.agents.review_link_agent import ReviewLinkAgent
 from app.agents.scoring_agent import ScoringAgent
 from app.models.review_state import ReviewState
 from app.utils.debug_logging import summarize_state
@@ -19,16 +19,16 @@ class ReviewCodeService:
     def __init__(
         self,
         logic_agent: LogicAgent,
-        concept_mapping_agent: ConceptMappingAgent,
         fix_hint_agent: FixHintAgent,
         improvement_agent: ImprovementAgent,
+        review_link_agent: ReviewLinkAgent,
         overview_agent: OverviewAgent,
         scoring_agent: ScoringAgent,
     ):
         self.logic_agent = logic_agent
-        self.concept_mapping_agent = concept_mapping_agent
         self.fix_hint_agent = fix_hint_agent
         self.improvement_agent = improvement_agent
+        self.review_link_agent = review_link_agent
         self.overview_agent = overview_agent
         self.scoring_agent = scoring_agent
 
@@ -43,16 +43,16 @@ class ReviewCodeService:
             "logic", self._instrument_node("logic", self.logic_agent.analyze)
         )
         workflow.add_node(
-            "concept_map",
-            self._instrument_node("concept_map", self.concept_mapping_agent.analyze),
-        )
-        workflow.add_node(
             "fix_hint",
             self._instrument_node("fix_hint", self.fix_hint_agent.analyze),
         )
         workflow.add_node(
             "improve",
             self._instrument_node("improve", self.improvement_agent.analyze),
+        )
+        workflow.add_node(
+            "review_link",
+            self._instrument_node("review_link", self.review_link_agent.analyze),
         )
         workflow.add_node(
             "overview",
@@ -72,33 +72,30 @@ class ReviewCodeService:
                 summarize_state(state),
             )
             if state["logic_issues"] and len(state["logic_issues"]) > 0:
-                logger.debug("Route selected: logic -> concept_map")
-                return "concept_map"
+                logger.debug("Route selected: logic -> fix_hint")
+                return "fix_hint"
             if state.get("needs_improvement"):
                 logger.debug("Route selected: logic -> improve (needs_improvement)")
                 return "improve"
             logger.debug("Route selected: logic -> improve")
             return "improve"
 
-        def route_after_concept_map(state: ReviewState) -> str:
-            return "fix_hint"
-
         # Add conditional edges
         workflow.add_conditional_edges(
             "logic",
             route_after_logic,
             {
-                "concept_map": "concept_map",
+                "fix_hint": "fix_hint",
                 "improve": "improve",
             },
         )
         workflow.add_conditional_edges(
-            "concept_map",
-            route_after_concept_map,
-            {"fix_hint": "fix_hint"},
+            "fix_hint",
+            lambda s: "review_link",
+            {"review_link": "review_link"},
         )
         workflow.add_conditional_edges(
-            "fix_hint",
+            "review_link",
             lambda s: "improve",
             {"improve": "improve"},
         )
