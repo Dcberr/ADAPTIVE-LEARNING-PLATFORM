@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from uuid import uuid4
-
 from neo4j import Driver
 
 from app.api.review_code_schema import ReviewItem, ReviewResponse, ScoreCard
@@ -18,6 +16,7 @@ from app.models.knowledge_graph import (
 )
 from app.models.review_record import ReviewRecord
 from app.models.student_profile import StudentProfileScoring
+from app.models.submission_record import SubmissionRecord
 from app.models.student_record import StudentRecord
 
 
@@ -127,17 +126,52 @@ class KnowledgeGraphRepository:
     def upsert_student(
         self,
         *,
-        student: StudentRecord,
+        student_id: str,
         student_profile: StudentProfileScoring,
-        mastered_concepts: list[str],
-        attempted_exercise_ids: list[str],
-    ) -> StudentRecord:
+    ) -> StudentProfileScoring:
         with self.driver.session() as session:
+            existing = session.run(
+                """
+                MATCH (s:Student {student_id: $student_id})
+                RETURN coalesce(s.concept_mastery, 0) AS concept_mastery,
+                       coalesce(s.implementation_consistency, 0) AS implementation_consistency,
+                       coalesce(s.debugging_independence, 0) AS debugging_independence,
+                       coalesce(s.efficiency_awareness, 0) AS efficiency_awareness,
+                       coalesce(s.concept_transfer, 0) AS concept_transfer,
+                       coalesce(s.learning_velocity, 0) AS learning_velocity,
+                       coalesce(s.profile_notes, '') AS profile_notes
+                LIMIT 1
+                """,
+                student_id=student_id,
+            ).single()
+            if existing is not None:
+                return StudentProfileScoring(
+                    concept_mastery=max(0.0, min(1.0, float(existing["concept_mastery"]))),
+                    implementation_consistency=max(
+                        0.0,
+                        min(1.0, float(existing["implementation_consistency"])),
+                    ),
+                    debugging_independence=max(
+                        0.0,
+                        min(1.0, float(existing["debugging_independence"])),
+                    ),
+                    efficiency_awareness=max(
+                        0.0, min(1.0, float(existing["efficiency_awareness"]))
+                    ),
+                    concept_transfer=max(
+                        0.0, min(1.0, float(existing["concept_transfer"]))
+                    ),
+                    learning_velocity=max(
+                        0.0, min(1.0, float(existing["learning_velocity"]))
+                    ),
+                    notes=existing["profile_notes"],
+                )
+
             session.run(
                 """
                 MERGE (s:Student {student_id: $student_id})
-                SET s.current_concept = $current_concept,
-                    s.notes = $notes,
+                SET s.current_concept = coalesce(s.current_concept, ''),
+                    s.notes = coalesce(s.notes, ''),
                     s.concept_mastery = $concept_mastery,
                     s.implementation_consistency = $implementation_consistency,
                     s.debugging_independence = $debugging_independence,
@@ -146,9 +180,7 @@ class KnowledgeGraphRepository:
                     s.learning_velocity = $learning_velocity,
                     s.profile_notes = $profile_notes
                 """,
-                student_id=student.student_id,
-                current_concept=student.current_concept,
-                notes=student.notes,
+                student_id=student_id,
                 concept_mastery=student_profile.concept_mastery,
                 implementation_consistency=student_profile.implementation_consistency,
                 debugging_independence=student_profile.debugging_independence,
@@ -157,92 +189,220 @@ class KnowledgeGraphRepository:
                 learning_velocity=student_profile.learning_velocity,
                 profile_notes=student_profile.notes,
             )
+        return student_profile
+
+    def upsert_submission(
+        self,
+        *,
+        submission_id: str,
+        student_id: str,
+        exercise_id: str,
+        code: str,
+        testcase_outputs: list[dict],
+    ) -> SubmissionRecord:
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self.driver.session() as session:
+            student_exists = session.run(
+                """
+                MATCH (s:Student {student_id: $student_id})
+                RETURN s.student_id AS student_id
+                LIMIT 1
+                """,
+                student_id=student_id,
+            ).single()
+            if student_exists is None:
+                raise ValueError(f"Student '{student_id}' does not exist in the graph.")
+
+            exercise_exists = session.run(
+                """
+                MATCH (e:Exercise {exercise_id: $exercise_id})
+                RETURN e.exercise_id AS exercise_id
+                LIMIT 1
+                """,
+                exercise_id=exercise_id,
+            ).single()
+            if exercise_exists is None:
+                raise ValueError(f"Exercise '{exercise_id}' does not exist in the graph.")
 
             session.run(
                 """
-                MATCH (s:Student {student_id: $student_id})-[r:MASTERED]->(:Concept)
+                MERGE (sub:Submission {submission_id: $submission_id})
+                ON CREATE SET sub.created_at = $created_at
+                SET sub.student_id = $student_id,
+                    sub.exercise_id = $exercise_id,
+                    sub.code = $code,
+                    sub.testcase_outputs_json = $testcase_outputs_json
+                """,
+                submission_id=submission_id,
+                student_id=student_id,
+                exercise_id=exercise_id,
+                code=code,
+                testcase_outputs_json=json.dumps(testcase_outputs),
+                created_at=created_at,
+            )
+            session.run(
+                """
+                MATCH (:Student)-[r:SUBMITTED]->(sub:Submission {submission_id: $submission_id})
                 DELETE r
                 """,
-                student_id=student.student_id,
+                submission_id=submission_id,
             )
-            for concept_id in mastered_concepts:
-                session.run(
-                    """
-                    MERGE (c:Concept {concept_id: $concept_id})
-                    ON CREATE SET c.name = $concept_id, c.description = '', c.difficulty = 1
-                    WITH c
-                    MATCH (s:Student {student_id: $student_id})
-                    MERGE (s)-[:MASTERED]->(c)
-                    """,
-                    student_id=student.student_id,
-                    concept_id=concept_id,
-                )
+            session.run(
+                """
+                MATCH (sub:Submission {submission_id: $submission_id})-[r:FOR_EXERCISE]->(:Exercise)
+                DELETE r
+                """,
+                submission_id=submission_id,
+            )
+            session.run(
+                """
+                MATCH (s:Student {student_id: $student_id})
+                MATCH (sub:Submission {submission_id: $submission_id})
+                MERGE (s)-[:SUBMITTED]->(sub)
+                WITH sub
+                MATCH (e:Exercise {exercise_id: $exercise_id})
+                MERGE (sub)-[:FOR_EXERCISE]->(e)
+                """,
+                student_id=student_id,
+                submission_id=submission_id,
+                exercise_id=exercise_id,
+            )
 
-            for exercise_id in attempted_exercise_ids:
-                session.run(
-                    """
-                    MATCH (s:Student {student_id: $student_id})
-                    MATCH (e:Exercise {exercise_id: $exercise_id})
-                    MERGE (s)-[:ATTEMPTED]->(e)
-                    """,
-                    student_id=student.student_id,
-                    exercise_id=exercise_id,
-                )
+            stored = session.run(
+                """
+                MATCH (sub:Submission {submission_id: $submission_id})
+                RETURN sub.submission_id AS submission_id,
+                       coalesce(sub.student_id, '') AS student_id,
+                       coalesce(sub.exercise_id, '') AS exercise_id,
+                       coalesce(sub.code, '') AS code,
+                       coalesce(sub.testcase_outputs_json, '[]') AS testcase_outputs_json,
+                       coalesce(sub.created_at, '') AS created_at
+                """,
+                submission_id=submission_id,
+            ).single()
 
-        return student
+        return SubmissionRecord(
+            submission_id=stored["submission_id"],
+            student_id=stored["student_id"],
+            exercise_id=stored["exercise_id"],
+            code=stored["code"],
+            testcase_outputs=json.loads(stored["testcase_outputs_json"] or "[]"),
+            created_at=stored["created_at"],
+        )
 
     def upsert_review(
         self,
         *,
-        student_id: str,
-        exercise_id: str,
+        review_id: str,
         submission_id: str,
         summary: str,
         detail: str,
         review_items: list[dict],
         scorecard: dict,
         current_concept: str = "",
-        review_id: str | None = None,
     ) -> ReviewRecord:
-        resolved_review_id = review_id or str(uuid4())
+        created_at = datetime.now(timezone.utc).isoformat()
         with self.driver.session() as session:
+            submission_record = session.run(
+                """
+                MATCH (s:Student)-[:SUBMITTED]->(sub:Submission {submission_id: $submission_id})
+                OPTIONAL MATCH (sub)-[:FOR_EXERCISE]->(e:Exercise)
+                RETURN s.student_id AS student_id,
+                       coalesce(e.exercise_id, coalesce(sub.exercise_id, '')) AS exercise_id
+                LIMIT 1
+                """,
+                submission_id=submission_id,
+            ).single()
+            if submission_record is None:
+                raise ValueError(
+                    f"Submission '{submission_id}' does not exist in the graph."
+                )
+
+            student_id = submission_record["student_id"]
+            exercise_id = submission_record["exercise_id"]
+
             session.run(
                 """
-                MERGE (s:Student {student_id: $student_id})
-                ON CREATE SET s.current_concept = $current_concept, s.notes = ''
-                MERGE (e:Exercise {exercise_id: $exercise_id})
-                ON CREATE SET e.title = $exercise_id,
-                              e.description = '',
-                              e.content = '',
-                              e.difficulty = 'unknown',
-                              e.tags = []
-                WITH s
                 MERGE (r:Review {review_id: $review_id})
+                ON CREATE SET r.created_at = $created_at
                 SET r.summary = $summary,
                     r.detail = $detail,
                     r.student_id = $student_id,
                     r.exercise_id = $exercise_id,
                     r.submission_id = $submission_id,
                     r.current_concept = $current_concept,
-                    r.created_at = $created_at,
                     r.review_items_json = $review_items_json,
                     r.scorecard_json = $scorecard_json
-                MERGE (s)-[:RECEIVED_REVIEW]->(r)
-                WITH r, $exercise_id AS exercise_id
-                MATCH (e:Exercise {exercise_id: exercise_id})
-                MERGE (r)-[:REVIEWS_EXERCISE]->(e)
                 """,
+                review_id=review_id,
+                created_at=created_at,
+                summary=summary,
+                detail=detail,
                 student_id=student_id,
                 exercise_id=exercise_id,
                 submission_id=submission_id,
                 current_concept=current_concept,
-                review_id=resolved_review_id,
-                summary=summary,
-                detail=detail,
-                created_at=datetime.now(timezone.utc).isoformat(),
                 review_items_json=json.dumps(review_items),
                 scorecard_json=json.dumps(scorecard),
             )
+            session.run(
+                """
+                MATCH (:Student)-[r:RECEIVED_REVIEW]->(review:Review {review_id: $review_id})
+                DELETE r
+                """,
+                review_id=review_id,
+            )
+            session.run(
+                """
+                MATCH (:Submission)-[r:RECEIVED_REVIEW]->(review:Review {review_id: $review_id})
+                DELETE r
+                """,
+                review_id=review_id,
+            )
+            session.run(
+                """
+                MATCH (review:Review {review_id: $review_id})-[r:REVIEWS_SUBMISSION]->(:Submission)
+                DELETE r
+                """,
+                review_id=review_id,
+            )
+            session.run(
+                """
+                MATCH (review:Review {review_id: $review_id})-[r:REVIEWS_EXERCISE]->(:Exercise)
+                DELETE r
+                """,
+                review_id=review_id,
+            )
+            session.run(
+                """
+                MATCH (:Review)-[r:NEXT_REVIEW_OF]->(review:Review {review_id: $review_id})
+                DELETE r
+                """,
+                review_id=review_id,
+            )
+            session.run(
+                """
+                MATCH (s:Student {student_id: $student_id})
+                MATCH (sub:Submission {submission_id: $submission_id})
+                MATCH (review:Review {review_id: $review_id})
+                MERGE (s)-[:RECEIVED_REVIEW]->(review)
+                MERGE (sub)-[:RECEIVED_REVIEW]->(review)
+                MERGE (review)-[:REVIEWS_SUBMISSION]->(sub)
+                """,
+                student_id=student_id,
+                submission_id=submission_id,
+                review_id=review_id,
+            )
+            if exercise_id:
+                session.run(
+                    """
+                    MATCH (review:Review {review_id: $review_id})
+                    MATCH (e:Exercise {exercise_id: $exercise_id})
+                    MERGE (review)-[:REVIEWS_EXERCISE]->(e)
+                    """,
+                    review_id=review_id,
+                    exercise_id=exercise_id,
+                )
             session.run(
                 """
                 MATCH (s:Student {student_id: $student_id})-[:RECEIVED_REVIEW]->(new_review:Review {review_id: $review_id})
@@ -259,17 +419,34 @@ class KnowledgeGraphRepository:
                 )
                 """,
                 student_id=student_id,
-                review_id=resolved_review_id,
-                linked_at=datetime.now(timezone.utc).isoformat(),
+                review_id=review_id,
+                linked_at=created_at,
             )
+
+            stored = session.run(
+                """
+                MATCH (review:Review {review_id: $review_id})
+                RETURN review.review_id AS review_id,
+                       coalesce(review.student_id, '') AS student_id,
+                       coalesce(review.exercise_id, '') AS exercise_id,
+                       coalesce(review.submission_id, '') AS submission_id,
+                       coalesce(review.current_concept, '') AS current_concept,
+                       coalesce(review.created_at, '') AS created_at,
+                       coalesce(review.summary, '') AS summary,
+                       coalesce(review.detail, '') AS detail
+                """,
+                review_id=review_id,
+            ).single()
+
         return ReviewRecord(
-            review_id=resolved_review_id,
-            student_id=student_id,
-            exercise_id=exercise_id,
-            submission_id=submission_id,
-            current_concept=current_concept,
-            summary=summary,
-            detail=detail,
+            review_id=stored["review_id"],
+            student_id=stored["student_id"],
+            exercise_id=stored["exercise_id"],
+            submission_id=stored["submission_id"],
+            current_concept=stored["current_concept"],
+            created_at=stored["created_at"],
+            summary=stored["summary"],
+            detail=stored["detail"],
         )
 
     def recalculate_student_profile_from_review(
@@ -360,12 +537,12 @@ class KnowledgeGraphRepository:
                        coalesce(r.current_concept, head(collect(c.concept_id)), '') AS current_concept,
                        coalesce(r.exercise_id, $exercise_id) AS stored_exercise_id,
                        coalesce(r.submission_id, '') AS submission_id,
-                       coalesce(s.concept_mastery, 3) AS concept_mastery,
-                       coalesce(s.implementation_consistency, 3) AS implementation_consistency,
-                       coalesce(s.debugging_independence, 3) AS debugging_independence,
-                       coalesce(s.efficiency_awareness, 3) AS efficiency_awareness,
-                       coalesce(s.concept_transfer, 3) AS concept_transfer,
-                       coalesce(s.learning_velocity, 3) AS learning_velocity,
+                       coalesce(s.concept_mastery, 0.5) AS concept_mastery,
+                       coalesce(s.implementation_consistency, 0.5) AS implementation_consistency,
+                       coalesce(s.debugging_independence, 0.5) AS debugging_independence,
+                       coalesce(s.efficiency_awareness, 0.5) AS efficiency_awareness,
+                       coalesce(s.concept_transfer, 0.5) AS concept_transfer,
+                       coalesce(s.learning_velocity, 0.5) AS learning_velocity,
                        coalesce(s.profile_notes, '') AS profile_notes,
                        mastered_concepts AS mastered_concepts,
                        attempted_exercise_ids AS attempted_exercise_ids
@@ -687,6 +864,31 @@ class KnowledgeGraphRepository:
                     """
                 )
             ]
+            submissions = [
+                SubmissionRecord(
+                    submission_id=record["submission_id"],
+                    student_id=record["student_id"],
+                    exercise_id=record["exercise_id"],
+                    code=record["code"],
+                    testcase_outputs=json.loads(
+                        record["testcase_outputs_json"] or "[]"
+                    ),
+                    created_at=record["created_at"],
+                )
+                for record in session.run(
+                    """
+                    MATCH (s:Student)-[:SUBMITTED]->(sub:Submission)
+                    OPTIONAL MATCH (sub)-[:FOR_EXERCISE]->(e:Exercise)
+                    RETURN sub.submission_id AS submission_id,
+                           s.student_id AS student_id,
+                           coalesce(e.exercise_id, coalesce(sub.exercise_id, '')) AS exercise_id,
+                           coalesce(sub.code, '') AS code,
+                           coalesce(sub.testcase_outputs_json, '[]') AS testcase_outputs_json,
+                           coalesce(sub.created_at, '') AS created_at
+                    ORDER BY sub.created_at DESC, sub.submission_id ASC
+                    """
+                )
+            ]
             reviews = [
                 ReviewRecord(
                     review_id=record["review_id"],
@@ -721,6 +923,7 @@ class KnowledgeGraphRepository:
             exercise_concept_links=exercise_concept_links,
             exercise_path_links=exercise_path_links,
             students=students,
+            submissions=submissions,
             reviews=reviews,
         )
 
@@ -823,11 +1026,12 @@ class KnowledgeGraphRepository:
 
     @staticmethod
     def _derive_profile_from_scorecard(scorecard: dict) -> StudentProfileScoring:
-        def score(name: str) -> int:
-            return int(scorecard.get(name, {}).get("score", 3))
+        def score(name: str) -> float:
+            raw_score = float(scorecard.get(name, {}).get("score", 3))
+            return max(0.0, min(1.0, (raw_score - 1.0) / 4.0))
 
-        def average(*values: int) -> int:
-            return max(1, min(5, round(sum(values) / len(values))))
+        def average(*values: float) -> float:
+            return round(max(0.0, min(1.0, sum(values) / len(values))), 4)
 
         return StudentProfileScoring(
             concept_mastery=average(
@@ -867,12 +1071,12 @@ class KnowledgeGraphRepository:
         if existing is None:
             return derived
 
-        def blended(field_name: str, incoming: int) -> int:
+        def blended(field_name: str, incoming: float) -> float:
             existing_value = getattr(existing, "get", None)
             previous = existing.get(field_name) if callable(existing_value) else None
             if previous is None:
                 return incoming
-            return max(1, min(5, round(previous * 0.4 + incoming * 0.6)))
+            return round(max(0.0, min(1.0, previous * 0.4 + incoming * 0.6)), 4)
 
         notes = "Blended from the latest stored review and previous student profile."
         return StudentProfileScoring(

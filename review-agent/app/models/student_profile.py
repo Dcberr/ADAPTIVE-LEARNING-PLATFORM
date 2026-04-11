@@ -2,10 +2,10 @@ from pydantic import BaseModel, Field
 
 
 class StudentProfileScoring(BaseModel):
-    concept_mastery: int = Field(..., ge=1, le=5)
-    implementation_consistency: int = Field(..., ge=1, le=5)
-    debugging_independence: int = Field(..., ge=1, le=5)
-    efficiency_awareness: int = Field(..., ge=1, le=5)
-    concept_transfer: int = Field(..., ge=1, le=5)
-    learning_velocity: int = Field(..., ge=1, le=5)
+    concept_mastery: float = Field(..., ge=0.0, le=1.0)
+    implementation_consistency: float = Field(..., ge=0.0, le=1.0)
+    debugging_independence: float = Field(..., ge=0.0, le=1.0)
+    efficiency_awareness: float = Field(..., ge=0.0, le=1.0)
+    concept_transfer: float = Field(..., ge=0.0, le=1.0)
+    learning_velocity: float = Field(..., ge=0.0, le=1.0)
     notes: str = ""

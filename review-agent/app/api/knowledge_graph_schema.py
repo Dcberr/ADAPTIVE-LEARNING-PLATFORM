@@ -5,11 +5,10 @@ from app.models.exercise_record import ExerciseRecord
 from app.models.knowledge_graph import AssignedPath, ConceptRecord, KnowledgeGraphDocument
 from app.models.review_record import ReviewRecord
 from app.models.student_profile import StudentProfileScoring
-from app.models.student_record import StudentRecord
+from app.models.submission_record import SubmissionRecord, SubmissionTestCaseOutput
 
 
 class UpsertConceptRequest(BaseModel):
-    concept_id: str
     name: str
     description: str = ""
     difficulty: int = 1
@@ -17,7 +16,6 @@ class UpsertConceptRequest(BaseModel):
 
 
 class UpsertExerciseRequest(BaseModel):
-    exercise_id: str
     title: str
     description: str
     content: str
@@ -27,25 +25,24 @@ class UpsertExerciseRequest(BaseModel):
     recommended_paths: list[AssignedPath] = Field(default_factory=list)
 
 
-class UpsertStudentRequest(BaseModel):
-    student_id: str
-    current_concept: str = ""
-    mastered_concepts: list[str] = Field(default_factory=list)
-    attempted_exercise_ids: list[str] = Field(default_factory=list)
+class UpsertStudentProfileRequest(BaseModel):
     student_profile: StudentProfileScoring
-    notes: str = ""
+
+
+class UpsertSubmissionRequest(BaseModel):
+    student_id: str
+    exercise_id: str
+    code: str
+    testcase_outputs: list[SubmissionTestCaseOutput] = Field(default_factory=list)
 
 
 class UpsertReviewRequest(BaseModel):
-    student_id: str
-    exercise_id: str
     submission_id: str
     summary: str
     detail: str
     review_items: list[ReviewItem] = Field(default_factory=list)
     scorecard: ScoreCard
     current_concept: str = ""
-    review_id: str | None = None
 
 
 class RecalculateStudentProfileRequest(BaseModel):
@@ -63,11 +60,16 @@ class KnowledgeGraphExerciseResponse(BaseModel):
 
 
 class KnowledgeGraphStudentResponse(BaseModel):
-    student: StudentRecord
+    student_id: str
+    student_profile: StudentProfileScoring
 
 
 class KnowledgeGraphReviewResponse(BaseModel):
     review: ReviewRecord
+
+
+class KnowledgeGraphSubmissionResponse(BaseModel):
+    submission: SubmissionRecord
 
 
 class KnowledgeGraphStudentProfileResponse(BaseModel):

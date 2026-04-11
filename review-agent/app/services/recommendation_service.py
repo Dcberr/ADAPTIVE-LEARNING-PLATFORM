@@ -147,6 +147,9 @@ class RecommendationService:
         return cast(RecommendationState, new_state)
 
     def _profile_scorer(self, state: RecommendationState) -> RecommendationState:
+        def normalize_scorecard(score: float) -> float:
+            return max(0.0, min(1.0, (score - 1.0) / 4.0))
+
         review = state["review"]
         if review is None:
             raise ValueError("Recommendation requires a stored review context.")
@@ -159,30 +162,30 @@ class RecommendationService:
 
         scorecard_values = review.scorecard.model_dump()
         logic_scores = [
-            scorecard_values["logic_traceability"]["score"],
-            scorecard_values["generalization_score"]["score"],
-            scorecard_values["control_flow_understanding"]["score"],
-            scorecard_values["edge_case_awareness"]["score"],
+            normalize_scorecard(scorecard_values["logic_traceability"]["score"]),
+            normalize_scorecard(scorecard_values["generalization_score"]["score"]),
+            normalize_scorecard(scorecard_values["control_flow_understanding"]["score"]),
+            normalize_scorecard(scorecard_values["edge_case_awareness"]["score"]),
         ]
         efficiency_scores = [
-            scorecard_values["construct_appropriateness"]["score"],
-            scorecard_values["generalization_score"]["score"],
+            normalize_scorecard(scorecard_values["construct_appropriateness"]["score"]),
+            normalize_scorecard(scorecard_values["generalization_score"]["score"]),
             profile.efficiency_awareness,
         ]
         progression_scores = [
             profile.concept_mastery,
             profile.concept_transfer,
             profile.learning_velocity,
-            scorecard_values["self_correction_path"]["score"],
-            scorecard_values["debugging_readiness"]["score"],
+            normalize_scorecard(scorecard_values["self_correction_path"]["score"]),
+            normalize_scorecard(scorecard_values["debugging_readiness"]["score"]),
         ]
 
         foundation_risk = min(
             100.0,
             round(
-                (6 - profile.concept_mastery) * 12
-                + (6 - profile.debugging_independence) * 8
-                + (6 - sum(logic_scores) / len(logic_scores)) * 10
+                (1 - profile.concept_mastery) * 60
+                + (1 - profile.debugging_independence) * 40
+                + (1 - sum(logic_scores) / len(logic_scores)) * 50
                 + error_count * 10,
                 2,
             ),
@@ -190,7 +193,7 @@ class RecommendationService:
         efficiency_gap = min(
             100.0,
             round(
-                (6 - sum(efficiency_scores) / len(efficiency_scores)) * 15
+                (1 - sum(efficiency_scores) / len(efficiency_scores)) * 75
                 + warning_count * 6,
                 2,
             ),
@@ -199,7 +202,7 @@ class RecommendationService:
             0.0,
             min(
                 100.0,
-                round(sum(progression_scores) / len(progression_scores) * 20, 2),
+                round(sum(progression_scores) / len(progression_scores) * 100, 2),
             ),
         )
         support_need = min(
