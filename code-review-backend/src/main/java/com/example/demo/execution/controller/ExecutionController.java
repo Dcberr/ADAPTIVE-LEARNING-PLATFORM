@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.common.response.ApiResponse;
+import com.example.demo.execution.dto.RunCodeRequest;
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.service.ExecutionService;
@@ -28,5 +29,15 @@ public class ExecutionController {
         return ApiResponse.success(
                 executionService.runByTestcase(request)
         );
+    }
+
+    @Operation(summary = "Run code without judging")
+    @PostMapping("/run")
+    public ApiResponse<RunCodeResponse> run(
+            @RequestBody RunCodeRequest request
+    ) {
+        return ApiResponse.success(
+                executionService.runByCustomInput(request)
+        );  
     }
 }

@@ -51,6 +51,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 CreateProblemRequest.builder()
                         .description(problemReq.getDescription())
                         .assignmentId(assignment.getId())
+                        .problemConstraint(problemReq.getProblemConstraint())
                         .testcases(problemReq.getTestcases())
                         .build()
         );

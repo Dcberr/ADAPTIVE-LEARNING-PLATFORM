@@ -9,13 +9,17 @@ public interface ClassService {
 
     ClassResponse createClass(UUID instructorId, CreateClassRequest request);
 
-    List<ClassOverviewResponse> getMyClasses(UUID instructorId);
+    List<ClassOverviewResponse> getClassesForInstructor(UUID instructorId);
 
-    List<ClassResponse> getClassesForStudent(UUID studentId);
+    List<ClassOverviewResponse> getClassesForStudent(UUID studentId);
+
+    List<ClassOverviewResponse> getMyClasses(UUID userId);
 
     void addStudent(UUID classId, UUID studentId);
 
     void removeStudent(UUID classId, UUID studentId);
 
     ClassDetailResponse getClassDetail(UUID classId);
+
+    
 }

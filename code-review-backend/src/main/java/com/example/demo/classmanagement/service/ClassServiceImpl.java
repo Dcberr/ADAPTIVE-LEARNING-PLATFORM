@@ -16,14 +16,18 @@ import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
 import com.example.demo.classmanagement.repository.ClassRepository;
 import com.example.demo.document.dto.UploadFilleResponse;
 import com.example.demo.document.service.MinioStorageService;
+import com.example.demo.user.dto.UserResponse;
+import com.example.demo.user.entity.Role;
 import com.example.demo.user.entity.User;
 import com.example.demo.user.repository.UserRepository;
 import com.example.demo.classmanagement.entity.Class;   
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ClassServiceImpl implements ClassService {
 
     private final ClassRepository classRepository;
@@ -33,8 +37,10 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public ClassResponse createClass(UUID instructorId, CreateClassRequest req) {
-
-        UploadFilleResponse uploadResult = storageService.upload(req.getImage());       
+        UploadFilleResponse uploadResult = null;
+        if (req.getImage() != null && !req.getImage().isEmpty()) {
+            uploadResult = storageService.upload(req.getImage()); 
+        }
 
         Class cls = Class.builder()
                 .name(req.getName())
@@ -42,11 +48,9 @@ public class ClassServiceImpl implements ClassService {
                 .instructorId(instructorId)
                 .createdAt(Instant.now())
                 .status(ClassStatus.IN_PROGRESS)
-                .imageUrl(uploadResult.getFileUrl())
+                .imageUrl(uploadResult != null ? uploadResult.getFileUrl() : null)
                 .schedule(req.getSchedule())    
                 .build();
-
-        
 
         classRepository.save(cls);
 
@@ -54,25 +58,35 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
-    public List<ClassOverviewResponse> getMyClasses(UUID instructorId) {
+    public List<ClassOverviewResponse> getClassesForInstructor(UUID instructorId) {
 
-        List<Class> classes = classRepository.findByInstructorId(instructorId); 
+        List<Class> classes = classRepository.findByInstructorId(instructorId);
 
         return classes.stream()
                 .map(this::getClassOverview)
-                .toList();     
+                .toList();
     }
 
     @Override
-    public List<ClassResponse> getClassesForStudent(UUID studentId) {
+    public List<ClassOverviewResponse> getClassesForStudent(UUID studentId) {
 
         List<ClassEnrollment> enrollments =
                 enrollmentRepository.findByStudentId(studentId);
 
         return enrollments.stream()
                 .map(e -> classRepository.findById(e.getClassId()).orElseThrow())
-                .map(this::mapToResponse)
+                .map(this::getClassOverview)
                 .toList();
+    }
+
+    @Override
+    public List<ClassOverviewResponse> getMyClasses(UUID userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (user.getRole() == Role.INSTRUCTOR) {
+            return getClassesForInstructor(userId);
+        } else {
+            return getClassesForStudent(userId);
+        }
     }
 
     @Override
@@ -99,15 +113,17 @@ public class ClassServiceImpl implements ClassService {
     @Override
     public ClassDetailResponse getClassDetail(UUID classId) {
 
-        Class cls = classRepository.findById(classId).orElseThrow();
+        Class cls = classRepository.findById(classId).orElseThrow(() -> new RuntimeException("Class not found"));
+        
+        ClassDetailResponse detailResponse = getClassDetailResponse(cls);
 
-        return cls == null ? null : getClassDetailResponse(cls);
+        return detailResponse;
     }
 
     private ClassOverviewResponse getClassOverview(Class cls) {
 
         int enrolledCount = enrollmentRepository.countByClassId(cls.getId());
-        User instructor = userRepository.findById(cls.getInstructorId()).orElseThrow();
+        User instructor = userRepository.findById(cls.getInstructorId()).orElseThrow(() -> new RuntimeException("Instructor not found"));
         String instructorName = instructor.getName();
 
         return ClassOverviewResponse.builder()
@@ -126,11 +142,29 @@ public class ClassServiceImpl implements ClassService {
         User instructor = userRepository.findById(cls.getInstructorId()).orElseThrow();
         String instructorName = instructor.getName();
 
+        List<UserResponse> enrolledStudents = enrollmentRepository
+                .findByClassId(cls.getId())
+                .stream()
+                .map(e -> {
+                    User student = userRepository.findById(e.getStudentId()).orElseThrow();
+                    return UserResponse.builder()
+                            .id(student.getId())
+                            .name(student.getName())
+                            .email(student.getEmail())
+                            .picture(student.getPicture())
+                            .role(student.getRole().name())
+                            .build();
+                })
+                .toList();
+
+        log.info(enrolledStudents.toString());
+
         return ClassDetailResponse.builder()
                 .name(cls.getName())
                 .instructorName(instructorName)
                 .enrolledStudentsCount(enrolledCount)
                 .createdAt(cls.getCreatedAt().toString())
+                .enrolledStudents(enrolledStudents)
                 .status(cls.getStatus().name())
                 .schedule(cls.getSchedule())    
                 .build();

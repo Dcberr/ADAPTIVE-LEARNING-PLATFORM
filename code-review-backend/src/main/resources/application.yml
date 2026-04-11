@@ -6,7 +6,7 @@ server:
     include-message: always
     include-binding-errors: always
     include-stacktrace: always
-  url: ${SERVICE_URL}
+  url: "http://localhost:3000"
 
 application:
   url: ${APPLICATION_URL}
@@ -56,7 +56,7 @@ spring:
     show-sql: ${SHOW_SQL:true}
     properties:
       hibernate:
-        dialect: ${HIBERNATE_DIALECT}
+        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
 
   security:
     oauth2:
@@ -68,7 +68,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: "{SERVICE_URL}/login/oauth2/code/google"
+            redirect-uri: "http://localhost:8080/api/login/oauth2/code/google"
 
         provider:
           google:

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.execution.client.JobeClient;
 import com.example.demo.execution.dto.ExecutionResult;
+import com.example.demo.execution.dto.RunCodeRequest;
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.dto.TestcaseResult;
@@ -168,5 +169,33 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             default -> JudgeStatus.RUNTIME_ERROR;
         };
+    }
+
+    @Override
+    public RunCodeResponse runByCustomInput(RunCodeRequest request) {
+        ExecutionResult result =
+                jobeClient.runCode(
+                        request.getLanguage(),
+                        request.getCode(),
+                        request.getInput()
+                );
+
+        JudgeStatus status = mapOutcome(result);
+
+        return RunCodeResponse.builder()
+                .status(status)
+                .testcases(List.of(
+                        TestcaseResult.builder()
+                                .index(1)
+                                .input(request.getInput())
+                                .output(result.getStdout())
+                                .error(result.getStderr())
+                                .runtime(result.getRuntime())
+                                .status(status)
+                                .build()
+                ))
+                .passedTestcases(status == JudgeStatus.ACCEPTED ? 1 : 0)
+                .totalTestcases(1)
+                .build();
     }
 }
