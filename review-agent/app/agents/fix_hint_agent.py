@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class FixHintAgent:
-    """Generates fix suggestions for each relevant concept in CS1 submissions with assignment context."""
+    """Generates fix suggestions for each current logic issue in CS1 submissions."""
 
     def __init__(self, client: OpenAI, model_name: str):
         self.client = client
@@ -23,8 +23,6 @@ class FixHintAgent:
         assignment: str,
         current_code: str,
         testcase_context: str,
-        previous_code: str | None = None,
-        progress_summary: str = "",
     ) -> list[Dict[str, str]]:
         """Generate structured messages (system + user) for the model."""
         system_message = {
@@ -55,28 +53,15 @@ class FixHintAgent:
                 FAILING TESTCASE DETAILS:
                 {testcase_context}
 
-                RELATED CS1 CONCEPTS (relevant only):
-                {issue.get('relevant_concept', [])}
-
                 EVIDENCE: Test case ID {issue.get('evidence')}
 
                 HISTORY STATUS:
                 {issue.get('history_status', 'unknown')}
 
-                FIRST PREVIOUS SUBMISSION THAT FAILED THIS SAME TEST CASE:
-                {previous_code if previous_code else "None"}
-
-                SUBMISSION PROGRESS SUMMARY:
-                {progress_summary}
-
                 TASK:
                 Based on the above information, generate a JSON object with a clear fix hint
                 that explains what might be wrong conceptually and what steps the student
                 should take to fix it.
-
-                If the previous submission failed this same test case, also explain briefly:
-                1. what the student improved from the previous code
-                2. what still needs to be fixed now
 
                 Output must be valid JSON:
                 {{
@@ -102,7 +87,6 @@ class FixHintAgent:
         self,
         issue: LogicIssue,
         testcase_context: str,
-        previous_code: str | None,
     ) -> str:
         """Create a specific fallback hint when the model returns no structured JSON."""
         suggestion_parts = [
@@ -118,23 +102,7 @@ class FixHintAgent:
             ),
         ]
 
-        if previous_code:
-            suggestion_parts.append(
-                "Compared with the previous submission, you did make a change, but the same testcase still fails. "
-                "That means the fix was partial or aimed at one special value instead of the full rule the problem requires."
-            )
-
         return "\n".join(suggestion_parts)
-
-    def get_first_matching_history_code(
-        self, state: ReviewState, testcase_id: str
-    ) -> str | None:
-        """Return the first previous submission code that failed the same testcase."""
-        for submission in state.get("history", []):
-            failed_test_case_ids = submission.get("failed_test_case_ids", [])
-            if testcase_id in failed_test_case_ids:
-                return submission.get("code", "")
-        return None
 
     def analyze(self, state: ReviewState) -> ReviewState:
         """Generate fix suggestions for all relevant logic issues."""
@@ -149,20 +117,11 @@ class FixHintAgent:
             "assignment_requirements", "No assignment description provided."
         )
         current_code = new_state.get("code", "")
-        progress_summary = (
-            f"Persistent failed testcases: {new_state.get('persistent_failed_test_case_ids', [])}\n"
-            f"Fixed testcases from the first history entry: {new_state.get('fixed_test_case_ids', [])}\n"
-            f"Newly failing testcases relative to the first history entry: {new_state.get('regressed_test_case_ids', [])}"
-        )
 
         for issue_id, issue in logic_issues.items():
             logger.debug(
-                "FixHintAgent generating hint for issue %s with concepts=%s",
+                "FixHintAgent generating hint for issue %s",
                 issue_id,
-                issue.get("relevant_concept", []) or issue.get("other_concept", []),
-            )
-            previous_code = self.get_first_matching_history_code(
-                new_state, issue.get("evidence", "")
             )
             testcase_context = self.get_testcase_context(
                 new_state, issue.get("evidence", "")
@@ -172,8 +131,6 @@ class FixHintAgent:
                 assignment,
                 current_code,
                 testcase_context,
-                previous_code,
-                progress_summary,
             )
 
             try:
@@ -194,9 +151,7 @@ class FixHintAgent:
 
                 issue["fix_suggestion"] = (
                     parsed.get("fix_suggestion", "").strip()
-                    or self.build_fallback_fix_suggestion(
-                        issue, testcase_context, previous_code
-                    )
+                    or self.build_fallback_fix_suggestion(issue, testcase_context)
                 )
                 logger.debug(
                     "FixHintAgent stored fix suggestion for issue %s",
@@ -207,7 +162,7 @@ class FixHintAgent:
             except Exception as e:
                 logger.exception("FixHintAgent failed for issue %s", issue_id)
                 issue["fix_suggestion"] = self.build_fallback_fix_suggestion(
-                    issue, testcase_context, previous_code
+                    issue, testcase_context
                 )
                 logic_issues[issue_id] = issue
 

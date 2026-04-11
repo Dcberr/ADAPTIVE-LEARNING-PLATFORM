@@ -75,6 +75,9 @@ History-based progress summary:
 Logic issues (Errors):
 {list(state.get('logic_issues', {}).values())}
 
+Review links to earlier attempts for the same testcase:
+{state.get('review_links', [])}
+
 Improvement notes (Warnings):
 {state.get('improvement_notes', [])}
 
@@ -93,9 +96,20 @@ Instructions:
         logger.debug("Starting OverviewAgent with state summary: %s", summarize_state(state))
         new_state: ReviewState = dict(state)
         review_items: List[ReviewItem] = []
+        review_links = list(new_state.get("review_links", []))
 
         # Merge logic issues as Errors
         for issue in new_state.get("logic_issues", {}).values():
+            matched_review_link = next(
+                (
+                    link
+                    for link in review_links
+                    if link.get("current_issue") == issue.get("issue", "")
+                    and link.get("current_code_snippet")
+                    == issue.get("code_snippet", "")
+                ),
+                None,
+            )
             review_items.append(
                 {
                     "type": "Error",
@@ -103,7 +117,7 @@ Instructions:
                     "code_snippet": issue.get("code_snippet", ""),
                     "fix_suggestion": issue.get("fix_suggestion", ""),
                     "issue": issue.get("issue", ""),
-                    "relevant_concept": issue.get("relevant_concept", []),
+                    "review_link": matched_review_link,
                     "history_status": issue.get("history_status", ""),
                 }
             )
@@ -117,7 +131,7 @@ Instructions:
                     "code_snippet": note.get("code_snippet", ""),
                     "fix_suggestion": note.get("fix_suggestion", ""),
                     "issue": note.get("issue", ""),
-                    "relevant_concept": [],
+                    "review_link": None,
                 }
             )
 

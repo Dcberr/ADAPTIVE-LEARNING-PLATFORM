@@ -9,4 +9,3 @@ class ReviewItem(TypedDict):
     code_snippet: str
     fix_suggestion: str
     issue: str
-    relevant_concept: list[str]
