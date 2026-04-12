@@ -34,7 +34,15 @@ public class Assignment {
 
     private String description;
 
+    private Instant startTime;
+
     private Instant deadline;
+
+    private Instant timeLimit;
+
+    private float maxScore;
+
+    private int maxSubmission;
 
     private Instant createdAt;
 

@@ -1,6 +1,7 @@
 package com.example.demo.user.service;
 
 import java.time.Year;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -61,6 +62,7 @@ public class UserServiceImpl implements UserService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
+                .userCode(user.getUserCode())
                 .picture(user.getPicture())
                 .role(user.getRole().name())
                 .build();
@@ -87,6 +89,22 @@ public class UserServiceImpl implements UserService {
         userCodeSequenceRepository.save(seq);
 
         return format(role, year, next);
+    }
+
+    @Override
+    public UserResponse getStudentByUserCode(String userCode) {
+        User student = userRepository.findByUserCode(userCode).orElseThrow();
+
+        return mapToResponse(student);
+    }
+
+    @Override
+    public List<UserResponse> getAllUsersByRole(Role role) {
+        List<User> users = userRepository.getAllUsersByRole(role);
+
+        return users.stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     private String format(Role role, int year, int number) {

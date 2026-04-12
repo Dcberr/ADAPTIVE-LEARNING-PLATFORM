@@ -1,5 +1,6 @@
 package com.example.demo.problem.dto;
 
+import java.util.Map;
 import java.util.UUID;
 
 import lombok.Builder;
@@ -16,6 +17,8 @@ public class ProblemResponse {
     private String description;
 
     private String problemConstraint;
+
+    private Map<String, String> starterCodes;
 
     // private String difficulty;
 

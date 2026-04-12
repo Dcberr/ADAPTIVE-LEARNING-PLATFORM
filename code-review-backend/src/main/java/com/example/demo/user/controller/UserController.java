@@ -1,5 +1,6 @@
 package com.example.demo.user.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.security.core.Authentication;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.user.dto.UpdateUserRequest;
 import com.example.demo.user.dto.UserResponse;
+import com.example.demo.user.entity.Role;
 import com.example.demo.user.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,6 +58,27 @@ public class UserController {
 
         return ApiResponse.success(
                 userService.updateUser(userId, request)
+        );
+    }
+
+    @Operation(summary = "Get user by user code")
+    @GetMapping("/code/{userCode}")
+    public ApiResponse<UserResponse> getStudentByUserCode(
+            @PathVariable String userCode
+    ) {
+        return ApiResponse.success(
+                userService.getStudentByUserCode(userCode)
+        );
+    }
+
+    @Operation(summary = "Get all users by role")
+        @GetMapping("/role/{role}")
+        public ApiResponse<List<UserResponse>> getAllUsersByRole(
+                @Parameter(description = "User role")
+                @PathVariable String role
+        ) {
+        return ApiResponse.success(
+                userService.getAllUsersByRole(Role.valueOf(role.toUpperCase()))
         );
     }
 }

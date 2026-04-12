@@ -2,6 +2,7 @@ package com.example.demo.assignment.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.example.demo.assignment.entity.AssigmentDifficulty;
@@ -24,7 +25,15 @@ public class CreateAssignmentRequest {
 
     // private String description;
 
+    private Instant startTime;
+
     private Instant deadline;
+
+    private Instant timeLimit;
+
+    private float maxScore;
+
+    private int maxSubmission;
 
     private AssigmentDifficulty difficulty;
 
@@ -39,6 +48,8 @@ public class CreateAssignmentRequest {
         private String description;
 
         private String problemConstraint;
+
+        private Map<String, String> starterCodes;
 
         private List<TestcaseRequest> testcases;
     }
