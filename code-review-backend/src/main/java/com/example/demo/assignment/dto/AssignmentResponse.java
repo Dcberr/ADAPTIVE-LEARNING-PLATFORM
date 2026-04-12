@@ -21,6 +21,14 @@ public class AssignmentResponse {
 
     private AssigmentDifficulty difficulty;
 
+    private Instant startTime;  
+
+    private Instant timeLimit;  
+
+    private float maxScore;
+    
+    private int maxSubmission;  
+
     private AssignmentStatus status;
 
 }

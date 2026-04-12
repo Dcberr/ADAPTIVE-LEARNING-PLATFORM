@@ -25,6 +25,7 @@ public class ReviewAgentClient {
     public ReviewResponse reviewCode(
             Map<String, Object> body
     ) {
+        log.info("Reviewing code with body: {}", body);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

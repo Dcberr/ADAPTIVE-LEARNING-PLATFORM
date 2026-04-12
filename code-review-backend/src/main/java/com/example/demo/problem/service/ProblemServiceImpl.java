@@ -28,6 +28,7 @@ public class ProblemServiceImpl implements ProblemService {
                 // .title(request.getTitle())
                 .description(request.getDescription())
                 .problemConstraint(request.getProblemConstraint())
+                .starterCodes(request.getStarterCodes())
                 // .difficulty(request.getDifficulty())
                 // .source(request.getSource())
                 .createdAt(Instant.now())
@@ -68,6 +69,7 @@ public class ProblemServiceImpl implements ProblemService {
                 // .title(problem.getTitle())
                 .description(problem.getDescription())
                 .problemConstraint(problem.getProblemConstraint())
+                .starterCodes(problem.getStarterCodes())
                 // .difficulty(problem.getDifficulty())
                 // .source(problem.getSource())
                 .build();

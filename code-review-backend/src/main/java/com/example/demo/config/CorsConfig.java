@@ -16,8 +16,10 @@ public class CorsConfig {
 
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
-        config.setAllowedOrigins(List.of("https://bbc-lms.online"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "https://bbc-lms.online"
+        ));
         config.setAllowedMethods(List.of("*"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

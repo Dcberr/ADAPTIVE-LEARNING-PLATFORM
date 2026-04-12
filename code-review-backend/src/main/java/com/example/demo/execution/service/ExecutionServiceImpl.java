@@ -47,13 +47,14 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         if (compileStatus == JudgeStatus.COMPILE_ERROR) {
 
-            TestcaseResult compileError =
-                    TestcaseResult.builder()
-                            .index(1)
-                            .error(compileResult.getStderr())
-                            .status(JudgeStatus.COMPILE_ERROR)
-                            .runtime(compileResult.getRuntime())
-                            .build();
+        TestcaseResult compileError =
+                TestcaseResult.builder()
+                        .index(1)
+                        .testcaseId(null)
+                        .error(compileResult.getStderr())
+                        .status(JudgeStatus.COMPILE_ERROR)
+                        .runtime(compileResult.getRuntime())
+                        .build();
 
             return RunCodeResponse.builder()
                     .status(JudgeStatus.COMPILE_ERROR)
@@ -143,6 +144,7 @@ public class ExecutionServiceImpl implements ExecutionService {
         }
 
         return TestcaseResult.builder()
+                .testcaseId(tc.getId())
                 .index(index)
                 .input(tc.getInput())
                 .expectedOutput(tc.getExpectedOutput())

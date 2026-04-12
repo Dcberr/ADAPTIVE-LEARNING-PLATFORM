@@ -63,6 +63,7 @@ public class ReviewServiceImpl implements ReviewService {
                                 .build())
                         .getTestcases();
 
+        log.info("Testcase results: {}", testcases);
         // RunTestcaseRequest judgeRequest =
         //         new RunTestcaseRequest();
 
@@ -76,6 +77,7 @@ public class ReviewServiceImpl implements ReviewService {
         List<ReviewTestcaseResult> testcaseResults =
                 testcases.stream()
                         .map(tc -> ReviewTestcaseResult.builder()
+                                .testcaseId(tc.getTestcaseId())
                                 .input(tc.getInput())
                                 .expectedOutput(tc.getExpectedOutput())
                                 .passed(tc.getStatus() == JudgeStatus.ACCEPTED)
@@ -83,9 +85,18 @@ public class ReviewServiceImpl implements ReviewService {
                                 .build())
                         .toList();
 
+        log.info("Review testcase results 2: {}", testcaseResults);
+        log.info("Problem title: {}", problem.getTitle());
+        log.info("Submission language: {}", submission.getLanguage());
+        log.info("Submission code: {}", submission.getCode());
+        log.info("Normalized actual output: {}", testcaseResults.get(0).getActualOutput());
+        log.info("Normalized expected output: {}", testcaseResults.get(0).getExpectedOutput());
+        log.info("Normalized passed status: {}", testcaseResults.get(0).isPassed());
+        log.info("Normalized input: {}", testcaseResults.get(0).getInput());
+        log.info("Normalized testcase result: {}", testcaseResults.get(0));
         Map<String, Object> body = Map.of(
                 "assignment", Map.of(
-                        "content", problem.getTitle(),
+                        "content", problem.getDescription(),
                         "language", submission.getLanguage()
                 ),
                 "student_submission", Map.of(
@@ -94,7 +105,8 @@ public class ReviewServiceImpl implements ReviewService {
                 ),
                 "test_results", testcaseResults.stream()
                         .map(tc -> Map.of(
-                                "name", tc.getInput(), 
+                                "testcase_id", tc.getTestcaseId(),
+                                "name", "Testcase " + tc.getInput(), 
                                 "input", tc.getInput(),
                                 "status", tc.isPassed() ? "PASSED" : "FAILED",
                                 "expect", tc.getExpectedOutput(),
@@ -102,6 +114,8 @@ public class ReviewServiceImpl implements ReviewService {
                         ))
                         .toList()
         );
+
+        log.info("Review request body 1: {}", body);
 
         ReviewResponse review =
                 reviewAgentClient.reviewCode(body);

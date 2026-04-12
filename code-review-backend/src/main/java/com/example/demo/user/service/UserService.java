@@ -1,5 +1,6 @@
 package com.example.demo.user.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.example.demo.user.dto.UpdateUserRequest;
@@ -13,6 +14,10 @@ public interface UserService {
     UserResponse getUserById(UUID userId);
 
     UserResponse updateUser(UUID userId, UpdateUserRequest request);
+
+    public UserResponse getStudentByUserCode(String userCode);
+
+    public List<UserResponse> getAllUsersByRole(Role role);
 
     public String generateUserCode(Role role);
 

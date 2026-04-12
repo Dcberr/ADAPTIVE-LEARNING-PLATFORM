@@ -1,12 +1,16 @@
 package com.example.demo.problem.entity;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,6 +40,12 @@ public class Problem {
 
     @Column(columnDefinition = "TEXT")
     private String problemConstraint;
+
+    @ElementCollection
+    @CollectionTable(name = "problem_starter_codes")
+    @MapKeyColumn(name = "language")
+    @Column(name = "starter_code", columnDefinition = "TEXT")
+    private Map<String, String> starterCodes;
 
     // private String source;
 

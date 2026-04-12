@@ -1,6 +1,7 @@
 package com.example.demo.problem.dto;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import lombok.Builder;
@@ -13,6 +14,7 @@ public class CreateProblemRequest {
     private String description;
     private UUID assignmentId;
     private String problemConstraint;
+    private Map<String, String> starterCodes;
 
     private List<TestcaseRequest> testcases;
 

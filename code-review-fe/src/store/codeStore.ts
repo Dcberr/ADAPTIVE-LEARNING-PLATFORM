@@ -1,49 +1,50 @@
-/* eslint-disable */
-import { create } from "zustand";
+"use client"
+
+import { useMemo } from "react"
+
+import { codeReviewActions } from "@/store/redux/slices/codeReviewSlice"
+import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
+import { store, type RootState } from "@/store/redux/store"
 
 type ReviewItem = {
-  line: number;
-  message: string;
-  suggestion?: string;
-  type: "error" | "warning";
-};
+  line: number
+  message: string
+  suggestion?: string
+  type: "error" | "warning"
+}
 
-type CodeStore = {
-  code: string;
-  setCode: (val: string) => void;
+type CodeStoreShape = {
+  code: string
+  setCode: (val: string) => void
   review: {
-    errors: ReviewItem[];
-    warnings: ReviewItem[];
-    improvements: string[];
-    understanding: string;
-  } | null;
-  setReview: (val: any) => void;
-};
+    errors: ReviewItem[]
+    warnings: ReviewItem[]
+    improvements: string[]
+    understanding: string
+  } | null
+  setReview: (val: CodeStoreShape["review"]) => void
+}
 
-export const useCodeStore = create<CodeStore>((set) => ({
-  code: `int len = strlen(str);
-  int j = 0;
-  bool inSpace = false;
-  int i = 0;
-
-  while (i < len && str[i] == ' ') i++;
-
-  for (; i < len; i++) {
-      if (str[i] != ' ') {
-          outstr[j++] = str[i];
-          inSpace = false;
-      } else {
-          if (!inSpace) {
-              outstr[j++] = ' ';
-              inSpace = true;
-          }
-      }
+function buildCodeStoreApi(state: RootState, dispatch = store.dispatch): CodeStoreShape {
+  return {
+    code: state.codeReview.code,
+    review: state.codeReview.review,
+    setCode: (val) => dispatch(codeReviewActions.setCode(val)),
+    setReview: (val) => dispatch(codeReviewActions.setReview(val)),
   }
+}
 
-  if (j > 0 && outstr[j-1] == ' ') j--;
+export function useCodeStore<T = CodeStoreShape>(
+  selector: (state: CodeStoreShape) => T = ((state: CodeStoreShape) => state as T)
+) {
+  const dispatch = useAppDispatch()
+  const codeState = useAppSelector((state) => state.codeReview)
+  const api = useMemo(
+    () => buildCodeStoreApi({ ...store.getState(), codeReview: codeState }, dispatch),
+    [codeState, dispatch]
+  )
 
-  outstr[j] = '\\0';`,
-  setCode: (val) => set({ code: val }),
-  review: null,
-  setReview: (val) => set({ review: val }),
-}));
+  return selector(api)
+}
+
+useCodeStore.getState = () => buildCodeStoreApi(store.getState())
