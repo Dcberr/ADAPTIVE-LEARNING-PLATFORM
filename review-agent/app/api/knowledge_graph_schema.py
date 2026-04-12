@@ -12,7 +12,7 @@ class UpsertConceptRequest(BaseModel):
     name: str
     description: str = ""
     difficulty: int = 1
-    prerequisite_ids: list[str] = Field(default_factory=list)
+    prerequisites: list[ConceptRecord] = Field(default_factory=list)
 
 
 class UpsertExerciseRequest(BaseModel):

@@ -200,7 +200,7 @@ Concept payload:
 - `name`
 - `description`
 - `difficulty`
-- `prerequisite_ids`
+- `prerequisites`
 
 Exercise write API:
 

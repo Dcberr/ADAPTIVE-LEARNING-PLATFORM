@@ -19,8 +19,8 @@ Use this API when:
 
 1. The client sends `concept_id` in the path and concept fields in the body.
 2. The API upserts the `Concept` node in Neo4j.
-3. The API creates prerequisite concept placeholders when needed.
-4. The API refreshes `PREREQUISITE_OF` relations for the provided prerequisite ids.
+3. The API upserts each prerequisite concept from the request payload.
+4. The API refreshes `PREREQUISITE_OF` relations for the provided prerequisite concepts.
 5. The API returns the final stored concept payload.
 
 ## Request Schema
@@ -30,7 +30,14 @@ Use this API when:
   "name": "string",
   "description": "string",
   "difficulty": 1,
-  "prerequisite_ids": ["string"]
+  "prerequisites": [
+    {
+      "concept_id": "string",
+      "name": "string",
+      "description": "string",
+      "difficulty": 1
+    }
+  ]
 }
 ```
 
@@ -40,12 +47,13 @@ Use this API when:
 - `name`: display name of the concept.
 - `description`: optional concept explanation.
 - `difficulty`: integer difficulty level.
-- `prerequisite_ids`: concept ids that should point to this concept with `PREREQUISITE_OF`.
+- `prerequisites`: prerequisite concepts that should point to this concept with `PREREQUISITE_OF`.
+- each prerequisite item is also upserted as a concept node.
 
 ## Example Request
 
 Path:
-`PATCH /api/v1/knowledgegraph/concepts/input-output`
+`PATCH /api/v1/knowledgegraph/concepts/33333333-3333-3333-3333-333333333333`
 
 Body:
 
@@ -54,7 +62,20 @@ Body:
   "name": "Input/Output",
   "description": "Read data from standard input and print the correct result to standard output.",
   "difficulty": 1,
-  "prerequisite_ids": ["variables"]
+  "prerequisites": [
+    {
+      "concept_id": "11111111-1111-1111-1111-111111111111",
+      "name": "Variables",
+      "description": "Store values in named variables and update them during program execution.",
+      "difficulty": 1
+    },
+    {
+      "concept_id": "22222222-2222-2222-2222-222222222222",
+      "name": "Basic Arithmetic",
+      "description": "Use arithmetic operators on numeric values.",
+      "difficulty": 1
+    }
+  ]
 }
 ```
 
@@ -76,6 +97,7 @@ Body:
 This API creates or updates:
 
 - `(:Concept {concept_id})`
-- `(:Concept)-[:PREREQUISITE_OF]->(:Concept)` for each prerequisite id
+- `(:Concept {prerequisite_id})` for each prerequisite object
+- `(:Concept)-[:PREREQUISITE_OF]->(:Concept)` for each prerequisite concept
 
-If a prerequisite concept does not already exist, the repository creates a placeholder concept node for it.
+The repository replaces existing incoming prerequisite edges for the main concept so the graph matches the latest request.
