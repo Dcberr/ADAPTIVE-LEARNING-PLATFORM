@@ -1,4 +1,5 @@
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.api.review_code_deps import get_review_service
@@ -30,15 +31,14 @@ async def review_code(
     """
     try:
         logger.debug(
-            "Received review request with %s test results, %s expected concepts, and %s history entries",
+            "Received review request with %s test results and %s history entries",
             len(request.test_results),
-            len(request.assignment.expected_concepts),
             len(request.history),
         )
 
         # Create initial state using the helper function
         state_in: ReviewState = create_initial_state(
-            code=request.student_submission.code,
+            code=request.code,
             assignment_language=request.assignment.language,
             sandbox_results=[
                 {
@@ -50,7 +50,6 @@ async def review_code(
                 for case in [result for result in request.test_results if result.status == "fail"]
             ],
             assignment_requirements=request.assignment.content,
-            expected_concepts=request.assignment.expected_concepts,
             history=[
                 {
                     "code": submission.code,
@@ -86,11 +85,14 @@ async def review_code(
                     start=(item.get("location") or {}).get("start_col"),
                     end=(item.get("location") or {}).get("end_col"),
                 ),
+                review_link=item.get("review_link"),
             )
             for item in result_state["review_items"]
         ]
 
-        return ReviewResponse(
+        review_id = str(uuid4())
+        response = ReviewResponse(
+            review_id=review_id,
             summary=overview,
             detail="Review completed",
             review_items=review_items,
@@ -147,6 +149,7 @@ async def review_code(
                 ),
             ),
         )
+        return response
 
     except Exception as e:
         logger.exception("Review process failed")
