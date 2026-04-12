@@ -44,7 +44,7 @@ public class ProblemServiceImpl implements ProblemService {
                                 .problemId(problem.getId())
                                 .input(t.getInput())
                                 .expectedOutput(t.getExpectedOutput())
-                                .isSample(t.isSample())
+                                .isHidden(t.isHidden())
                                 .build()
                 );
             }

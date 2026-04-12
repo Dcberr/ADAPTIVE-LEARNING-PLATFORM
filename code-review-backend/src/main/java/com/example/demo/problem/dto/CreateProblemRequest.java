@@ -22,7 +22,7 @@ public class CreateProblemRequest {
     public static class TestcaseRequest {
         private String input;
         private String expectedOutput;
-        private boolean isSample;
+        private boolean isHidden;
         private String explanation;
     }
 }

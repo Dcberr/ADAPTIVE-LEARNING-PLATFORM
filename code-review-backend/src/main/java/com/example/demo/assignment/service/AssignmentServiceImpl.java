@@ -42,6 +42,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .timeLimit(request.getTimeLimit())
                 .maxScore(request.getMaxScore())
                 .maxSubmission(request.getMaxSubmission())
+                .tags(request.getTags())
                 .createdAt(Instant.now())
                 .difficulty(request.getDifficulty())
                 .status(AssignmentStatus.PENDING)
@@ -103,6 +104,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .timeLimit(assignment.getTimeLimit())
                 .maxScore(assignment.getMaxScore())
                 .maxSubmission(assignment.getMaxSubmission())
+                .tags(assignment.getTags())
                 .status(assignment.getStatus())
                 .build();
     }

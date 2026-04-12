@@ -34,7 +34,7 @@ public class Testcase {
     @Column(columnDefinition = "TEXT")
     private String expectedOutput;
 
-    private boolean isSample;
+    private boolean isHidden;
 
     private String explanation;
 }

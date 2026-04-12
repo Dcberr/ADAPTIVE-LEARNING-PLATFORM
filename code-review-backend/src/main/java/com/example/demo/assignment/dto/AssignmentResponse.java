@@ -1,6 +1,7 @@
 package com.example.demo.assignment.dto;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.example.demo.assignment.entity.AssigmentDifficulty;
@@ -23,11 +24,13 @@ public class AssignmentResponse {
 
     private Instant startTime;  
 
-    private Instant timeLimit;  
+    private Long timeLimit;  
 
     private float maxScore;
     
-    private int maxSubmission;  
+    private int maxSubmission;
+
+    private List<String> tags;
 
     private AssignmentStatus status;
 

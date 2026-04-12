@@ -29,13 +29,15 @@ public class CreateAssignmentRequest {
 
     private Instant deadline;
 
-    private Instant timeLimit;
+    private Long timeLimit;
 
     private float maxScore;
 
     private int maxSubmission;
 
     private AssigmentDifficulty difficulty;
+
+    private List<String> tags;
 
     private ProblemRequest problem;
     

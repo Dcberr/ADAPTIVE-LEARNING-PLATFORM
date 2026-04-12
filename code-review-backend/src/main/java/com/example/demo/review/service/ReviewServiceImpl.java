@@ -99,20 +99,26 @@ public class ReviewServiceImpl implements ReviewService {
                         "content", problem.getDescription(),
                         "language", submission.getLanguage()
                 ),
-                "student_submission", Map.of(
-                        "code", submission.getCode(),
-                        "language", submission.getLanguage()
-                ),
+                // "student_submission", Map.of(
+                //         "code", submission.getCode()
+                // ),
+                "code", submission.getCode(),
                 "test_results", testcaseResults.stream()
                         .map(tc -> Map.of(
                                 "testcase_id", tc.getTestcaseId(),
                                 "name", "Testcase " + tc.getInput(), 
                                 "input", tc.getInput(),
-                                "status", tc.isPassed() ? "PASSED" : "FAILED",
+                                "status", tc.isPassed() ? "fail" : "pass",
                                 "expect", tc.getExpectedOutput(),
                                 "actual", normalize(tc.getActualOutput())
                         ))
-                        .toList()
+                        .toList(),
+                "history", List.of(
+                        Map.of(
+                        "code", "",
+                        "failed_test_case_ids", List.of()
+                        )
+                )
         );
 
         log.info("Review request body 1: {}", body);
@@ -122,7 +128,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         saveReview(submissionId, review);
 
-        review.setTestcaseResults(testcases);
+        // review.setTestcaseResults(testcases);
 
         return review;
     }

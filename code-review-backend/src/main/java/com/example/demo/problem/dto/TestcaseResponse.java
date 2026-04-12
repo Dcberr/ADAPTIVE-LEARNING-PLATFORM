@@ -17,7 +17,7 @@ public class TestcaseResponse {
 
     private String expectedOutput;
 
-    private boolean isSample;
+    private boolean isHidden;
 
     private String explanation;
 

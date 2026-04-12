@@ -25,7 +25,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .problemId(request.getProblemId())
                 .input(request.getInput())
                 .expectedOutput(request.getExpectedOutput())
-                .isSample(request.isSample())
+                .isHidden(request.isHidden())
                 .build();
 
         testcaseRepository.save(testcase);
@@ -49,7 +49,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .problemId(testcase.getProblemId())
                 .input(testcase.getInput())
                 .expectedOutput(testcase.getExpectedOutput())
-                .isSample(testcase.isSample())
+                .isHidden(testcase.isHidden())
                 .explanation(testcase.getExplanation())
                 .build();
     }
