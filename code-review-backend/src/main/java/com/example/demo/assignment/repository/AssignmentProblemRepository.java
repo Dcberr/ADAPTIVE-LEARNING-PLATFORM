@@ -12,7 +12,7 @@ import com.example.demo.assignment.entity.AssignmentProblem;
 public interface AssignmentProblemRepository
         extends JpaRepository<AssignmentProblem, UUID> {
 
-    List<AssignmentProblem> findByAssignmentId(UUID assignmentId);
+    AssignmentProblem findByAssignmentId(UUID assignmentId);
     AssignmentProblem findByProblemId(UUID problemId);
 
 }

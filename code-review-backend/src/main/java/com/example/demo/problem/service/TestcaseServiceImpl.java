@@ -42,6 +42,15 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .toList();
     }
 
+    @Override
+    public List<TestcaseResponse> getTestcasesByAssignment(UUID assignmentId) {
+
+        return testcaseRepository.findByAssignmentId(assignmentId)
+                .stream()
+                .map(this::map)
+                .toList();
+    }
+
     private TestcaseResponse map(Testcase testcase) {
 
         return TestcaseResponse.builder()

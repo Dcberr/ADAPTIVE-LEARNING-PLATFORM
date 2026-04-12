@@ -12,4 +12,6 @@ public interface TestcaseService {
 
     List<TestcaseResponse> getTestcasesByProblem(UUID problemId);
 
+    List<TestcaseResponse> getTestcasesByAssignment(UUID assignmentId);
+
 }
