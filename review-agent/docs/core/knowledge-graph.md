@@ -18,6 +18,8 @@ Recommended design choice:
 
 This keeps recommendation queries simpler because the student's latest learning state is stored directly on the student.
 
+At the same time, recommendation quality improves a lot when concept-level progress is stored on relationships, not only on the global student node.
+
 ## Nodes
 
 ### Student
@@ -36,6 +38,11 @@ Suggested properties:
 - `learning_velocity`
 - `profile_notes`
 
+Purpose:
+
+- keep broad learner-level signals that are not tied to one concept
+- support overall recommendation tone, pacing, and support level
+
 ### Submission
 
 Represents one concrete student attempt on an exercise.
@@ -46,7 +53,7 @@ Suggested properties:
 - `student_id`
 - `exercise_id`
 - `code`
-- `failed_test_case_ids`
+- `testcase_outputs_json`
 - `created_at`
 
 ### Review
@@ -86,29 +93,45 @@ Suggested properties:
 - `description`
 - `difficulty`
 
-## Core Relationships
+## Relationship Categories
 
-### Student to Submission
+This section groups relationships by function. For each relationship, the recommended weighted properties and the meaning of those weights are listed explicitly.
 
-- `(:Student)-[:SUBMITTED]->(:Submission)`
+## Identity And Ownership Relationships
+
+### `(:Student)-[:SUBMITTED]->(:Submission)`
 
 Purpose:
 
 - track all attempts made by a student
 - support progression analysis across submissions
 
-### Submission to Exercise
+Weights:
 
-- `(:Submission)-[:FOR_EXERCISE]->(:Exercise)`
+- no weight recommended
+
+Meaning:
+
+- this is an ownership link, not a ranking signal
+- recommendation should read attempt quality from submission and review data, not from this edge
+
+### `(:Submission)-[:FOR_EXERCISE]->(:Exercise)`
 
 Purpose:
 
 - identify which exercise a submission belongs to
 - connect attempt history to exercise metadata
 
-### Submission to Review
+Weights:
 
-- `(:Submission)-[:RECEIVED_REVIEW]->(:Review)`
+- no weight recommended
+
+Meaning:
+
+- this is an identity relation
+- the exercise match should be exact, not scored
+
+### `(:Submission)-[:RECEIVED_REVIEW]->(:Review)`
 
 Purpose:
 
@@ -118,60 +141,110 @@ Optional reverse edge:
 
 - `(:Review)-[:REVIEWS_SUBMISSION]->(:Submission)`
 
-### Exercise to Concept
+Weights:
 
-- `(:Exercise)-[:TESTS {weight}]->(:Concept)`
+- no weight recommended
+
+Meaning:
+
+- this is an exact linkage between one attempt and one review
+- review severity should stay in the review payload, not on the edge
+
+## Curriculum Relationships
+
+### `(:Exercise)-[:TESTS]->(:Concept)`
 
 Purpose:
 
 - define which concepts are evaluated by an exercise
 - enable recommendation by concept weakness or mastery
 
-Suggested relationship property:
+Weights:
 
-- `weight`: relative importance of the concept for that exercise
+- `weight`
 
-### Concept to Concept
+Meaning of weight:
 
-- `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
+- `weight` is the importance of the concept within that exercise
+- high `weight` means the concept is central to the exercise
+- low `weight` means the concept is secondary or only lightly involved
+
+Suggested scale:
+
+- `1.0` for the main concept
+- `0.5` to `0.8` for important supporting concepts
+- `0.1` to `0.4` for minor supporting concepts
+
+### `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 
 Purpose:
 
 - model curriculum progression
-- support "next concept" recommendations
+- support `NEXT_CONCEPT` recommendation
+
+Weights:
+
+- optional `strength`
+
+Meaning of weight:
+
+- `strength` represents how necessary the prerequisite is
+- high `strength` means the prerequisite is required before moving on
+- low `strength` means the prerequisite is helpful but not strictly blocking
+
+Suggested scale:
+
+- `1.0` for strict prerequisite
+- `0.5` to `0.8` for strong supporting prerequisite
+- `0.1` to `0.4` for optional background knowledge
 
 ## Student Learning Relationships
 
-### Student to Exercise
-
-- `(:Student)-[:ATTEMPTED]->(:Exercise)`
-
-Purpose:
-
-- record exercise exposure at the student level
-- exclude already attempted exercises from recommendation
-
 ### Student to Concept
 
-- `(:Student)-[:MASTERED]->(:Concept)`
+- `(:Student)-[:HAS_CONCEPT_STATE]->(:Concept)`
 
 Purpose:
 
-- mark concepts the student has demonstrated strong understanding of
-- support progression to next concepts
+- store concept-specific learning state for recommendation
+- support reinforcement, improvement, and next-concept ranking with direct evidence
+- avoid over-relying on one global student profile for all concepts
 
+Weights:
+
+- `mastery_score`
+- `struggle_score`
+- `confidence`
+- `evidence_count`
+- `updated_at`
+
+Meaning of weights:
+
+- `mastery_score`: `0.0` to `1.0`
+- `struggle_score`: `0.0` to `1.0`
+- `confidence`: how reliable the score is based on available evidence
+- `evidence_count`: number of reviews/submissions contributing to the relation
+
+Suggested interpretation:
+
+- high `mastery_score` and low `struggle_score` means the student is likely ready to move forward
+- high `struggle_score` means the student likely needs `REINFORCE`
+- medium `mastery_score` with medium `struggle_score` often maps to `IMPROVE`
+
+Optional derived shortcut relations:
+
+- `(:Student)-[:MASTERED]->(:Concept)`
 - `(:Student)-[:STRUGGLES_WITH]->(:Concept)`
 
 Purpose:
 
-- mark concepts where the student shows repeated difficulty
-- support reinforcement recommendations
+- these can be derived from `HAS_CONCEPT_STATE` thresholds
+- they are useful for simple queries, but the weighted state relation should be treated as the source of truth
 
-Optional relationship properties:
+Suggested thresholds:
 
-- `strength`
-- `updated_at`
-- `evidence_count`
+- create or interpret `MASTERED` when `mastery_score >= 0.75` and `struggle_score < 0.35`
+- create or interpret `STRUGGLES_WITH` when `struggle_score >= 0.60`
 
 ### Student to Exercise Solved State
 
@@ -180,6 +253,49 @@ Optional relationship properties:
 Purpose:
 
 - distinguish successful completion from mere attempt history
+- support recommendation filtering for already-completed exercises
+
+Weights:
+
+- `score`
+- `attempt_count`
+- `solved_at`
+
+Meaning of weights:
+
+- `score`: how strongly the exercise was solved, not just whether it was solved
+- `attempt_count`: how many tries were needed before solving
+- `solved_at`: when the solve state was last reached
+
+Suggested scale:
+
+- `score` near `1.0` means strong solve quality
+- `score` near `0.5` means barely solved or solved with weak evidence
+- higher `attempt_count` means the solve may need more caution in progression decisions
+
+### `(:Student)-[:ATTEMPTED]->(:Exercise)`
+
+Purpose:
+
+- record exercise exposure at the student level
+- exclude already attempted exercises from recommendation
+
+Weights:
+
+- `attempt_count`
+- `last_attempt_at`
+- `best_result`
+
+Meaning of weights:
+
+- `attempt_count`: how many times the student tried the exercise
+- `last_attempt_at`: recency of exposure
+- `best_result`: the best observed result quality for that exercise
+
+Suggested scale:
+
+- higher `attempt_count` with low `best_result` is a strong reinforce signal
+- recent `last_attempt_at` means the system should avoid immediate repetition unless reinforce is intentional
 
 ## Progression Relationships
 
@@ -192,11 +308,24 @@ Purpose:
 - track how a student's attempts evolve over time
 - support trend analysis and self-correction evaluation
 
-Suggested relationship properties:
+Weights:
 
 - `student_id`
 - `linked_at`
 - `same_exercise`
+- `improvement_ratio`
+- `regression_ratio`
+
+Meaning of weights:
+
+- `improvement_ratio`: how much the student improved from one submission to the next
+- `regression_ratio`: how much the student regressed from one submission to the next
+- `same_exercise`: whether the chain stays within the same exercise
+
+Suggested scale:
+
+- `improvement_ratio` near `1.0` means strong forward progress
+- `regression_ratio` near `1.0` means serious backward movement
 
 ### Review to Review
 
@@ -207,11 +336,26 @@ Purpose:
 - connect review history across attempts
 - support review-based progression summaries
 
-Suggested relationship properties:
+Weights:
 
 - `student_id`
 - `linked_at`
 - `same_concept`
+- `improvement_signal`
+- `severity_change`
+
+Meaning of weights:
+
+- `improvement_signal`: overall learning improvement between reviews
+- `severity_change`: change in issue severity from prior review to current review
+- `same_concept`: whether the review chain stays on the same concept
+
+Suggested scale:
+
+- `improvement_signal` near `1.0` means clear improvement
+- `improvement_signal` near `0.0` means no real progress
+- `severity_change < 0` means the review got less severe
+- `severity_change > 0` means the review got more severe
 
 ## Recommendation Relationships
 
@@ -229,6 +373,22 @@ Example `path` values:
 - `IMPROVE`
 - `NEXT_CONCEPT`
 
+Weights:
+
+- `path`
+- `weight`
+
+Meaning of weights:
+
+- some exercises fit a path much better than others even for the same concept
+- recommendation can rank candidates instead of only filtering them
+
+Suggested scale:
+
+- `weight` near `1.0` means the exercise is a very strong fit for that path on that concept
+- `weight` near `0.5` means acceptable but not ideal
+- `weight` near `0.1` means weak path fit
+
 ### Student to Exercise Assignment
 
 - `(:Student)-[:ASSIGNED {path, target_concept, sequence}]->(:Exercise)`
@@ -239,12 +399,30 @@ Purpose:
 - support roadmap tracking
 - avoid recommending the same exercise repeatedly
 
-Suggested relationship properties:
+Weights:
 
 - `path`
 - `target_concept`
 - `sequence`
 - `assigned_at`
+- `priority`
+- `reasoning_score`
+
+Meaning of weights:
+
+- `priority`: importance of this assigned exercise inside the roadmap
+- `reasoning_score`: confidence of the recommendation engine in this assignment
+- `sequence`: ordering inside the plan
+
+## Best Practical Recommendation Setup
+
+If you want the highest-impact weighting strategy, prioritize these first:
+
+1. `(:Student)-[:HAS_CONCEPT_STATE]->(:Concept)` with `mastery_score`, `struggle_score`, `confidence`
+2. `(:Exercise)-[:TESTS]->(:Concept)` with `weight`
+3. `(:Exercise)-[:RECOMMENDED_FOR]->(:Concept)` with `path`, `weight`
+4. `(:Student)-[:ATTEMPTED]->(:Exercise)` with `attempt_count`, `last_attempt_at`
+5. `(:Review)-[:NEXT_REVIEW_OF]->(:Review)` with `improvement_signal`
 
 ## Recommended Minimal Graph
 
@@ -256,8 +434,7 @@ If you want the smallest graph that still supports a strong recommendation flow,
 - `(:Exercise)-[:TESTS]->(:Concept)`
 - `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 - `(:Student)-[:ATTEMPTED]->(:Exercise)`
-- `(:Student)-[:MASTERED]->(:Concept)`
-- `(:Student)-[:STRUGGLES_WITH]->(:Concept)`
+- `(:Student)-[:HAS_CONCEPT_STATE]->(:Concept)`
 - `(:Submission)-[:NEXT_ATTEMPT]->(:Submission)`
 - `(:Exercise)-[:RECOMMENDED_FOR {path}]->(:Concept)`
 
