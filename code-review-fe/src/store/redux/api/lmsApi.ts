@@ -155,6 +155,42 @@ export type AssignmentSubmissionResponse = {
   score: string
   studentName: string
 }
+export type AssignmentProblemResponse = {
+  id: string
+  description: string
+  problemConstraint: string
+  starterCodes: Record<string, string>
+}
+export type AssignmentTestcaseResponse = {
+  id: string
+  problemId: string
+  input: string
+  expectedOutput: string
+  explanation: string
+  hidden: boolean
+}
+export type JudgeExecutionRequest = {
+  problemId: string
+  language: string
+  code: string
+}
+export type JudgeExecutionTestcaseResponse = {
+  testcaseId: string | null
+  index: number
+  input: string
+  expectedOutput: string
+  output: string
+  error: string
+  status: string
+  runtime: number
+}
+export type JudgeExecutionResponse = {
+  status: string
+  testcases: JudgeExecutionTestcaseResponse[]
+  passedTestcases: number
+  totalTestcases: number
+  runtime: number
+}
 
 export const lmsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -322,6 +358,28 @@ export const lmsApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, { assignmentId }) => [
         { type: "Submission" as const, id: assignmentId },
       ],
+    }),
+    getAssignmentProblem: builder.query<AssignmentProblemResponse, string>({
+      query: (assignmentId) => `/problems/assignment/${assignmentId}`,
+      transformResponse: (response: ApiResponse<AssignmentProblemResponse>) => response.data,
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: `PROBLEM-${assignmentId}` },
+      ],
+    }),
+    getAssignmentTestcases: builder.query<AssignmentTestcaseResponse[], string>({
+      query: (assignmentId) => `/testcases/assignment/${assignmentId}`,
+      transformResponse: (response: ApiResponse<AssignmentTestcaseResponse[]>) => response.data,
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: `TESTCASES-${assignmentId}` },
+      ],
+    }),
+    judgeExecution: builder.mutation<JudgeExecutionResponse, JudgeExecutionRequest>({
+      query: (body) => ({
+        url: "/execution/judge",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<JudgeExecutionResponse>) => response.data,
     }),
     createClass: builder.mutation<CreatedClass, CreateClassRequest>({
       query: ({ name, description, image, schedule }) => {
@@ -525,6 +583,9 @@ export const {
   useGetClassTopicsQuery,
   useGetAssignmentContextQuery,
   useGetAssignmentSubmissionsQuery,
+  useGetAssignmentProblemQuery,
+  useGetAssignmentTestcasesQuery,
+  useJudgeExecutionMutation,
   useCreateClassMutation,
   useAddStudentToClassMutation,
   useGetCoursesQuery,

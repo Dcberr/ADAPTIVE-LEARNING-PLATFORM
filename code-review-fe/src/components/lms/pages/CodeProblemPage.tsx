@@ -21,13 +21,26 @@ import {
 } from "@/services/lms/mockLmsService"
 import { useAppSelector } from "@/store/redux/hooks"
 import { useLmsStore } from "@/store/lmsStore"
-import { useGetAssignmentContextQuery } from "@/store/redux/api/lmsApi"
+import {
+  type AssignmentTestcaseResponse,
+  type JudgeExecutionResponse,
+  useGetAssignmentContextQuery,
+  useGetAssignmentProblemQuery,
+  useGetAssignmentTestcasesQuery,
+  useJudgeExecutionMutation,
+} from "@/store/redux/api/lmsApi"
 
 const mockLanguages = ["python", "javascript", "java", "cpp"] as const
 const cppOnlyLanguages = ["cpp"] as const
 
 type Language = (typeof mockLanguages)[number]
 type ActiveTab = "description" | "testcases" | "result" | "review"
+type DynamicTestcase = {
+  input: string
+  expectedOutput: string
+  explanation: string
+  hidden: boolean
+}
 
 function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
   if (value === "HARD") return "Hard"
@@ -56,9 +69,15 @@ function buildDynamicAssignment(context: NonNullable<ReturnType<typeof useGetAss
 
 function buildDynamicProblem(
   context: NonNullable<ReturnType<typeof useGetAssignmentContextQuery>["data"]>,
+  assignmentProblem: ReturnType<typeof useGetAssignmentProblemQuery>["data"],
+  assignmentTestcases: ReturnType<typeof useGetAssignmentTestcasesQuery>["data"],
   cachedProblem: ReturnType<typeof getCachedAssignmentProblem>
 ): CodingProblem {
-  const visibleExamples = (cachedProblem?.testcases ?? [])
+  const sourceTestcases: DynamicTestcase[] =
+    assignmentTestcases && assignmentTestcases.length > 0
+      ? assignmentTestcases
+      : (cachedProblem?.testcases ?? [])
+  const visibleExamples = sourceTestcases
     .filter((item) => !item.hidden)
     .slice(0, 2)
     .map((item) => ({
@@ -68,27 +87,32 @@ function buildDynamicProblem(
     }))
 
   return {
-    id: `problem-${context.id}`,
+    id: assignmentProblem?.id ?? `problem-${context.id}`,
     assignmentId: context.id,
     title: context.title,
     difficulty: toDifficultyLabel(context.difficulty),
-    description: cachedProblem?.description || "Đề bài đang được đồng bộ từ assignment này.",
+    description:
+      assignmentProblem?.description ||
+      cachedProblem?.description ||
+      "Đề bài đang được đồng bộ từ assignment này.",
     examples: visibleExamples,
-    constraints: cachedProblem?.problemConstraint
-      ? cachedProblem.problemConstraint.split("\n").map((item) => item.trim()).filter(Boolean)
+    constraints: (assignmentProblem?.problemConstraint || cachedProblem?.problemConstraint)
+      ? (assignmentProblem?.problemConstraint || cachedProblem?.problemConstraint)
+          .split("\n")
+          .map((item: string) => item.trim())
+          .filter(Boolean)
       : [],
     starterCode: {
       python: "",
       javascript: "",
       java: "",
-      cpp: cachedProblem?.starterCodeCpp ?? "",
+      cpp: assignmentProblem?.starterCodes?.cpp ?? cachedProblem?.starterCodeCpp ?? "",
     },
-    testCases:
-      cachedProblem?.testcases?.map((item) => ({
-        input: item.input,
-        expectedOutput: item.expectedOutput,
-        hidden: item.hidden,
-      })) ?? [],
+    testCases: sourceTestcases.map((item) => ({
+      input: item.input,
+      expectedOutput: item.expectedOutput,
+      hidden: item.hidden,
+    })),
     hints: [],
     topics: cachedProblem?.tags ?? context.tags ?? [],
   }
@@ -135,6 +159,35 @@ function simulateDynamicExecution(
   }
 }
 
+function mapJudgeExecutionToSummary(
+  judgeResult: JudgeExecutionResponse,
+  assignment: Assignment,
+  assignmentTestcases: AssignmentTestcaseResponse[]
+): ExecutionSummary {
+  const total = judgeResult.totalTestcases || judgeResult.testcases.length
+  const passed = judgeResult.passedTestcases
+  const percentage = total > 0 ? Math.round((passed / total) * 100) : 0
+  const testcaseVisibility = new Map(
+    assignmentTestcases.map((item: AssignmentTestcaseResponse) => [item.id, item.hidden])
+  )
+
+  return {
+    passed,
+    total,
+    percentage,
+    score: Math.round(((assignment.points || 100) * percentage) / 100),
+    eligibleForReview: percentage >= 70,
+    results: judgeResult.testcases.map((item: JudgeExecutionResponse["testcases"][number]) => ({
+      idx: item.index,
+      input: item.input,
+      expected: item.expectedOutput,
+      actual: item.output || item.error || "",
+      passed: item.status === "ACCEPTED",
+      hidden: item.testcaseId ? testcaseVisibility.get(item.testcaseId) ?? false : false,
+    })),
+  }
+}
+
 export default function CodeProblemPage({
   id,
   role = "student",
@@ -147,6 +200,14 @@ export default function CodeProblemPage({
   const { data: assignmentContext, isLoading: isLoadingContext } = useGetAssignmentContextQuery(id, {
     skip: Boolean(mockBundle.assignment && mockBundle.problem),
   })
+  const { data: assignmentProblem, isLoading: isLoadingProblem } = useGetAssignmentProblemQuery(id, {
+    skip: Boolean(mockBundle.assignment && mockBundle.problem),
+  })
+  const { data: assignmentTestcases = [], isLoading: isLoadingTestcases } =
+    useGetAssignmentTestcasesQuery(id, {
+      skip: Boolean(mockBundle.assignment && mockBundle.problem),
+    })
+  const [judgeExecution] = useJudgeExecutionMutation()
   const cachedProblem = useMemo(() => getCachedAssignmentProblem(id), [id])
   const hasMockBundle = Boolean(mockBundle.assignment && mockBundle.problem)
   const assignment = useMemo(
@@ -154,8 +215,17 @@ export default function CodeProblemPage({
     [assignmentContext, mockBundle.assignment]
   )
   const problem = useMemo(
-    () => mockBundle.problem ?? (assignmentContext ? buildDynamicProblem(assignmentContext, cachedProblem) : null),
-    [assignmentContext, cachedProblem, mockBundle.problem]
+    () =>
+      mockBundle.problem ??
+      (assignmentContext
+        ? buildDynamicProblem(
+            assignmentContext,
+            assignmentProblem,
+            assignmentTestcases,
+            cachedProblem
+          )
+        : null),
+    [assignmentContext, assignmentProblem, assignmentTestcases, cachedProblem, mockBundle.problem]
   )
   const [startedAtMs] = useState(() => Date.now())
   const [language, setLanguage] = useState<Language>(hasMockBundle ? "python" : "cpp")
@@ -260,12 +330,28 @@ export default function CodeProblemPage({
       }
 
       setRunningAction(mode)
-      const summary = hasMockBundle
-        ? await runAssignmentExecution(assignment.id, language, activeCode, mode, {
-            startedAt: new Date(startedAtMs).toISOString(),
-            durationSeconds: getElapsedSeconds(),
-          })
-        : simulateDynamicExecution(assignment, problem!, activeCode, mode)
+      let summary: ExecutionSummary
+
+      if (hasMockBundle) {
+        summary = await runAssignmentExecution(assignment.id, language, activeCode, mode, {
+          startedAt: new Date(startedAtMs).toISOString(),
+          durationSeconds: getElapsedSeconds(),
+        })
+      } else if (mode === "run" && assignmentProblem?.id) {
+        try {
+          const judgeResult = await judgeExecution({
+            problemId: assignmentProblem.id,
+            language,
+            code: activeCode,
+          }).unwrap()
+
+          summary = mapJudgeExecutionToSummary(judgeResult, assignment, assignmentTestcases)
+        } catch {
+          summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
+        }
+      } else {
+        summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
+      }
 
       if (!hasMockBundle && mode === "submit") {
         useLmsStore.getState().addSubmission({
@@ -286,6 +372,8 @@ export default function CodeProblemPage({
       }
 
       setExecution(summary)
+      setReview(null)
+      setRecommendedProblems([])
       handleTabChange("result")
       setRunningAction(null)
 
@@ -293,17 +381,37 @@ export default function CodeProblemPage({
         router.push(`/${role}/assignments/${assignment.id}`)
       }
     },
-    [activeCode, assignment, getElapsedSeconds, handleTabChange, hasMockBundle, language, problem, role, router, startedAtMs]
+    [
+      activeCode,
+      assignment,
+      assignmentProblem,
+      assignmentTestcases,
+      getElapsedSeconds,
+      handleTabChange,
+      hasMockBundle,
+      judgeExecution,
+      language,
+      problem,
+      role,
+      router,
+      startedAtMs,
+    ]
   )
 
   if (!assignment || !problem) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{isLoadingContext ? "Đang tải bài tập..." : "Không tìm thấy bài tập"}</CardTitle>
+          <CardTitle>
+            {isLoadingContext || isLoadingProblem || isLoadingTestcases
+              ? "Đang tải bài tập..."
+              : "Không tìm thấy bài tập"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoadingContext ? "Hệ thống đang chuẩn bị dữ liệu cho màn làm bài." : "Assignment is unavailable."}
+          {isLoadingContext || isLoadingProblem || isLoadingTestcases
+            ? "Hệ thống đang chuẩn bị dữ liệu cho màn làm bài."
+            : "Assignment is unavailable."}
         </CardContent>
       </Card>
     )
