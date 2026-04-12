@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
+import com.example.demo.assignment.entity.AssignmentProblem;
+import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.entity.Problem;
@@ -20,6 +22,7 @@ public class ProblemServiceImpl implements ProblemService {
 
     private final ProblemRepository problemRepository;
     private final TestcaseRepository testcaseRepository;    
+    private final AssignmentProblemRepository assignmentProblemRepository;
 
     @Override
     public ProblemResponse createProblem(CreateProblemRequest request) {
@@ -60,6 +63,15 @@ public class ProblemServiceImpl implements ProblemService {
                 .orElseThrow();
 
         return map(problem);
+    }
+
+    @Override
+    public ProblemResponse getProblemByAssignmentId(UUID assignmentId) {
+
+        AssignmentProblem problem = assignmentProblemRepository.findByAssignmentId(assignmentId);
+
+        return map(problemRepository.findById(problem.getProblemId())
+                .orElseThrow());
     }
 
     private ProblemResponse map(Problem problem) {

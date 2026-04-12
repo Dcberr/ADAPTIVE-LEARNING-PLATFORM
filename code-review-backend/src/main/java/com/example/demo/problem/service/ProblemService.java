@@ -11,4 +11,6 @@ public interface ProblemService {
 
     ProblemResponse getProblem(UUID problemId);
 
+    ProblemResponse getProblemByAssignmentId(UUID assignmentId);
+
 }

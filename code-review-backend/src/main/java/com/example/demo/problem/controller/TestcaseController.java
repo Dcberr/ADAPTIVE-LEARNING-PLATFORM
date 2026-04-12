@@ -44,4 +44,15 @@ public class TestcaseController {
                 testcaseService.getTestcasesByProblem(problemId)
         );
     }
+
+    @Operation(summary = "Get testcases by assignment ID")
+    @GetMapping("/assignment/{assignmentId}")
+    public ApiResponse<List<TestcaseResponse>> getTestcasesByAssignment(
+            @Parameter(description = "Assignment ID")    
+            @PathVariable UUID assignmentId
+    ) {
+        return ApiResponse.success(
+                testcaseService.getTestcasesByAssignment(assignmentId)
+        );
+    }
 }

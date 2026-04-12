@@ -43,4 +43,15 @@ public class ProblemController {
                 problemService.getProblem(problemId)
         );
     }
+
+    @Operation(summary = "Get problem by assignment ID")
+        @GetMapping("/assignment/{assignmentId}")       
+        public ApiResponse<ProblemResponse> getProblemByAssignmentId(
+                @Parameter(description = "Assignment ID")
+                @PathVariable UUID assignmentId
+        ) {
+        return ApiResponse.success(
+                problemService.getProblemByAssignmentId(assignmentId)
+        );
+        }
 }
