@@ -16,7 +16,9 @@ import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.dto.TestcaseResult;
 import com.example.demo.execution.model.JudgeStatus;
 import com.example.demo.execution.model.JudgeUtil;
+import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.Testcase;
+import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
     private final JobeClient jobeClient;
     private final TestcaseRepository testcaseRepository;
+    private final ProblemRepository problemRepository;
 
     private final ExecutorService executor =
             Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -39,9 +42,19 @@ public class ExecutionServiceImpl implements ExecutionService {
         List<Testcase> testcases =
                 testcaseRepository.findByProblemId(request.getProblemId());
 
+        // ===== LOAD PROBLEM AND COMBINE STARTER CODE WITH STUDENT CODE =====
+        Problem problem = problemRepository.findById(request.getProblemId())
+                .orElseThrow(() -> new RuntimeException("Problem not found"));
+
+        String starterCode = problem.getStarterCodes()
+                .getOrDefault(request.getLanguage(), "");
+        
+        String combinedCode = combineCode(starterCode, request.getCode());
+        log.info("Combined code for language {}: starter + student", request.getLanguage());
+
         // ===== COMPILE ONCE =====
         ExecutionResult compileResult =
-                jobeClient.compile(request.getLanguage(), request.getCode());
+                jobeClient.compile(request.getLanguage(), combinedCode);
 
         JudgeStatus compileStatus = mapOutcome(compileResult);
 
@@ -76,7 +89,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             futures.add(
                     CompletableFuture.supplyAsync(
-                            () -> runSingleTestcase(testcaseIndex, request, tc),
+                            () -> runSingleTestcase(testcaseIndex, request, combinedCode, tc),
                             executor
                     )
             );
@@ -114,13 +127,14 @@ public class ExecutionServiceImpl implements ExecutionService {
     private TestcaseResult runSingleTestcase(
             int index,
             RunTestcaseRequest request,
+            String combinedCode,
             Testcase tc
     ) {
 
         ExecutionResult result =
                 jobeClient.runCode(
                         request.getLanguage(),
-                        request.getCode(),
+                        combinedCode,
                         tc.getInput()
                 );
 
@@ -171,6 +185,13 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             default -> JudgeStatus.RUNTIME_ERROR;
         };
+    }
+
+    private String combineCode(String starterCode, String studentCode) {
+        if (starterCode.contains("//STUDENT_CODE_HERE")) {
+                return starterCode.replace("//STUDENT_CODE_HERE", studentCode);
+        }
+        throw new RuntimeException("Starter code missing placeholder");
     }
 
     @Override
