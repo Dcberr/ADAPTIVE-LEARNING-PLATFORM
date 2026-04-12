@@ -45,10 +45,6 @@ export default function StudentEnrollmentCard({
           <UserPlus className="size-4 text-[#1488D8]" />
           Add student to class
         </CardTitle>
-        <p className="text-sm text-slate-500">
-          Phần enroll sinh viên đang gọi API thật. Các phần monitoring bên dưới vẫn giữ giao diện
-          cũ để lecturer tiếp tục thao tác như trước.
-        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-4">

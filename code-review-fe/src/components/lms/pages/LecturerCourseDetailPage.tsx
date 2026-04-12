@@ -20,6 +20,7 @@ import type {
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { studentPerformance } from "@/data/lms/extendedMockData"
 import { getBackendBaseUrl } from "@/lib/auth"
+import { saveCachedAssignmentProblem } from "@/lib/assignment-problem-cache"
 import {
   useAddStudentToClassMutation,
   useCreateAssignmentMutation,
@@ -273,10 +274,16 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       return
     }
 
-    if (!assignmentDraft.title.trim() || !assignmentDraft.description.trim() || !assignmentDraft.deadline) {
+    if (
+      !assignmentDraft.title.trim() ||
+      !assignmentDraft.description.trim() ||
+      !assignmentDraft.openAt ||
+      !assignmentDraft.deadline ||
+      !assignmentDraft.timeLimit
+    ) {
       setContentFeedback({
         tone: "error",
-        message: "Tiêu đề, mô tả bài toán và deadline là bắt buộc.",
+        message: "Tiêu đề, mô tả, thời điểm mở, deadline và time limit là bắt buộc.",
       })
       return
     }
@@ -284,17 +291,45 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     void createAssignment({
       topicId: assignmentDraft.topicId,
       title: assignmentDraft.title.trim(),
+      startTime: new Date(assignmentDraft.openAt).toISOString(),
       deadline: new Date(assignmentDraft.deadline).toISOString(),
+      timeLimit: Number(assignmentDraft.timeLimit) || 0,
+      maxScore: Number(assignmentDraft.score) || 0,
+      maxSubmission: Number(assignmentDraft.attemptsAllowed) || 0,
       difficulty: assignmentDraft.difficulty,
+      tags: assignmentDraft.tags
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
       description: assignmentDraft.description.trim(),
+      problemConstraint: assignmentDraft.constraints.trim(),
+      starterCodes: assignmentDraft.starterCode.cpp.trim()
+        ? { cpp: assignmentDraft.starterCode.cpp }
+        : {},
       testcases: assignmentDraft.testCases.map((item) => ({
         input: item.input,
         expectedOutput: item.expectedOutput,
+        explanation: item.explanation.trim(),
         hidden: item.hidden,
       })),
     })
       .unwrap()
-      .then(() => {
+      .then((createdAssignment) => {
+        saveCachedAssignmentProblem(createdAssignment.id, {
+          description: assignmentDraft.description.trim(),
+          problemConstraint: assignmentDraft.constraints.trim(),
+          starterCodeCpp: assignmentDraft.starterCode.cpp,
+          testcases: assignmentDraft.testCases.map((item) => ({
+            input: item.input,
+            expectedOutput: item.expectedOutput,
+            explanation: item.explanation.trim(),
+            hidden: item.hidden,
+          })),
+          tags: assignmentDraft.tags
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+        })
         resetAssignmentModal()
         setContentFeedback({
           tone: "success",
@@ -448,6 +483,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           setAssignmentDrafts((state) => state.filter((item) => item.id !== draftId))
         }
         onAddSection={handleAddSection}
+        assignmentHrefPrefix="/lecturer/assignments"
         onStudentIdChange={setStudentId}
         onAddStudent={handleAddStudent}
       />

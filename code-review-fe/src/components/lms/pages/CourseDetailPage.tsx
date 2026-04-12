@@ -1,81 +1,155 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
   BookOpen,
   Calendar,
-  Download,
   FileText,
   ImageIcon,
   Video,
 } from "lucide-react"
 
-import { grades } from "@/data/lms/mockData"
-import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
+import { getClassCoverBackgroundImage } from "@/lib/class-cover"
+import { getBackendBaseUrl } from "@/lib/auth"
+import TopicSectionCard from "@/components/lms/pages/lecturer-course-detail/TopicSectionCard"
+import type { TopicCard } from "@/components/lms/pages/lecturer-course-detail/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getStudentCourseById, getStudentCourseTopics } from "@/services/lms/mockLmsService"
+import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
+import {
+  useGetClassByIdQuery,
+  useGetClassTopicsQuery,
+} from "@/store/redux/api/lmsApi"
 
-const courseImages: Record<string, string> = {
-  "ai-digital-economy":
-    "https://images.unsplash.com/photo-1655393001768-d946c97d6fd1?auto=format&fit=crop&w=1080&q=80",
-  "fintech-blockchain":
-    "https://images.unsplash.com/photo-1649359569078-c445b3c6a116?auto=format&fit=crop&w=1080&q=80",
-  "design-thinking":
-    "https://images.unsplash.com/photo-1562939651-9359f291c988?auto=format&fit=crop&w=1080&q=80",
-  "algorithmic-trading":
-    "https://images.unsplash.com/photo-1766218326892-4b261b02a03f?auto=format&fit=crop&w=1080&q=80",
-  "marketing-analytics":
-    "https://images.unsplash.com/photo-1599658880436-c61792e70672?auto=format&fit=crop&w=1080&q=80",
-  "sustainable-business":
-    "https://images.unsplash.com/photo-1741118843309-bbfe149f7b9e?auto=format&fit=crop&w=1080&q=80",
+type CourseDetailTab = "topics" | "materials" | "assignments"
+
+type DisplayMaterial = {
+  id: string
+  title: string
+  description: string
+  topicTitle: string
+  type: "file" | "video" | "image"
+  previewLabel: string
+  resourceUrl: string
 }
 
-type TopicBundle = Awaited<ReturnType<typeof getStudentCourseTopics>>[number]
-type CourseDetailTab = "topics" | "materials" | "assignments" | "grades"
+type DisplayAssignment = {
+  id: string
+  title: string
+  topicTitle: string
+  deadline: string
+  difficulty: string
+  status: string
+}
 
-function MaterialIcon({ type }: { type: TopicBundle["materials"][number]["type"] }) {
+function MaterialIcon({ type }: { type: DisplayMaterial["type"] }) {
   if (type === "video") return <Video className="size-5 text-blue-600" />
   if (type === "image") return <ImageIcon className="size-5 text-purple-600" />
   return <FileText className="size-5 text-green-600" />
 }
 
+function normalizeMaterialType(value: string): DisplayMaterial["type"] {
+  if (value === "video" || value === "image") {
+    return value
+  }
+
+  return "file"
+}
+
 export default function CourseDetailPage({ courseId }: { courseId: string }) {
-  const course = getStudentCourseById(courseId)
-  const [topics, setTopics] = useState<TopicBundle[]>([])
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<CourseDetailTab>("topics")
+  const backendBaseUrl = getBackendBaseUrl()
+  const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({})
+  const {
+    data: course,
+    error: courseError,
+    isLoading: isLoadingCourse,
+  } = useGetClassByIdQuery(courseId)
+  const {
+    data: topicDetails = [],
+    error: topicsError,
+    isLoading: isLoadingTopics,
+  } = useGetClassTopicsQuery(courseId)
 
-  useEffect(() => {
-    getStudentCourseTopics(courseId).then(setTopics)
-  }, [courseId])
-
-  const courseGrade = grades.find((item) => item.courseId === courseId)
-
-  const courseAssignments = useMemo(
+  const allMaterials = useMemo<DisplayMaterial[]>(
     () =>
-      topics.flatMap((topic) =>
-        topic.assignments.map((assignment) => ({
-          ...assignment,
+      topicDetails.flatMap((topic) =>
+        topic.documents.map((material) => ({
+          id: material.id,
+          title: material.title,
+          description: material.description,
           topicTitle: topic.title,
+          type: normalizeMaterialType(material.type),
+          previewLabel: material.type?.toUpperCase?.() ?? "FILE",
+          resourceUrl: `${backendBaseUrl}/documents/download/${material.id}`,
         }))
       ),
-    [topics]
+    [backendBaseUrl, topicDetails]
   )
 
-  const allMaterials = useMemo(
-    () => topics.flatMap((topic) => topic.materials.map((material) => ({ ...material, topicTitle: topic.title }))),
-    [topics]
+  const courseAssignments = useMemo<DisplayAssignment[]>(
+    () =>
+      topicDetails.flatMap((topic) =>
+        topic.assignments.map((assignment) => ({
+          id: assignment.id,
+          title: assignment.title,
+          topicTitle: topic.title,
+          deadline: assignment.deadline,
+          difficulty: assignment.difficulty,
+          status: assignment.status,
+        }))
+      ),
+    [topicDetails]
   )
 
-  if (!course) {
+  const topicCards = useMemo<TopicCard[]>(
+    () =>
+      topicDetails.map((topic, index) => ({
+        id: topic.id,
+        courseId,
+        order: index + 1,
+        title: topic.title,
+        summary: topic.description,
+        materials: topic.documents.map((material) => ({
+          id: material.id,
+          title: material.title,
+          description: material.description,
+          resourceUrl: `${backendBaseUrl}/documents/download/${material.id}`,
+          type: normalizeMaterialType(material.type),
+          fileSize: "",
+          previewLabel: material.type?.toUpperCase?.() ?? "FILE",
+        })),
+        assignments: topic.assignments.map((assignment) => ({
+          id: assignment.id,
+          title: assignment.title,
+          deadline: assignment.deadline,
+          difficulty: assignment.difficulty,
+          status: assignment.status,
+        })),
+        customAssignments: [],
+      })),
+    [backendBaseUrl, courseId, topicDetails]
+  )
+
+  if (isLoadingCourse) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Course not found</CardTitle>
+          <CardTitle>Đang tải khóa học...</CardTitle>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  if (courseError || !course) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Không tìm thấy khóa học</CardTitle>
         </CardHeader>
       </Card>
     )
@@ -85,29 +159,40 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
     <div className="space-y-6">
       <Link href="/student/courses">
         <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-2 size-4" /> Back to Courses
+          <ArrowLeft className="mr-2 size-4" /> Quay lại khóa học
         </Button>
       </Link>
 
-      <Card className="overflow-hidden">
-        <div className="relative h-56">
-          <img src={courseImages[course.image]} alt={course.name} className="h-full w-full object-cover" />
+      <Card className="overflow-hidden gap-0 py-0">
+        <div
+          className="relative h-56 bg-slate-100 bg-cover bg-center"
+          style={{
+            backgroundImage: getClassCoverBackgroundImage({
+              seed: courseId,
+              title: course.name,
+              imageUrl: course.imageUrl,
+            }),
+          }}
+        >
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-6 left-6 text-white">
-            <Badge className={`${course.color} mb-2 text-white`}>{course.code}</Badge>
             <h1 className="text-3xl font-semibold">{course.name}</h1>
-            <p className="mt-2 text-lg text-gray-200">{course.instructor}</p>
+            <p className="mt-2 text-lg text-gray-200">{course.instructorName}</p>
           </div>
         </div>
         <CardContent className="p-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
-              <p className="text-sm text-gray-500">Schedule</p>
-              <p className="mt-2 text-xl font-medium text-slate-900">{course.schedule}</p>
+              <p className="text-sm text-gray-500">Lịch học</p>
+              <p className="mt-2 text-xl font-medium text-slate-900">
+                {course.schedule ?? "Chưa cấu hình"}
+              </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Enrolled</p>
-              <p className="mt-2 text-xl font-medium text-slate-900">{course.enrolled} students</p>
+              <p className="text-sm text-gray-500">Sinh viên tham gia</p>
+              <p className="mt-2 text-xl font-medium text-slate-900">
+                {course.enrolledStudentsCount} sinh viên
+              </p>
             </div>
           </div>
         </CardContent>
@@ -120,15 +205,14 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
       >
         <TabsList>
           <TabsTrigger value="topics">
-            <BookOpen className="mr-2 size-4" /> Topics
+            <BookOpen className="mr-2 size-4" /> Chủ đề
           </TabsTrigger>
           <TabsTrigger value="materials">
-            <FileText className="mr-2 size-4" /> Materials ({allMaterials.length})
+            <FileText className="mr-2 size-4" /> Tài liệu ({allMaterials.length})
           </TabsTrigger>
           <TabsTrigger value="assignments">
-            <Calendar className="mr-2 size-4" /> Assignments ({courseAssignments.length})
+            <Calendar className="mr-2 size-4" /> Bài tập ({courseAssignments.length})
           </TabsTrigger>
-          <TabsTrigger value="grades">Grades</TabsTrigger>
         </TabsList>
 
         <TabsContent
@@ -137,75 +221,45 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
           hidden={activeTab !== "topics"}
           className="mt-6 space-y-4"
         >
-          {topics.map((topic) => (
-            <Card key={topic.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-lg text-[#030391]">
-                      Topic {topic.order}: {topic.title}
-                    </CardTitle>
-                    <p className="mt-2 text-sm text-slate-600">{topic.summary}</p>
-                  </div>
-                  <Badge variant="outline">{topic.assignments.length} assignments</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-5 lg:grid-cols-2">
-                <div>
-                  <p className="mb-3 text-sm font-semibold text-[#030391]">Learning materials</p>
-                  <div className="space-y-3">
-                    {topic.materials.map((material) => (
-                      <div
-                        key={material.id}
-                        className="flex items-center justify-between rounded-2xl border border-gray-200 p-3"
-                      >
-                        <div className="flex items-center gap-3">
-                          <MaterialIcon type={material.type} />
-                          <div>
-                            <p className="text-sm font-medium">{material.title}</p>
-                            <p className="text-xs text-gray-500">
-                              {material.previewLabel} • {material.fileSize}
-                            </p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <Download className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-semibold text-[#030391]">Assignments</p>
-                  <div className="space-y-3">
-                    {topic.assignments.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                        No assignments attached to this topic yet.
-                      </div>
-                    ) : (
-                      topic.assignments.map((assignment) => (
-                        <Link key={assignment.id} href={`/student/assignments/${assignment.id}`}>
-                          <div className="rounded-2xl border border-[#1488D8]/15 bg-[#f8fbff] p-4 transition hover:border-[#1488D8]/40">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-semibold text-[#030391]">{assignment.title}</p>
-                                <p className="mt-2 text-xs text-slate-500">
-                                  Due {new Date(assignment.dueDate).toLocaleDateString("en-GB")} •{" "}
-                                  {assignment.points} points
-                                </p>
-                              </div>
-                              <Badge variant="outline">{assignment.difficulty ?? "Mixed"}</Badge>
-                            </div>
-                          </div>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                </div>
+          {isLoadingTopics ? (
+            <Card>
+              <CardContent className="p-6 text-sm text-slate-500">Đang tải topics...</CardContent>
+            </Card>
+          ) : topicsError ? (
+            <Card>
+              <CardContent className="p-6 text-sm text-rose-600">
+                Không tải được nội dung khóa học.
               </CardContent>
             </Card>
-          ))}
+          ) : topicDetails.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-sm text-slate-500">
+                Khóa học này chưa có topic nào.
+              </CardContent>
+            </Card>
+          ) : (
+            topicCards.map((topic) => (
+              <TopicSectionCard
+                key={topic.id}
+                topic={topic}
+                collapsed={Boolean(collapsedTopics[topic.id])}
+                editMode={false}
+                assignmentHrefPrefix="/student/assignments"
+                onToggleTopic={(topicId) =>
+                  setCollapsedTopics((state) => ({
+                    ...state,
+                    [topicId]: !state[topicId],
+                  }))
+                }
+                onUpdateTopic={() => undefined}
+                onDeleteTopic={() => undefined}
+                onDeleteMaterial={() => undefined}
+                onOpenResourceModal={() => undefined}
+                onOpenAssignmentModal={() => undefined}
+                onDeleteDraftAssignment={() => undefined}
+              />
+            ))
+          )}
         </TabsContent>
 
         <TabsContent
@@ -222,12 +276,14 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
                   <div>
                     <p className="text-sm font-medium">{material.title}</p>
                     <p className="text-xs text-gray-500">
-                      {material.topicTitle} • {material.previewLabel} • {material.fileSize}
+                      {material.topicTitle} • {material.previewLabel}
                     </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
-                  Preview / Download
+                <Button asChild variant="outline" size="sm">
+                  <a href={material.resourceUrl} target="_blank" rel="noreferrer">
+                    Xem / tải
+                  </a>
                 </Button>
               </CardContent>
             </Card>
@@ -241,7 +297,7 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
           className="mt-6 space-y-3"
         >
           {courseAssignments.map((item) => (
-            <Link key={item.id} href={`/student/assignments/${item.id}`}>
+            <Link key={item.id} href={`/student/assignments/${item.id}`} className="block">
               <Card className="transition hover:bg-slate-50">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
@@ -253,9 +309,9 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
                       <div className="mt-2 flex items-center gap-3 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <Calendar className="size-4" />
-                          Due: {new Date(item.dueDate).toLocaleDateString("en-GB")}
+                          Hạn nộp: {new Date(item.deadline).toLocaleDateString("vi-VN")}
                         </span>
-                        <span>{item.points} points</span>
+                        <span>{item.difficulty}</span>
                       </div>
                     </div>
                     <Badge variant="outline">{item.status}</Badge>
@@ -264,27 +320,6 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
               </Card>
             </Link>
           ))}
-        </TabsContent>
-
-        <TabsContent
-          value="grades"
-          forceMount={hasMounted("grades") ? true : undefined}
-          hidden={activeTab !== "grades"}
-          className="mt-6"
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Overall Grade</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <div className="text-5xl font-semibold text-green-600">
-                  {courseGrade ? `${courseGrade.grade}%` : "N/A"}
-                </div>
-                <p className="mt-2 text-gray-500">Current Grade</p>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

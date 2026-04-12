@@ -15,6 +15,11 @@ export type TopicAssignment = {
   id: string
   title: string
   deadline: string
+  startTime?: string | null
+  timeLimit?: number | null
+  maxScore?: number | null
+  maxSubmission?: number | null
+  tags?: string[] | null
   difficulty: string
   status: string
 }
@@ -34,19 +39,15 @@ export type AssignmentDraft = {
   topicId: string
   title: string
   description: string
-  difficulty: "Easy" | "Medium" | "Hard"
+  difficulty: "EASY" | "MEDIUM" | "HARD"
   score: string
   timeLimit: string
   openAt: string
   deadline: string
   attemptsAllowed: string
   constraints: string
-  examples: string
-  topics: string
+  tags: string
   starterCode: {
-    python: string
-    javascript: string
-    java: string
     cpp: string
   }
   testCases: EditableTestCase[]

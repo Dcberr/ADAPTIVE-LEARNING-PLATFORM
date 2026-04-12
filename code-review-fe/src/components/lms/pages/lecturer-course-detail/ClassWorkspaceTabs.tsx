@@ -45,6 +45,7 @@ export default function ClassWorkspaceTabs({
   onAddSection,
   onStudentIdChange,
   onAddStudent,
+  assignmentHrefPrefix,
 }: {
   activeTab: "content" | "students"
   hasMountedContent: boolean
@@ -75,6 +76,7 @@ export default function ClassWorkspaceTabs({
   onAddSection: () => void
   onStudentIdChange: (value: string) => void
   onAddStudent: (event: FormEvent<HTMLFormElement>) => void
+  assignmentHrefPrefix?: string
 }) {
   return (
     <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as "content" | "students")}>
@@ -101,6 +103,7 @@ export default function ClassWorkspaceTabs({
           onOpenAssignmentModal={onOpenAssignmentModal}
           onDeleteDraftAssignment={onDeleteDraftAssignment}
           onAddSection={onAddSection}
+          assignmentHrefPrefix={assignmentHrefPrefix}
         />
       </TabsContent>
 

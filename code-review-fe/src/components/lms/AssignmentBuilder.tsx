@@ -25,6 +25,7 @@ const defaultTests: EditableTestCase[] = [
     id: "draft-1",
     input: "nums = [2,7,11,15], target = 9",
     expectedOutput: "[0,1]",
+    explanation: "Hai phần tử đầu tiên có tổng bằng target.",
     hidden: false,
   },
 ]

@@ -55,12 +55,12 @@ export default function DashboardPage() {
                 Khóa học của tôi
               </Button>
             </Link>
-            <Link href="/student/assignments">
+            <Link href="/student/courses">
               <Button
                 variant="outline"
                 className="rounded-xl border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
               >
-                Xem bài tập
+                Vào khóa học
               </Button>
             </Link>
           </div>

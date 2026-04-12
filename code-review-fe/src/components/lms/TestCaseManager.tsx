@@ -9,6 +9,7 @@ export type EditableTestCase = {
   id: string
   input: string
   expectedOutput: string
+  explanation: string
   hidden: boolean
 }
 
@@ -33,6 +34,7 @@ export default function TestCaseManager({
         id: `test-${Date.now()}`,
         input: "",
         expectedOutput: "",
+        explanation: "",
         hidden: false,
       },
     ])
@@ -66,6 +68,12 @@ export default function TestCaseManager({
               placeholder="Expected output"
             />
           </div>
+          <Input
+            className="mt-3"
+            value={testCase.explanation}
+            onChange={(event) => updateCase(testCase.id, { explanation: event.target.value })}
+            placeholder="Giải thích test case"
+          />
           <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
             <input
               type="checkbox"

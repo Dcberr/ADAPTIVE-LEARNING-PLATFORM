@@ -49,7 +49,7 @@ export default function LmsShell({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const user = useAppSelector((state) => state.auth.user)
-  const compactWorkspace = /^\/student\/assignments\/[^/]+\/attempt$/.test(pathname)
+  const compactWorkspace = /^\/(student|lecturer)\/assignments\/[^/]+\/attempt$/.test(pathname)
   const navItems = navItemsByRole[role]
   const profileHref = role === "student" ? "/student/profile" : "/lecturer/dashboard"
   const handleLogout = async () => {
@@ -266,9 +266,9 @@ export default function LmsShell({
                 <div className="mb-6 rounded-3xl border border-[#030391]/5 bg-white/70 p-5 shadow-lg backdrop-blur-xl">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="font-bold text-[#030391]">Bài tập sắp tới</h3>
-                    <Link href="/student/assignments">
+                    <Link href="/student/courses">
                       <Badge className="cursor-pointer bg-[#1488D8] text-xs text-white">
-                        Xem tất cả
+                        Mở khóa học
                       </Badge>
                     </Link>
                   </div>
