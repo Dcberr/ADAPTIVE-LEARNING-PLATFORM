@@ -64,7 +64,7 @@ export default function ClassWorkspaceHeader({
         </div>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden gap-0 py-0">
         <div
           className="relative h-56 border-b border-slate-200 bg-slate-100 bg-cover bg-center"
           style={{
@@ -77,7 +77,7 @@ export default function ClassWorkspaceHeader({
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-6 left-6 text-white">
-            <h1 className="text-3xl font-semibold">{className}</h1>
+            <h1 className="text-xl font-semibold">{className}</h1>
             <p className="mt-2 text-lg text-gray-200">{instructorName}</p>
           </div>
         </div>

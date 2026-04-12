@@ -1,6 +1,6 @@
 "use client"
 
-import { ImageIcon, Presentation, Video } from "lucide-react"
+import { FileText, ImageIcon, Video } from "lucide-react"
 
 import type { CourseMaterial } from "@/data/lms/extendedMockData"
 
@@ -13,5 +13,5 @@ export default function MaterialIcon({ type }: { type: CourseMaterial["type"] })
     return <ImageIcon className="size-5 text-violet-600" />
   }
 
-  return <Presentation className="size-5 text-emerald-600" />
+  return <FileText className="size-5 text-emerald-600" />
 }

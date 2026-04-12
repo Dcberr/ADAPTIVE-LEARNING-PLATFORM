@@ -22,6 +22,7 @@ function ContentTabComponent({
   onOpenAssignmentModal,
   onDeleteDraftAssignment,
   onAddSection,
+  assignmentHrefPrefix,
 }: {
   topicCards: TopicCard[]
   editMode: boolean
@@ -40,6 +41,7 @@ function ContentTabComponent({
   onOpenAssignmentModal: (topicId: string, draft?: AssignmentDraft) => void
   onDeleteDraftAssignment: (draftId: string) => void
   onAddSection: () => void
+  assignmentHrefPrefix?: string
 }) {
   return (
     <div className="mt-6 space-y-5">
@@ -89,6 +91,7 @@ function ContentTabComponent({
           onOpenResourceModal={onOpenResourceModal}
           onOpenAssignmentModal={onOpenAssignmentModal}
           onDeleteDraftAssignment={onDeleteDraftAssignment}
+          assignmentHrefPrefix={assignmentHrefPrefix}
         />
       ))}
 
@@ -99,7 +102,7 @@ function ContentTabComponent({
           onClick={onAddSection}
         >
           <Plus className="mr-2 size-5" />
-          Add section
+          Thêm section
         </button>
       ) : null}
     </div>

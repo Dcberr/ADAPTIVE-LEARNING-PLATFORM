@@ -27,6 +27,11 @@ export type TopicAssignmentResponse = {
   title: string
   deadline: string
   difficulty: "EASY" | "MEDIUM" | "HARD" | string
+  startTime?: string | null
+  timeLimit?: number | null
+  maxScore?: number | null
+  maxSubmission?: number | null
+  tags?: string[] | null
   status: string
 }
 export type TopicDocumentResponse = {
@@ -63,12 +68,20 @@ type CreateDocumentRequest = {
 type CreateAssignmentRequest = {
   topicId: string
   title: string
+  startTime: string
   deadline: string
-  difficulty: "Easy" | "Medium" | "Hard"
+  timeLimit: number
+  maxScore: number
+  maxSubmission: number
+  difficulty: "EASY" | "MEDIUM" | "HARD"
+  tags: string[]
   description: string
+  problemConstraint: string
+  starterCodes: Record<string, string>
   testcases: Array<{
     input: string
     expectedOutput: string
+    explanation: string
     hidden: boolean
   }>
 }
@@ -125,6 +138,22 @@ export type LecturerClassDetail = {
 type AddStudentToClassRequest = {
   classId: string
   studentId: string
+}
+export type AssignmentContext = TopicAssignmentResponse & {
+  topicId: string
+  topicTitle: string
+  classId: string
+  className: string
+  instructorName: string
+  imageUrl?: string | null
+}
+export type AssignmentSubmissionResponse = {
+  submissionId: string
+  status: string
+  startedAt: string
+  submittedAt: string
+  score: string
+  studentName: string
 }
 
 export const lmsApi = baseApi.injectEndpoints({
@@ -212,6 +241,86 @@ export const lmsApi = baseApi.injectEndpoints({
       providesTags: (result, _error, classId) => [
         { type: "Topic" as const, id: `CLASS-${classId}` },
         ...(result?.map((topic) => ({ type: "Topic" as const, id: topic.id })) ?? []),
+      ],
+    }),
+    getAssignmentContext: builder.query<AssignmentContext, string>({
+      async queryFn(assignmentId, _api, _extraOptions, fetchWithBQ) {
+        const classesResult = await fetchWithBQ("/classes/me")
+
+        if (classesResult.error) {
+          return { error: classesResult.error }
+        }
+
+        const classesPayload = classesResult.data as ApiResponse<LecturerClassSummary[]>
+        const classes = classesPayload.data ?? []
+
+        for (const classroom of classes) {
+          const topicsResult = await fetchWithBQ(`/topics/class/${classroom.id}`)
+
+          if (topicsResult.error) {
+            return { error: topicsResult.error }
+          }
+
+          const topicsPayload = topicsResult.data as ApiResponse<TopicOverviewResponse>
+          const topicIds = topicsPayload.data.ids ?? []
+
+          for (const topicId of topicIds) {
+            const [topicResult, assignmentsResult] = await Promise.all([
+              fetchWithBQ(`/topics/${topicId}`),
+              fetchWithBQ(`/assignments/topic/${topicId}`),
+            ])
+
+            if (topicResult.error) {
+              return { error: topicResult.error }
+            }
+
+            if (assignmentsResult.error) {
+              return { error: assignmentsResult.error }
+            }
+
+            const topicPayload = topicResult.data as ApiResponse<TopicBaseDetailResponse>
+            const assignmentsPayload =
+              assignmentsResult.data as ApiResponse<TopicAssignmentResponse[]>
+            const assignment = (assignmentsPayload.data ?? []).find((item) => item.id === assignmentId)
+
+            if (assignment) {
+              return {
+                data: {
+                  ...assignment,
+                  topicId,
+                  topicTitle: topicPayload.data.title,
+                  classId: classroom.id,
+                  className: classroom.name,
+                  instructorName: classroom.instructorName,
+                  imageUrl: classroom.imageUrl,
+                },
+              }
+            }
+          }
+        }
+
+        return {
+          error: {
+            status: 404,
+            data: "Assignment not found",
+          },
+        }
+      },
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: assignmentId },
+      ],
+    }),
+    getAssignmentSubmissions: builder.query<
+      AssignmentSubmissionResponse[],
+      { assignmentId: string; scope: "me" | "all" }
+    >({
+      query: ({ assignmentId, scope }) =>
+        scope === "me"
+          ? `/submissions/assignment/${assignmentId}/me`
+          : `/submissions/assignment/${assignmentId}`,
+      transformResponse: (response: ApiResponse<AssignmentSubmissionResponse[]>) => response.data,
+      providesTags: (_result, _error, { assignmentId }) => [
+        { type: "Submission" as const, id: assignmentId },
       ],
     }),
     createClass: builder.mutation<CreatedClass, CreateClassRequest>({
@@ -311,22 +420,38 @@ export const lmsApi = baseApi.injectEndpoints({
       ],
     }),
     createAssignment: builder.mutation<TopicAssignmentResponse, CreateAssignmentRequest>({
-      query: ({ topicId, title, deadline, difficulty, description, testcases }) => ({
+      query: ({
+        topicId,
+        title,
+        startTime,
+        deadline,
+        timeLimit,
+        maxScore,
+        maxSubmission,
+        difficulty,
+        tags,
+        description,
+        problemConstraint,
+        starterCodes,
+        testcases,
+      }) => ({
         url: "/assignments",
         method: "POST",
         body: {
           topicId,
           title,
+          startTime,
           deadline,
-          difficulty: difficulty.toUpperCase(),
+          timeLimit,
+          maxScore,
+          maxSubmission,
+          difficulty,
+          tags,
           problem: {
             description,
-            testcases: testcases.map((testcase) => ({
-              input: testcase.input,
-              expectedOutput: testcase.expectedOutput,
-              explanation: "",
-              sample: !testcase.hidden,
-            })),
+            problemConstraint,
+            starterCodes,
+            testcases,
           },
         },
       }),
@@ -398,6 +523,8 @@ export const {
   useGetMyClassesQuery,
   useGetClassByIdQuery,
   useGetClassTopicsQuery,
+  useGetAssignmentContextQuery,
+  useGetAssignmentSubmissionsQuery,
   useCreateClassMutation,
   useAddStudentToClassMutation,
   useGetCoursesQuery,

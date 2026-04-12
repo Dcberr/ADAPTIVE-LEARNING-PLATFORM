@@ -18,18 +18,18 @@ function formatRemaining(startedAtMs: number, timeLimitMinutes: number) {
 }
 
 function AssignmentAttemptHeaderComponent({
-  assignmentId,
   assignment,
   problem,
+  backHref,
   startedAtMs,
   timeLimitMinutes,
   language,
   languages,
   onLanguageChange,
 }: {
-  assignmentId: string
   assignment: Assignment
   problem: CodingProblem
+  backHref: string
   startedAtMs: number
   timeLimitMinutes: number
   language: string
@@ -52,7 +52,7 @@ function AssignmentAttemptHeaderComponent({
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/student/assignments/${assignmentId}`}>
+          <Link href={backHref}>
             <ChevronLeft className="size-4" /> Quay lại
           </Link>
         </Button>

@@ -48,7 +48,7 @@ export default function LecturerCoursesPage() {
         schedule: item.schedule ?? "Lịch học đang cập nhật",
         enrolledCount: item.enrolledStudentsCount,
         imageUrl: item.imageUrl,
-        seed: `lecturer-class-${item.id}`,
+        seed: item.id,
         actionLabel: "Mở lớp học",
         highlighted: item.id === highlightedClassId,
       })),

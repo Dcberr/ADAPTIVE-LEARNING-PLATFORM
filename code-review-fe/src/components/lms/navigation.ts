@@ -1,8 +1,6 @@
 import {
-  Award,
   BookOpen,
   Calendar,
-  FileText,
   Gauge,
   Home,
   Library,
@@ -22,8 +20,6 @@ export type NavItem = {
 export const studentNavItems: NavItem[] = [
   { name: "Trang chủ", href: "/student/dashboard", icon: Home },
   { name: "Khóa học", href: "/student/courses", icon: BookOpen },
-  { name: "Bài tập", href: "/student/assignments", icon: FileText },
-  { name: "Điểm số", href: "/student/grades", icon: Award },
   { name: "Lịch", href: "/student/calendar", icon: Calendar },
   { name: "Tin nhắn", href: "/student/messages", icon: MessageSquare },
   { name: "Hồ sơ", href: "/student/profile", icon: User },

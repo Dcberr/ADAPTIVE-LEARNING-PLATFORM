@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { memo } from "react"
 import { ChevronDown, ChevronRight, Download, ExternalLink, Link2, Plus, Trash2 } from "lucide-react"
 
@@ -10,7 +11,7 @@ import type {
 } from "@/components/lms/pages/lecturer-course-detail/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -25,6 +26,7 @@ type TopicSectionCardProps = {
   onOpenResourceModal: (topicId: string, materialId?: string) => void
   onOpenAssignmentModal: (topicId: string, draft?: AssignmentDraft) => void
   onDeleteDraftAssignment: (draftId: string) => void
+  assignmentHrefPrefix?: string
 }
 
 function TopicSectionCardComponent({
@@ -38,10 +40,8 @@ function TopicSectionCardComponent({
   onOpenResourceModal,
   onOpenAssignmentModal,
   onDeleteDraftAssignment,
+  assignmentHrefPrefix,
 }: TopicSectionCardProps) {
-  const getMaterialMeta = (description: string, previewLabel: string, fileSize: string) =>
-    [description, previewLabel, fileSize].filter(Boolean).join(" • ")
-
   const handleDownloadMaterial = async (title: string, resourceUrl: string) => {
     const response = await fetch(resourceUrl, {
       credentials: "include",
@@ -64,22 +64,22 @@ function TopicSectionCardComponent({
   }
 
   return (
-    <Card className="overflow-hidden rounded-[2rem] border border-slate-200">
-      <CardContent className="p-0">
-        <div className="flex items-center justify-between gap-4 px-6 py-5">
-          <div className="flex items-center gap-4">
+    <Card className="overflow-hidden border border-slate-200 py-0 gap-0 shadow-sm">
+      <CardHeader className="space-y-0 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-4">
             <button
               type="button"
               onClick={() => onToggleTopic(topic.id)}
-              className="flex size-14 items-center justify-center rounded-full border border-slate-200 bg-slate-50"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 transition hover:bg-slate-100"
             >
               {collapsed ? (
-                <ChevronRight className="size-5 text-[#1488D8]" />
+                <ChevronRight className="size-4 text-[#1488D8]" />
               ) : (
-                <ChevronDown className="size-5 text-[#1488D8]" />
+                <ChevronDown className="size-4 text-[#1488D8]" />
               )}
             </button>
-            <div className="min-w-[280px]">
+            <div className="min-w-0 flex-1">
               {editMode ? (
                 <div className="space-y-3">
                   <Input
@@ -94,185 +94,218 @@ function TopicSectionCardComponent({
                 </div>
               ) : (
                 <>
-                  <h3 className="text-3xl font-bold text-[#1557d6]">{topic.title}</h3>
-                  <p className="mt-2 text-sm text-slate-500">{topic.summary}</p>
+                  <CardTitle className="text-lg text-[#030391] sm:text-xl">
+                    {topic.title}
+                  </CardTitle>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-600">{topic.summary}</p>
                 </>
               )}
             </div>
           </div>
 
-          {editMode ? (
-            <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
+            {editMode ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-2xl text-rose-600"
+                className="rounded-xl text-rose-600"
                 onClick={() => onDeleteTopic(topic.id)}
               >
                 <Trash2 className="size-4" />
                 Xóa
               </Button>
-            </div>
-          ) : null}
-        </div>
-
-        {!collapsed ? (
-          <div className="border-t border-dashed border-slate-200 px-6 pb-6 pt-5">
-            <div className="space-y-4">
-              {topic.materials.map((material) => (
-                <div
-                  key={material.id}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 px-5 py-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <MaterialIcon type={material.type} />
-                    <div>
-                      <a
-                        href={material.resourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xl font-medium text-[#0f84c2] transition hover:text-[#1557d6] hover:underline"
-                      >
-                        {material.title}
-                      </a>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {getMaterialMeta(material.description, material.previewLabel, material.fileSize)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="rounded-xl">
-                      <a href={material.resourceUrl} target="_blank" rel="noreferrer">
-                        <ExternalLink className="size-4" />
-                        Xem file
-                      </a>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-xl"
-                      onClick={() => {
-                        void handleDownloadMaterial(material.title, material.resourceUrl).catch(() => {
-                          window.open(material.resourceUrl, "_blank", "noopener,noreferrer")
-                        })
-                      }}
-                    >
-                        <Download className="size-4" />
-                        Tải xuống
-                    </Button>
-                    {editMode ? (
-                      <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onOpenResourceModal(topic.id, material.id)}
-                      >
-                        Sửa
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-rose-600"
-                        onClick={() => onDeleteMaterial(material.id)}
-                      >
-                        Xóa
-                      </Button>
-                      </>
-                    ) : (
-                      <Badge variant="outline">Resource</Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {topic.assignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 px-5 py-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <Link2 className="size-5 text-[#0f84c2]" />
-                    <div>
-                      <p className="text-xl font-medium text-[#0f84c2]">{assignment.title}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {assignment.difficulty}
-                        {assignment.deadline ? ` • Deadline ${assignment.deadline}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="outline">Assignment</Badge>
-                </div>
-              ))}
-
-              {topic.customAssignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 px-5 py-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <Link2 className="size-5 text-[#0f84c2]" />
-                    <div>
-                      <p className="text-xl font-medium text-[#0f84c2]">{assignment.title}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Draft • {assignment.score} điểm • {assignment.timeLimit} •{" "}
-                        {assignment.testCases.length} tests
-                      </p>
-                    </div>
-                  </div>
-                  {editMode ? (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onOpenAssignmentModal(topic.id, assignment)}
-                      >
-                        Sửa
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-rose-600"
-                        onClick={() => onDeleteDraftAssignment(assignment.id)}
-                      >
-                        Xóa
-                      </Button>
-                    </div>
-                  ) : (
-                    <Badge className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
-                      Draft assignment
-                    </Badge>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {editMode ? (
-              <div className="mt-6 flex justify-center">
-                <div className="rounded-full border border-dashed border-[#7dc9eb] bg-[#d8f2fd] px-5 py-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      className="rounded-full text-[#0f658f] hover:bg-white/70"
-                      onClick={() => onOpenResourceModal(topic.id)}
-                    >
-                      <Plus className="size-4" />
-                      Thêm tài nguyên
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="rounded-full text-[#0f658f] hover:bg-white/70"
-                      onClick={() => onOpenAssignmentModal(topic.id)}
-                    >
-                      <Plus className="size-4" />
-                      Thêm assignment
-                    </Button>
-                  </div>
-                </div>
-              </div>
             ) : null}
           </div>
-        ) : null}
-      </CardContent>
+        </div>
+      </CardHeader>
+
+      {!collapsed ? (
+        <CardContent className="border-t border-slate-100 p-5 sm:p-6">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-lg font-semibold text-[#030391]">Tài liệu</p>
+                {editMode ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => onOpenResourceModal(topic.id)}
+                  >
+                    <Plus className="size-4" />
+                    Thêm tài nguyên
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="space-y-3">
+                {topic.materials.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                    Topic này chưa có tài liệu nào.
+                  </div>
+                ) : (
+                  topic.materials.map((material) => (
+                    <div
+                      key={material.id}
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <MaterialIcon type={material.type} />
+                        <div className="min-w-0">
+                          <a
+                            href={material.resourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate text-sm font-medium text-slate-900 transition hover:text-[#1488D8]"
+                          >
+                            {material.title}
+                          </a>
+                        </div>
+                      </div>
+                      <div className="ml-3 flex shrink-0 items-center gap-1">
+                        <Button asChild variant="ghost" size="sm">
+                          <a href={material.resourceUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="size-4" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            void handleDownloadMaterial(material.title, material.resourceUrl).catch(() => {
+                              window.open(material.resourceUrl, "_blank", "noopener,noreferrer")
+                            })
+                          }}
+                        >
+                          <Download className="size-4" />
+                        </Button>
+                        {editMode ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onOpenResourceModal(topic.id, material.id)}
+                            >
+                              Sửa
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-rose-600"
+                              onClick={() => onDeleteMaterial(material.id)}
+                            >
+                              Xóa
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-lg font-semibold text-[#030391]">Bài tập</p>
+                {editMode ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => onOpenAssignmentModal(topic.id)}
+                  >
+                    <Plus className="size-4" />
+                    Thêm bài tập
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="space-y-3">
+                {topic.assignments.length === 0 && topic.customAssignments.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                    Topic này chưa có bài tập nào.
+                  </div>
+                ) : null}
+
+                {topic.assignments.map((assignment) => {
+                  const content = (
+                    <div className="flex items-center justify-between rounded-2xl border border-[#1488D8]/15 bg-[#f8fbff] p-4 transition hover:border-[#1488D8]/40 hover:bg-white">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Link2 className="size-5 shrink-0 text-[#0f84c2]" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#030391]">
+                          {assignment.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {assignment.deadline
+                            ? `Hạn nộp ${assignment.deadline} • ${assignment.difficulty}`
+                            : assignment.difficulty}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="ml-3 shrink-0">
+                      Bài tập
+                    </Badge>
+                    </div>
+                  )
+
+                  return assignmentHrefPrefix ? (
+                    <Link key={assignment.id} href={`${assignmentHrefPrefix}/${assignment.id}`} className="block">
+                      {content}
+                    </Link>
+                  ) : (
+                    <div key={assignment.id}>{content}</div>
+                  )
+                })}
+
+                {topic.customAssignments.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Link2 className="size-5 shrink-0 text-[#0f84c2]" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#030391]">
+                          {assignment.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Draft • {assignment.score} điểm • {assignment.timeLimit} •{" "}
+                          {assignment.testCases.length} tests
+                        </p>
+                      </div>
+                    </div>
+                    {editMode ? (
+                      <div className="ml-3 flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onOpenAssignmentModal(topic.id, assignment)}
+                        >
+                          Sửa
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-rose-600"
+                          onClick={() => onDeleteDraftAssignment(assignment.id)}
+                        >
+                          Xóa
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge className="ml-3 shrink-0 bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
+                        Bài tập nháp
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      ) : null}
     </Card>
   )
 }
@@ -287,6 +320,10 @@ function shallowStringArrayEqual(left: string[], right: string[]) {
 
 function areEqual(left: TopicSectionCardProps, right: TopicSectionCardProps) {
   if (left.collapsed !== right.collapsed || left.editMode !== right.editMode) {
+    return false
+  }
+
+  if (left.assignmentHrefPrefix !== right.assignmentHrefPrefix) {
     return false
   }
 
@@ -320,11 +357,11 @@ function areEqual(left: TopicSectionCardProps, right: TopicSectionCardProps) {
 
   const leftDraftKeys = left.topic.customAssignments.map(
     (item) =>
-      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.examples}:${item.topics}:${item.testCases.length}`
+      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.tags}:${item.testCases.map((test) => `${test.input}:${test.expectedOutput}:${test.explanation}:${test.hidden}`).join("|")}`
   )
   const rightDraftKeys = right.topic.customAssignments.map(
     (item) =>
-      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.examples}:${item.topics}:${item.testCases.length}`
+      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.tags}:${item.testCases.map((test) => `${test.input}:${test.expectedOutput}:${test.explanation}:${test.hidden}`).join("|")}`
   )
 
   return shallowStringArrayEqual(leftDraftKeys, rightDraftKeys)

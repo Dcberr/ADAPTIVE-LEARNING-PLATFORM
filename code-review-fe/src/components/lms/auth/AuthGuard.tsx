@@ -28,9 +28,9 @@ export default function AuthGuard({
 
   if (!hasHydrated || !isAuthenticated || selectedRole !== requiredRole) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8f9fc]">
-        <div className="rounded-3xl border border-[#030391]/10 bg-white px-8 py-6 text-center shadow-xl">
-          <p className="text-sm font-medium text-[#030391]">Checking your LMS session...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f9fc] px-4">
+        <div className="flex items-center justify-center rounded-3xl border border-[#030391]/10 bg-white px-8 py-8 shadow-xl">
+          <div className="size-10 animate-spin rounded-full border-4 border-[#1488D8]/20 border-t-[#1488D8]" />
         </div>
       </div>
     )

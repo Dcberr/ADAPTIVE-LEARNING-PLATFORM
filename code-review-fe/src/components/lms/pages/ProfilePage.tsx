@@ -1,3 +1,5 @@
+"use client"
+
 import { BookOpen, Settings, User } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -7,8 +9,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppSelector } from "@/store/redux/hooks"
 
 export default function ProfilePage() {
+  const { user, selectedRole } = useAppSelector((state) => state.auth)
+  const initials =
+    user?.name
+      ?.split(" ")
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() ?? "BK"
+  const academicIdLabel = selectedRole === "lecturer" ? "Mã giảng viên" : "MSSV"
+  const academicIdValue = user?.id ?? ""
+
   return (
     <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
       <Card>
@@ -17,10 +31,13 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex size-20 items-center justify-center rounded-full bg-[#030391] text-xl font-bold text-white">
-            NH
+            {initials}
           </div>
-          <p className="font-semibold">Nguyễn Xuân Hiển</p>
-          <p className="text-sm text-slate-500">Computer Science</p>
+          <p className="font-semibold">{user?.name ?? "Chưa có thông tin"}</p>
+          <p className="text-sm text-slate-500">{user?.email ?? "Chưa có email"}</p>
+          <p className="mt-2 text-sm font-medium text-[#030391]">
+            {academicIdLabel}: {academicIdValue || "Chưa có mã"}
+          </p>
           <Badge className="mt-3">K20</Badge>
         </CardContent>
       </Card>
@@ -47,11 +64,11 @@ export default function ProfilePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Họ tên</Label>
-                  <Input id="fullName" defaultValue="Nguyễn Xuân Hiển" />
+                  <Input id="fullName" defaultValue={user?.name ?? ""} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" defaultValue="hien.nguyen@hcmut.edu.vn" />
+                  <Input id="email" defaultValue={user?.email ?? ""} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -71,8 +88,8 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="studentId">MSSV</Label>
-                  <Input id="studentId" defaultValue="2012345" />
+                  <Label htmlFor="studentId">{academicIdLabel}</Label>
+                  <Input id="studentId" defaultValue={academicIdValue} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="major">Chuyên ngành</Label>
