@@ -52,7 +52,7 @@ class ReviewItem(BaseModel):
     type: Literal["Error", "Warning"]
     issue: str = Field(
         ...,
-        description="For a 'Warning', this must describe a case where it can lead to a bug.",
+        description="For a 'Warning', this should explain a clean-code, readability, or refactoring improvement in simple terms.",
     )
     fix_suggestion: str
     review_link: Optional["ReviewLink"] = None

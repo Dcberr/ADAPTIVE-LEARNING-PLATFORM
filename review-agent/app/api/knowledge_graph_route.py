@@ -42,7 +42,7 @@ async def upsert_concept(
                 description=request.description,
                 difficulty=request.difficulty,
             ),
-            prerequisite_ids=request.prerequisite_ids,
+            prerequisites=request.prerequisites,
         )
         return KnowledgeGraphConceptResponse(concept=concept)
     except Exception as exc:

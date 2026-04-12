@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class ImprovementAgent:
-    """Analyzes code style and quality using a chat model."""
+    """Analyzes clean-code and refactoring opportunities using a chat model."""
 
     def __init__(self, client: OpenAI, model_name: str):
         self.client = client
@@ -26,9 +26,9 @@ class ImprovementAgent:
         system_msg = {
             "role": "system",
             "content": (
-                "You are a CS1-level programming style and quality tutor. "
-                "Your job is to analyze student code and provide feedback on code style, "
-                "readability, and structure — but not logic or syntax errors. "
+                "You are a CS1-level programming tutor focused on clean code and beginner-friendly refactoring. "
+                "Your job is to analyze student code and provide educational warning feedback about readability, "
+                "naming, structure, duplication, and simple refactoring opportunities, but not logic or syntax errors. "
                 "All responses must be in valid JSON format."
             ),
         }
@@ -36,8 +36,8 @@ class ImprovementAgent:
         user_msg = {
             "role": "user",
             "content": f"""
-                Analyze the student's code below and identify *style and quality* issues that might
-                affect readability, maintainability, or performance, but do NOT affect correctness.
+                Analyze the student's code below and identify *clean code and refactoring* warnings for a CS1 student.
+                These warnings should help the student write clearer, easier-to-follow code even if the program already passes all test cases.
 
                 CODE:
                 {code}
@@ -53,18 +53,22 @@ class ImprovementAgent:
                                 "end_col": column_number (optional)
                             }},
                             "code_snippet": "exact code lines related to the issue",
-                            "fix_suggestion": "specific and actionable improvement suggestion",
-                            "issue": "explain why this part needs improvement in simple terms",
+                            "fix_suggestion": "specific and actionable clean-code or refactoring suggestion",
+                            "issue": "explain in simple CS1 terms why this code should be cleaned up or refactored",
 
                         }}
                     ]
                 }}
 
                 Guidelines:
-                - Explain each issue in a way that a CS1 student can understand.
-                - Focus on naming, commenting, modularity, duplication, and structure.
-                - Avoid logic or syntax explanations.
-                - Keep the tone supportive and educational.
+                - Explain each warning in a way that a CS1 student can understand.
+                - Focus on clean code topics such as naming, readability, duplication, simple function extraction, structure, and unused or noisy code.
+                - Good warnings include things like: variable names are unclear, code is repetitive, one block should be extracted into a function, formatting makes the code harder to read, or structure can be simplified for learning clarity.
+                - Do NOT talk about hidden test cases, edge cases, possible future bugs, or speculative failures.
+                - Do NOT repeat logic or syntax errors that belong to other review items.
+                - If the code is already correct, still give clean-code warnings when there are beginner-friendly refactoring opportunities.
+                - Keep the tone supportive, practical, and educational.
+                - Return an empty list only if the code is already very clean for a CS1 student.
                 """,
         }
 

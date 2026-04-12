@@ -27,7 +27,9 @@ class KnowledgeGraphRepository:
         self.driver = driver
 
     def upsert_concept(
-        self, concept: ConceptRecord, prerequisite_ids: list[str] | None = None
+        self,
+        concept: ConceptRecord,
+        prerequisites: list[ConceptRecord] | None = None,
     ) -> ConceptRecord:
         with self.driver.session() as session:
             session.run(
@@ -43,16 +45,29 @@ class KnowledgeGraphRepository:
                 difficulty=concept.difficulty,
             )
 
-            for prerequisite_id in prerequisite_ids or []:
+            session.run(
+                """
+                MATCH (:Concept)-[r:PREREQUISITE_OF]->(c:Concept {concept_id: $concept_id})
+                DELETE r
+                """,
+                concept_id=concept.concept_id,
+            )
+
+            for prerequisite in prerequisites or []:
                 session.run(
                     """
                     MERGE (p:Concept {concept_id: $prerequisite_id})
-                    ON CREATE SET p.name = $prerequisite_id, p.description = '', p.difficulty = 1
+                    SET p.name = $name,
+                        p.description = $description,
+                        p.difficulty = $difficulty
                     WITH p
                     MATCH (c:Concept {concept_id: $concept_id})
                     MERGE (p)-[:PREREQUISITE_OF]->(c)
                     """,
-                    prerequisite_id=prerequisite_id,
+                    prerequisite_id=prerequisite.concept_id,
+                    name=prerequisite.name,
+                    description=prerequisite.description,
+                    difficulty=prerequisite.difficulty,
                     concept_id=concept.concept_id,
                 )
 
