@@ -1,5 +1,7 @@
 "use client";
 
+import Editor from "@monaco-editor/react";
+
 import TestCaseManager from "@/components/lms/TestCaseManager";
 import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types";
 import { Button } from "@/components/ui/button";
@@ -155,19 +157,31 @@ export default function AssignmentDraftModalForm({
           </p>
         </div>
 
-        <Textarea
-          rows={10}
-          placeholder="Nhập starter code cho C++..."
-          value={draft.starterCode.cpp}
-          onChange={(event) =>
-            onChange({
-              starterCode: {
-                ...draft.starterCode,
-                cpp: event.target.value,
-              },
-            })
-          }
-        />
+        <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <Editor
+            height="320px"
+            language="cpp"
+            value={draft.starterCode.cpp}
+            onChange={(value) =>
+              onChange({
+                starterCode: {
+                  ...draft.starterCode,
+                  cpp: value ?? "",
+                },
+              })
+            }
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              lineNumbersMinChars: 3,
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+              automaticLayout: true,
+              tabSize: 2,
+              padding: { top: 12, bottom: 12 },
+            }}
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
