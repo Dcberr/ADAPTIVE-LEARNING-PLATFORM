@@ -31,7 +31,8 @@ This split keeps graph validation explicit: the submission write confirms `Stude
 2. The API verifies that `student_id` and `exercise_id` already exist in Neo4j.
 3. The repository inserts or updates the `Submission` node.
 4. The repository refreshes `SUBMITTED` and `FOR_EXERCISE` relations to match the latest payload.
-5. The API returns the stored submission payload.
+5. The repository refreshes `NEXT_ATTEMPT` relations around the submission for the same student and exercise, including progress scores between adjacent attempts.
+6. The API returns the stored submission payload.
 
 ### Request Schema
 
@@ -98,8 +99,9 @@ Body:
 
 - `(:Student)-[:SUBMITTED]->(:Submission)`
 - `(:Submission)-[:FOR_EXERCISE]->(:Exercise)`
+- `(:Submission)-[:NEXT_ATTEMPT {student_id, linked_at, same_exercise, improvement_ratio, regression_ratio}]->(:Submission)` when there is a prior attempt by the same student on the same exercise
 
-If the submission already exists, its properties are updated and these relations are refreshed to match the latest `student_id` and `exercise_id`.
+If the submission already exists, its properties are updated and these relations are refreshed to match the latest `student_id`, `exercise_id`, and adjacent-attempt progression links.
 
 ## Review API
 

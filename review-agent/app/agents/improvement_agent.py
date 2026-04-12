@@ -13,9 +13,17 @@ logger = logging.getLogger(__name__)
 class ImprovementAgent:
     """Analyzes clean-code and refactoring opportunities using a chat model."""
 
-    def __init__(self, client: OpenAI, model_name: str):
+    def __init__(
+        self,
+        client: OpenAI,
+        model_name: str,
+        temperature: float = 0.3,
+        max_tokens: int = 2048,
+    ):
         self.client = client
         self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def generate_messages(self, code: str) -> List[Dict[str, str]]:
         """
@@ -90,8 +98,8 @@ class ImprovementAgent:
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
-                temperature=0.3,
-                max_tokens=2048,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
 
             model_text = response.choices[0].message.content

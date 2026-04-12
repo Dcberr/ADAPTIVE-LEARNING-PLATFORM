@@ -3,6 +3,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.knowledge_graph_deps import get_knowledge_graph_repository
+from app.api.knowledge_graph_deps import get_exercise_weight_agent
+from app.api.knowledge_graph_deps import get_prerequisite_weight_agent
 from app.api.knowledge_graph_schema import (
     KnowledgeGraphConceptResponse,
     KnowledgeGraphReviewResponse,
@@ -19,6 +21,8 @@ from app.api.knowledge_graph_schema import (
 from app.models.exercise_record import ExerciseRecord
 from app.models.knowledge_graph import ConceptRecord
 from app.services.knowledge_graph_repository import KnowledgeGraphRepository
+from app.agents.exercise_weight_agent import ExerciseWeightAgent
+from app.agents.prerequisite_weight_agent import PrerequisiteWeightAgent
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +37,55 @@ async def upsert_concept(
     concept_id: str,
     request: UpsertConceptRequest,
     repository: KnowledgeGraphRepository = Depends(get_knowledge_graph_repository),
+    prerequisite_weight_agent: PrerequisiteWeightAgent = Depends(
+        get_prerequisite_weight_agent
+    ),
 ):
     try:
+        prerequisite_map = repository.get_concepts_by_ids(request.prerequisite_ids)
+        missing_prerequisites = [
+            concept_id
+            for concept_id in request.prerequisite_ids
+            if concept_id not in prerequisite_map
+        ]
+        if missing_prerequisites:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Concept upsert failed: prerequisite concept(s) not found: "
+                    + ", ".join(missing_prerequisites)
+                ),
+            )
+
+        main_concept = ConceptRecord(
+            concept_id=concept_id,
+            name=request.name,
+            description=request.description,
+            difficulty=request.difficulty,
+        )
+        prerequisite_strengths = prerequisite_weight_agent.evaluate(
+            main_concept=main_concept,
+            prerequisites=[
+                prerequisite_map[prerequisite_id]
+                for prerequisite_id in request.prerequisite_ids
+            ],
+        )
         concept = repository.upsert_concept(
-            ConceptRecord(
-                concept_id=concept_id,
-                name=request.name,
-                description=request.description,
-                difficulty=request.difficulty,
-            ),
-            prerequisites=request.prerequisites,
+            main_concept,
+            prerequisites=[
+                (
+                    prerequisite_map[prerequisite_id],
+                    prerequisite_strengths.get(
+                        prerequisite_id,
+                        PrerequisiteWeightAgent.DEFAULT_STRENGTH,
+                    ),
+                )
+                for prerequisite_id in request.prerequisite_ids
+            ],
         )
         return KnowledgeGraphConceptResponse(concept=concept)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Concept upsert failed")
         raise HTTPException(status_code=500, detail=f"Concept upsert failed: {exc}")
@@ -58,21 +99,87 @@ async def upsert_exercise(
     exercise_id: str,
     request: UpsertExerciseRequest,
     repository: KnowledgeGraphRepository = Depends(get_knowledge_graph_repository),
+    exercise_weight_agent: ExerciseWeightAgent = Depends(get_exercise_weight_agent),
 ):
     try:
+        main_exercise = ExerciseRecord(
+            exercise_id=exercise_id,
+            title=request.title,
+            description=request.description,
+            content=request.content,
+            difficulty=request.difficulty,
+            tags=request.tags,
+        )
+        concept_map = repository.get_concepts_by_ids(request.concept_ids)
+        missing_concepts = [
+            concept_id for concept_id in request.concept_ids if concept_id not in concept_map
+        ]
+        if missing_concepts:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Exercise upsert failed: concept(s) not found: "
+                    + ", ".join(missing_concepts)
+                ),
+            )
+
+        related_exercise_map = repository.get_exercises_by_ids(request.related_exercise_ids)
+        missing_related_exercises = [
+            exercise_id
+            for exercise_id in request.related_exercise_ids
+            if exercise_id not in related_exercise_map
+        ]
+        if missing_related_exercises:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Exercise upsert failed: related exercise(s) not found: "
+                    + ", ".join(missing_related_exercises)
+                ),
+            )
+
+        concept_records = [
+            concept_map[concept_id] for concept_id in request.concept_ids
+        ]
+        related_exercise_records = [
+            related_exercise_map[exercise_id]
+            for exercise_id in request.related_exercise_ids
+        ]
+        (
+            concept_weights,
+            concept_recommended_paths,
+            related_exercise_weights,
+        ) = exercise_weight_agent.evaluate(
+            main_exercise=main_exercise,
+            concepts=concept_records,
+            related_exercises=related_exercise_records,
+        )
         exercise = repository.upsert_exercise(
-            ExerciseRecord(
-                exercise_id=exercise_id,
-                title=request.title,
-                description=request.description,
-                content=request.content,
-                difficulty=request.difficulty,
-                tags=request.tags,
-            ),
-            concept_ids=request.concept_ids,
-            recommended_paths=request.recommended_paths,
+            main_exercise,
+            concepts=[
+                (
+                    concept_record,
+                    concept_weights.get(
+                        concept_record.concept_id, ExerciseWeightAgent.DEFAULT_WEIGHT
+                    ),
+                    concept_recommended_paths.get(concept_record.concept_id, []),
+                )
+                for concept_record in concept_records
+            ],
+            related_exercises=[
+                (
+                    related_record,
+                    related_exercise_weights.get(
+                        related_record.exercise_id,
+                        dict(ExerciseWeightAgent.DEFAULT_RELATION_METADATA),
+                    ),
+                )
+                for related_record in related_exercise_records
+            ],
         )
         return KnowledgeGraphExerciseResponse(exercise=exercise)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Exercise upsert failed")
         raise HTTPException(status_code=500, detail=f"Exercise upsert failed: {exc}")

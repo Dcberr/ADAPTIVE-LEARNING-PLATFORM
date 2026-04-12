@@ -5,6 +5,9 @@ This folder contains stable domain concepts that multiple APIs and workflows dep
 ## Files
 
 - [knowledge-graph.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/knowledge-graph.md): entities, relationship categories, and weighted graph design
+- [concept-weight-rules.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/concept-weight-rules.md): detailed meaning and usage rules for concept-related weights
+- [exercise-recommendation-rules.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/exercise-recommendation-rules.md): domain rules for exercise authoring, relation validation, and recommendation-facing exercise links
+- [submission-progression-rules.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/submission-progression-rules.md): domain rules for submission linking and `NEXT_ATTEMPT` progression scoring
 - [student-profile-scoring.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/student-profile-scoring.md): interpretation of normalized learner profile metrics
 
 ## Use This Folder When

@@ -26,10 +26,14 @@ class RecommendationService:
         knowledge_graph_repository: KnowledgeGraphRepository,
         client: OpenAI,
         model_name: str,
+        temperature: float = 0.2,
+        max_tokens: int = 1400,
     ):
         self.knowledge_graph_repository = knowledge_graph_repository
         self.client = client
         self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         self.workflow = self._build_workflow()
 
     def generate_recommendation(
@@ -269,8 +273,8 @@ class RecommendationService:
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.2,
-                max_tokens=1400,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
             model_text = response.choices[0].message.content
             parsed = safe_parse_json_response(model_text)

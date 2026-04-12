@@ -13,9 +13,17 @@ logger = logging.getLogger(__name__)
 class FixHintAgent:
     """Generates fix suggestions for each current logic issue in CS1 submissions."""
 
-    def __init__(self, client: OpenAI, model_name: str):
+    def __init__(
+        self,
+        client: OpenAI,
+        model_name: str,
+        temperature: float = 0.4,
+        max_tokens: int = 512,
+    ):
         self.client = client
         self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def generate_messages(
         self,
@@ -137,8 +145,8 @@ class FixHintAgent:
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
-                    temperature=0.4,
-                    max_tokens=512,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
                 )
 
                 model_text = response.choices[0].message.content

@@ -149,6 +149,7 @@ Core relationships:
 
 - `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 - `(:Exercise)-[:TESTS {weight}]->(:Concept)`
+- `(:Exercise)-[:RELATED_TO {weight, relation_type, target_concept_id, shared_concept_ids, difficulty_gap, progression_score, similarity_score}]->(:Exercise)`
 - `(:Exercise)-[:RECOMMENDED_FOR {path}]->(:Concept)`
 - `(:Student)-[:MASTERED]->(:Concept)`
 - `(:Student)-[:ATTEMPTED]->(:Exercise)`
@@ -176,9 +177,11 @@ Responsibilities:
 - upsert student nodes
 - upsert review nodes
 - upsert exercise-to-concept edges
+- upsert exercise-to-exercise related edges
 - upsert exercise-to-path edges
 - upsert student-to-mastered-concept edges
 - upsert student attempt links
+- upsert submission-to-submission attempt progression links
 - link each new review to the previous review for the same student
 - recalculate or create the student profile from each stored review
 - retrieve recommendation context by `student_id` and `exercise_id`
@@ -200,7 +203,7 @@ Concept payload:
 - `name`
 - `description`
 - `difficulty`
-- `prerequisites`
+- `prerequisite_ids`
 
 Exercise write API:
 
@@ -215,7 +218,15 @@ Exercise payload:
 - `difficulty`
 - `tags`
 - `concept_ids`
-- `recommended_paths`
+- `related_exercise_ids`
+
+Exercise write behavior:
+
+- the client provides exercise metadata plus related entity ids
+- the API validates that relation ids already exist in Neo4j before writing
+- the knowledge-graph LLM evaluates `TESTS.weight`
+- the knowledge-graph LLM chooses `RECOMMENDED_FOR.path` and `RECOMMENDED_FOR.weight`
+- the knowledge-graph LLM evaluates `RELATED_TO` metadata including weight, relation type, shared concepts, and progression/similarity signals
 
 Student write API:
 
@@ -237,6 +248,13 @@ Submission payload:
 - `exercise_id`
 - `code`
 - `testcase_outputs`
+
+Submission write behavior:
+
+- validates that `Student` and `Exercise` already exist
+- refreshes `SUBMITTED` and `FOR_EXERCISE`
+- refreshes adjacent attempt links on the same exercise with `NEXT_ATTEMPT`
+- computes `improvement_ratio` and `regression_ratio` from testcase outputs
 
 Review write API:
 
@@ -461,6 +479,7 @@ Important models:
 - `ConceptRelation`
 - `ExerciseConceptLink`
 - `ExercisePathLink`
+- `ExerciseRelation`
 - `KnowledgeGraphDocument`
 - `StudentRecord`
 
@@ -478,7 +497,7 @@ Important models:
 1. Curriculum or admin services insert concepts into Neo4j.
 2. Curriculum or admin services insert exercises into Neo4j.
 3. Student records can be inserted or updated in Neo4j.
-4. Each exercise is linked to concepts and supported recommendation paths.
+4. Each exercise is linked to concepts, supported recommendation paths, and curated related exercises.
 
 ### 3. Recommendation
 

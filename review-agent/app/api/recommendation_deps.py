@@ -2,7 +2,10 @@ from fastapi import Depends
 from openai import OpenAI
 
 from app.api.knowledge_graph_deps import get_knowledge_graph_repository
-from app.api.review_code_deps import get_fireworks_client, get_fireworks_model_name
+from app.api.review_code_deps import (
+    get_fireworks_client,
+    get_fireworks_request_config,
+)
 from app.services.knowledge_graph_repository import KnowledgeGraphRepository
 from app.services.recommendation_service import RecommendationService
 
@@ -13,8 +16,11 @@ def get_recommendation_service(
     ),
     client: OpenAI = Depends(get_fireworks_client),
 ) -> RecommendationService:
+    config = get_fireworks_request_config("default", "default")
     return RecommendationService(
         knowledge_graph_repository=knowledge_graph_repository,
         client=client,
-        model_name=get_fireworks_model_name(),
+        model_name=config.model_name,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
     )

@@ -21,3 +21,7 @@ examples/
 ```
 
 For now, the example payloads are documented inline inside the API docs in [../api](/Users/thaibao/projects/review-code-app/review-agent/docs/api).
+
+Current concrete examples:
+
+- [knowledge-graph/exercise.json](/Users/thaibao/projects/review-code-app/review-agent/docs/examples/knowledge-graph/exercise.json)

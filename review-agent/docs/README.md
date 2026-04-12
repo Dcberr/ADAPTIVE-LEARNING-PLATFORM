@@ -5,6 +5,7 @@ This folder is organized for coding agents and teammates who need a fast path to
 ## Start Here
 
 - [architecture.md](/Users/thaibao/projects/review-code-app/review-agent/docs/architecture.md): system-level overview of the app, main flows, and major components
+- [RULES.md](/Users/thaibao/projects/review-code-app/review-agent/docs/RULES.md): documentation maintenance rules to follow when code changes
 
 ## API Docs
 

@@ -14,10 +14,19 @@ logger = logging.getLogger(__name__)
 class ReviewLinkAgent:
     """Links current issues to earlier attempts for the same testcase."""
 
-    def __init__(self, client: OpenAI, model_name: str, batch_size: int = 5):
+    def __init__(
+        self,
+        client: OpenAI,
+        model_name: str,
+        batch_size: int = 5,
+        temperature: float = 0.3,
+        max_tokens: int = 1200,
+    ):
         self.client = client
         self.model_name = model_name
         self.batch_size = batch_size
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def chunk_candidates(self, candidates: list[dict]):
         for i in range(0, len(candidates), self.batch_size):
@@ -182,8 +191,8 @@ Guidelines:
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
-                    temperature=0.3,
-                    max_tokens=1200,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
                 )
                 model_text = response.choices[0].message.content
                 logger.debug(

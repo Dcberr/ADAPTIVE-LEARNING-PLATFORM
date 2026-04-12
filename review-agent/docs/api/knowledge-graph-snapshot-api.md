@@ -38,7 +38,8 @@ Use this API when:
     "concept_relations": [
       {
         "prerequisite_id": "string",
-        "concept_id": "string"
+        "concept_id": "string",
+        "strength": 1.0
       }
     ],
     "exercises": [
@@ -61,7 +62,22 @@ Use this API when:
     "exercise_path_links": [
       {
         "exercise_id": "string",
-        "path": "REINFORCE"
+        "concept_id": "string",
+        "path": "REINFORCE",
+        "weight": 1.0
+      }
+    ],
+    "exercise_relations": [
+      {
+        "exercise_id": "string",
+        "related_exercise_id": "string",
+        "weight": 1.0,
+        "relation_type": "SIMILAR_PRACTICE",
+        "target_concept_id": "string",
+        "shared_concept_ids": ["string"],
+        "difficulty_gap": 0.0,
+        "progression_score": 0.7,
+        "similarity_score": 0.8
       }
     ],
     "students": [
@@ -86,6 +102,17 @@ Use this API when:
         "created_at": "string"
       }
     ],
+    "submission_relations": [
+      {
+        "previous_submission_id": "string",
+        "next_submission_id": "string",
+        "student_id": "string",
+        "linked_at": "string",
+        "same_exercise": true,
+        "improvement_ratio": 0.5,
+        "regression_ratio": 0.0
+      }
+    ],
     "reviews": [
       {
         "review_id": "string",
@@ -107,3 +134,5 @@ Use this API when:
 - This endpoint is read-only.
 - The response is built from repository queries over Neo4j, not from a cached file.
 - It is useful for validating whether path-based upserts have produced the expected graph entities and relationships.
+- `exercise_relations` contains outgoing `RELATED_TO` links from the main exercise to each related exercise, including relation type and recommendation-ranking metadata.
+- `submission_relations` contains outgoing `NEXT_ATTEMPT` links between submissions, including improvement and regression scores.
