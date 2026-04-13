@@ -23,6 +23,7 @@ import com.example.demo.classmanagement.dto.ClassResponse;
 import com.example.demo.classmanagement.dto.CreateClassRequest;
 import com.example.demo.classmanagement.service.ClassService;
 import com.example.demo.common.response.ApiResponse;
+import com.example.demo.user.dto.UserResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -70,26 +71,26 @@ public class ClassController {
         );
     }
 
-    @Operation(summary = "Add student to class")
-    @PostMapping("/{classId}/students")
-    public ApiResponse<?> addStudent(
-            @Parameter(description = "Class ID")
-            @PathVariable UUID classId,
-            @RequestBody AddStudentRequest request
-    ) {
-        classService.addStudent(classId, request.getStudentId());
-        return ApiResponse.success(null);
-    }
+//     @Operation(summary = "Add student to class")
+//     @PostMapping("/{classId}/students")
+//     public ApiResponse<?> addStudent(
+//             @Parameter(description = "Class ID")
+//             @PathVariable UUID classId,
+//             @RequestBody AddStudentRequest request
+//     ) {
+//         classService.addStudent(classId, request.getStudentId());
+//         return ApiResponse.success(null);
+//     }
 
-    @Operation(summary = "Remove student from class")
-    @DeleteMapping("/{classId}/students/{studentId}")
-    public ApiResponse<?> removeStudent(
-            @PathVariable UUID classId,
-            @PathVariable UUID studentId
-    ) {
-        classService.removeStudent(classId, studentId);
-        return ApiResponse.success(null);
-    }
+//     @Operation(summary = "Remove student from class")
+//     @DeleteMapping("/{classId}/students/{studentId}")
+//     public ApiResponse<?> removeStudent(
+//             @PathVariable UUID classId,
+//             @PathVariable UUID studentId
+//     ) {
+//         classService.removeStudent(classId, studentId);
+//         return ApiResponse.success(null);
+//     }
 
     @Operation(summary = "Get class detail")
     @GetMapping("/{classId}")
@@ -99,5 +100,35 @@ public class ClassController {
         return ApiResponse.success(
                 classService.getClassDetail(classId)
         );
+    }
+
+    @Operation(summary = "Get enrolled students")
+    @GetMapping("/{classId}/students")
+        public ApiResponse<List<UserResponse>> getEnrolledStudents(        
+            @PathVariable UUID classId
+    ) {
+        return ApiResponse.success(
+                classService.getEnrolledStudents(classId)
+        );
+    }
+
+    @Operation(summary = "Add student to class by user code")
+    @PostMapping("/{classId}/students/{userCode}")
+    public ApiResponse<?> addStudentByUserCode(
+            @PathVariable UUID classId,
+            @PathVariable String userCode
+    ) {
+        classService.addStudentToClassByUserCode(classId, userCode);
+        return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "Remove student from class by user code")
+    @DeleteMapping("/{classId}/students/{userCode}")
+    public ApiResponse<?> removeStudentByUserCode(
+            @PathVariable UUID classId,
+            @PathVariable String userCode
+    ) {
+        classService.removeStudentFromClassByUserCode(classId, userCode);
+        return ApiResponse.success(null);        
     }
 }

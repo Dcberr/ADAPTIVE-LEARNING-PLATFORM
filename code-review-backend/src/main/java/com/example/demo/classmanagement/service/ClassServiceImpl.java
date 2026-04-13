@@ -180,4 +180,36 @@ public class ClassServiceImpl implements ClassService {
                 .imageUrl(cls.getImageUrl())
                 .build();
     }
+
+    @Override
+    public void addStudentToClassByUserCode(UUID classId, String userCode) {
+        User student = userRepository.findByUserCode(userCode)
+                .orElseThrow(() -> new RuntimeException("Student not found with user code: " + userCode));
+
+        addStudent(classId, student.getId());
+    }
+
+    @Override
+    public void removeStudentFromClassByUserCode(UUID classId, String userCode) {
+        User student = userRepository.findByUserCode(userCode)
+                .orElseThrow(() -> new RuntimeException("Student not found with user code: " + userCode));
+
+        removeStudent(classId, student.getId());
+    }
+
+    @Override
+    public List<UserResponse> getEnrolledStudents(UUID classId) {
+        List<ClassEnrollment> enrollments = enrollmentRepository.findByClassId(classId);
+
+        return enrollments.stream()
+                .map(e -> userRepository.findById(e.getStudentId()).orElseThrow())
+                .map(student -> UserResponse.builder()
+                        .id(student.getId())
+                        .name(student.getName())
+                        .email(student.getEmail())
+                        .picture(student.getPicture())
+                        .role(student.getRole().name())
+                        .build())
+                .toList();
+    }
 }

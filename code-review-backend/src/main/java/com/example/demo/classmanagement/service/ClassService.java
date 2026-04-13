@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.example.demo.classmanagement.dto.*;
+import com.example.demo.user.dto.UserResponse;
 
 public interface ClassService {
 
@@ -15,11 +16,15 @@ public interface ClassService {
 
     List<ClassOverviewResponse> getMyClasses(UUID userId);
 
+    void addStudentToClassByUserCode(UUID classId, String userCode);
+
     void addStudent(UUID classId, UUID studentId);
 
     void removeStudent(UUID classId, UUID studentId);
 
+    void removeStudentFromClassByUserCode(UUID classId, String userCode);
+
     ClassDetailResponse getClassDetail(UUID classId);
 
-    
+    List<UserResponse> getEnrolledStudents(UUID classId);   
 }
