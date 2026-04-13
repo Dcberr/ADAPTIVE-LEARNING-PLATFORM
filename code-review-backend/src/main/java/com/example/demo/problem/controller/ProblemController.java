@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.ProblemResponse;
+import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,4 +55,14 @@ public class ProblemController {
                 problemService.getProblemByAssignmentId(assignmentId)
         );
         }
+
+    @Operation(summary = "Update problem starter code templates")
+    @PutMapping("/templates")
+    public ApiResponse<ProblemResponse> updateProblemTemplate(
+            @RequestBody UpdateProblemTemplateRequest request
+    ) {
+        return ApiResponse.success(
+                problemService.updateProblemTemplate(request)
+        );
+    }
 }

@@ -20,6 +20,7 @@ import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
+import com.example.demo.problem.utils.CodeExtractor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,11 +47,9 @@ public class ExecutionServiceImpl implements ExecutionService {
         Problem problem = problemRepository.findById(request.getProblemId())
                 .orElseThrow(() -> new RuntimeException("Problem not found"));
 
-        String starterCode = problem.getStarterCodes()
-                .getOrDefault(request.getLanguage(), "");
-        
-        String combinedCode = combineCode(starterCode, request.getCode());
-        log.info("Combined code for language {}: starter + student", request.getLanguage());
+        String template = getTemplate(problem, request.getLanguage());
+        String combinedCode = CodeExtractor.combineWithStudentCode(template, request.getCode());
+        log.info("Combined code for language {}: template + student code", request.getLanguage());
 
         // ===== COMPILE ONCE =====
         ExecutionResult compileResult =
@@ -187,11 +186,16 @@ public class ExecutionServiceImpl implements ExecutionService {
         };
     }
 
-    private String combineCode(String starterCode, String studentCode) {
-        if (starterCode.contains("//STUDENT_CODE_HERE")) {
-                return starterCode.replace("//STUDENT_CODE_HERE", studentCode);
+    /**
+     * Get template from problem
+     */
+    private String getTemplate(Problem problem, String language) {
+        if (problem.getStarterCodes() != null && 
+            problem.getStarterCodes().containsKey(language)) {
+            return problem.getStarterCodes().get(language);
         }
-        throw new RuntimeException("Starter code missing placeholder");
+
+        throw new RuntimeException("No starter code template found for language: " + language);
     }
 
     @Override

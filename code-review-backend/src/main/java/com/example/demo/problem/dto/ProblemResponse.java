@@ -18,10 +18,10 @@ public class ProblemResponse {
 
     private String problemConstraint;
 
-    private Map<String, String> starterCodes;
-
-    // private String difficulty;
-
-    // private String source;
+    /**
+     * Function skeleton for each language
+     * Contains only the function to implement, without main() or boilerplate
+     */
+    private Map<String, String> functionSkeletons;
 
 }
