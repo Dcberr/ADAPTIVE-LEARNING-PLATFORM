@@ -161,11 +161,11 @@ export default function AssignmentDraftModalForm({
           <Editor
             height="320px"
             language="cpp"
-            value={draft.starterCode.cpp}
+            value={draft.functionSkeleton.cpp}
             onChange={(value) =>
               onChange({
-                starterCode: {
-                  ...draft.starterCode,
+                functionSkeleton: {
+                  ...draft.functionSkeleton,
                   cpp: value ?? "",
                 },
               })

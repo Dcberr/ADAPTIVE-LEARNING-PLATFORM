@@ -1,7 +1,7 @@
 type CachedAssignmentProblem = {
   description: string
   problemConstraint: string
-  starterCodeCpp: string
+  functionSkeletonCpp: string
   testcases: Array<{
     input: string
     expectedOutput: string

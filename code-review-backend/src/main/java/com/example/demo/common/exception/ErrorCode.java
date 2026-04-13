@@ -17,6 +17,8 @@ public enum ErrorCode {
 
     SUBMISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Submission not found"),
 
+    STUDENT_ALREADY_ENROLLED(HttpStatus.CONFLICT, "Student is already enrolled in this class"),
+
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Unauthorized"),
 
     FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),

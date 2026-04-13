@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.ProblemResponse;
+import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 
 public interface ProblemService {
 
@@ -12,5 +13,10 @@ public interface ProblemService {
     ProblemResponse getProblem(UUID problemId);
 
     ProblemResponse getProblemByAssignmentId(UUID assignmentId);
+
+    /**
+     * Update problem starter code templates
+     */
+    ProblemResponse updateProblemTemplate(UpdateProblemTemplateRequest request);
 
 }

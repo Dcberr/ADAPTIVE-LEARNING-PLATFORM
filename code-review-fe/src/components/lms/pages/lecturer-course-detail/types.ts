@@ -46,7 +46,7 @@ export type AssignmentDraft = {
   attemptsAllowed: string
   constraints: string
   tags: string
-  starterCode: {
+  functionSkeleton: {
     cpp: string
   }
   testCases: EditableTestCase[]

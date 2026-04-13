@@ -38,7 +38,7 @@ export interface CodingProblem {
     explanation?: string;
   }[];
   constraints: string[];
-  starterCode: {
+  functionSkeleton: {
     python: string;
     javascript: string;
     java: string;
@@ -349,7 +349,7 @@ Bạn có thể trả về answer theo bất kỳ thứ tự nào.`,
       '-10^9 <= target <= 10^9',
       'Chỉ có duy nhất một solution hợp lệ'
     ],
-    starterCode: {
+    functionSkeleton: {
       python: `def twoSum(nums, target):
     """
     :type nums: List[int]
@@ -445,7 +445,7 @@ Số palindrome là số mà khi đọc từ trái sang phải và từ phải s
     constraints: [
       '-2^31 <= x <= 2^31 - 1'
     ],
-    starterCode: {
+    functionSkeleton: {
       python: `def isPalindrome(x):
     """
     :type x: int
@@ -534,7 +534,7 @@ Merge Sort là một thuật toán chia để trị (divide and conquer) chia m�
       '0 <= arr.length <= 5000',
       '-10^6 <= arr[i] <= 10^6'
     ],
-    starterCode: {
+    functionSkeleton: {
       python: `def mergeSort(arr):
     """
     :type arr: List[int]

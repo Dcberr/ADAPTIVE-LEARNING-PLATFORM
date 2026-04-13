@@ -304,7 +304,7 @@ export const initialSubmissionHistory: SubmissionRecord[] = [
     passed: 3,
     total: 4,
     status: "reviewed",
-    code: codingProblems[0]?.starterCode.python ?? "",
+    code: codingProblems[0]?.functionSkeleton.python ?? "",
     testResults: [
       { idx: 1, input: "[2,7,11,15], 9", expected: "[0,1]", actual: "[0,1]", passed: true, hidden: false },
       { idx: 2, input: "[3,2,4], 6", expected: "[1,2]", actual: "[1,2]", passed: true, hidden: false },
@@ -324,7 +324,7 @@ export const initialSubmissionHistory: SubmissionRecord[] = [
     passed: 5,
     total: 5,
     status: "reviewed",
-    code: codingProblems[1]?.starterCode.javascript ?? "",
+    code: codingProblems[1]?.functionSkeleton.javascript ?? "",
     testResults: [
       { idx: 1, input: "121", expected: "true", actual: "true", passed: true, hidden: false },
       { idx: 2, input: "-121", expected: "false", actual: "false", passed: true, hidden: false },
@@ -345,7 +345,7 @@ export const initialSubmissionHistory: SubmissionRecord[] = [
     passed: 4,
     total: 5,
     status: "reviewed",
-    code: codingProblems[2]?.starterCode.cpp ?? "",
+    code: codingProblems[2]?.functionSkeleton.cpp ?? "",
     testResults: [
       { idx: 1, input: "[12, 11, 13, 5, 6, 7]", expected: "[5, 6, 7, 11, 12, 13]", actual: "[5, 6, 7, 11, 12, 13]", passed: true, hidden: false },
       { idx: 2, input: "[38, 27, 43, 3, 9, 82, 10]", expected: "[3, 9, 10, 27, 38, 43, 82]", actual: "[3, 9, 10, 27, 38, 43, 82]", passed: true, hidden: false },

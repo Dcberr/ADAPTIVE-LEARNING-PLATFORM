@@ -106,11 +106,11 @@ function buildDynamicProblem(
           .map((item: string) => item.trim())
           .filter(Boolean)
       : [],
-    starterCode: {
+    functionSkeleton: {
       python: "",
       javascript: "",
       java: "",
-      cpp: assignmentProblem?.starterCodes?.cpp ?? cachedProblem?.starterCodeCpp ?? "",
+      cpp: assignmentProblem?.functionSkeletons?.cpp ?? cachedProblem?.functionSkeletonCpp ?? "",
     },
     testCases: sourceTestcases.map((item) => ({
       input: item.input,
@@ -328,7 +328,7 @@ export default function CodeProblemPage({
     (hasMockBundle
       ? (latestSubmission?.score ?? 0) >= 70
       : Number(latestBackendSubmission?.score ?? 0) >= 70)
-  const activeCode = code ?? (problem ? problem.starterCode[language] ?? "" : "")
+  const activeCode = code ?? (problem ? problem.functionSkeleton[language] ?? "" : "")
 
   const getElapsedSeconds = useCallback(
     () => Math.floor((Date.now() - startedAtMs) / 1000),
@@ -343,7 +343,7 @@ export default function CodeProblemPage({
 
       const selectedLanguage = nextLanguage as Language
       setLanguage(selectedLanguage)
-      setCode(problem.starterCode[selectedLanguage] ?? "")
+      setCode(problem.functionSkeleton[selectedLanguage] ?? "")
     },
     [problem]
   )

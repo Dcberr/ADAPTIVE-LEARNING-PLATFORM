@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Editor from "@monaco-editor/react"
-import { AlertCircle, ChevronLeft, FileCode2, ListChecks, Lock, TimerReset } from "lucide-react"
+import { ChevronLeft, Lock } from "lucide-react"
 
 import type { UserRole } from "@/data/lms/extendedMockData"
 import { Badge } from "@/components/ui/badge"
@@ -49,9 +49,6 @@ export default function SubmissionReviewPage({
     useGetSubmissionByIdQuery(submissionId)
 
   const submission = submissions.find((item) => item.submissionId === submissionId)
-  const passedCount =
-    submissionDetail?.testcaseResults.filter((item) => item.status === "ACCEPTED").length ?? 0
-  const totalCount = submissionDetail?.testcaseResults.length ?? 0
   const backHref = `/${role}/assignments/${assignmentId}`
 
   if (isLoadingAssignment || isLoadingSubmissions || isLoadingDetail) {
