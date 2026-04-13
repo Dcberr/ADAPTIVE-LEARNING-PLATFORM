@@ -20,7 +20,9 @@ import com.example.demo.user.dto.UserResponse;
 import com.example.demo.user.entity.Role;
 import com.example.demo.user.entity.User;
 import com.example.demo.user.repository.UserRepository;
-import com.example.demo.classmanagement.entity.Class;   
+import com.example.demo.classmanagement.entity.Class;
+import com.example.demo.common.exception.AppException;
+import com.example.demo.common.exception.ErrorCode;   
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -91,6 +93,10 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public void addStudent(UUID classId, UUID studentId) {
+        // Check if student is already enrolled in the class
+        if (enrollmentRepository.findByClassIdAndStudentId(classId, studentId).isPresent()) {
+            throw new AppException(ErrorCode.STUDENT_ALREADY_ENROLLED);
+        }
 
         ClassEnrollment enrollment =
                 ClassEnrollment.builder()
@@ -208,6 +214,7 @@ public class ClassServiceImpl implements ClassService {
                         .name(student.getName())
                         .email(student.getEmail())
                         .picture(student.getPicture())
+                        .userCode(student.getUserCode())
                         .role(student.getRole().name())
                         .build())
                 .toList();

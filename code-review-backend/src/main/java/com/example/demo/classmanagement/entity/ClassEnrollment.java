@@ -12,7 +12,13 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "class_enrollments")
+@Table(
+    name = "class_enrollments",
+    uniqueConstraints = @UniqueConstraint(
+        columnNames = {"classId", "studentId"},
+        name = "uk_class_student"
+    )
+)
 public class ClassEnrollment {
 
     @Id
