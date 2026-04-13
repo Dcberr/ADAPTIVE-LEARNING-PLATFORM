@@ -11,9 +11,17 @@ logger = logging.getLogger(__name__)
 class OverviewAgent:
     """Aggregates logic issues and improvement notes into a unified review and generates overview."""
 
-    def __init__(self, client, model_name: str):
+    def __init__(
+        self,
+        client,
+        model_name: str,
+        temperature: float = 0.3,
+        max_tokens: int = 1024,
+    ):
         self.client = client
         self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def format_history(self, state: ReviewState) -> str:
         """Format prior submission attempts for the overview prompt."""
@@ -147,8 +155,8 @@ Instructions:
                     {"role": "system", "content": "You are a helpful CS1 teacher."},
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.3,
-                max_tokens=1024,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
             overview_text = response.choices[0].message.content.strip()
             new_state["overview"] = overview_text

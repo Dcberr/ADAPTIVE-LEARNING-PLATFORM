@@ -66,9 +66,17 @@ class ScoringAgent:
         },
     }
 
-    def __init__(self, client: OpenAI, model_name: str):
+    def __init__(
+        self,
+        client: OpenAI,
+        model_name: str,
+        temperature: float = 0.2,
+        max_tokens: int = 1400,
+    ):
         self.client = client
         self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
     @staticmethod
     def _normalize_score(raw_score: Any, default: int) -> int:
@@ -230,8 +238,8 @@ Scoring guidance:
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
-                temperature=0.2,
-                max_tokens=1400,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
 
             model_text = response.choices[0].message.content

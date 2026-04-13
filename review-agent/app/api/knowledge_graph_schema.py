@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 from app.api.review_code_schema import ReviewItem, ScoreCard
 from app.models.exercise_record import ExerciseRecord
-from app.models.knowledge_graph import AssignedPath, ConceptRecord, KnowledgeGraphDocument
+from app.models.knowledge_graph import ConceptRecord, KnowledgeGraphDocument
 from app.models.review_record import ReviewRecord
 from app.models.student_profile import StudentProfileScoring
 from app.models.submission_record import SubmissionRecord, SubmissionTestCaseOutput
@@ -12,7 +12,7 @@ class UpsertConceptRequest(BaseModel):
     name: str
     description: str = ""
     difficulty: int = 1
-    prerequisites: list[ConceptRecord] = Field(default_factory=list)
+    prerequisite_ids: list[str] = Field(default_factory=list)
 
 
 class UpsertExerciseRequest(BaseModel):
@@ -22,7 +22,7 @@ class UpsertExerciseRequest(BaseModel):
     difficulty: str
     tags: list[str] = Field(default_factory=list)
     concept_ids: list[str] = Field(default_factory=list)
-    recommended_paths: list[AssignedPath] = Field(default_factory=list)
+    related_exercise_ids: list[str] = Field(default_factory=list)
 
 
 class UpsertStudentProfileRequest(BaseModel):

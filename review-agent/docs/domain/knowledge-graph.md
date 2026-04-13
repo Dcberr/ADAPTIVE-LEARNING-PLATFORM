@@ -175,6 +175,50 @@ Suggested scale:
 - `0.5` to `0.8` for important supporting concepts
 - `0.1` to `0.4` for minor supporting concepts
 
+### `(:Exercise)-[:RELATED_TO]->(:Exercise)`
+
+Purpose:
+
+- connect the main exercise to nearby exercises with similar skill coverage or pedagogical progression
+- give recommendation a curated neighbor list before full graph retrieval
+- support "practice something similar next" ranking
+
+Weights:
+
+- `weight`
+- `relation_type`
+- `target_concept_id`
+- `shared_concept_ids`
+- `difficulty_gap`
+- `progression_score`
+- `similarity_score`
+
+Meaning of weight:
+
+- `weight` represents how strongly the related exercise should be considered a close neighbor of the main exercise
+- high `weight` means the exercises are strongly connected by concept focus or learning progression
+- low `weight` means the relation is weak and should only lightly influence ranking
+- `relation_type` explains why the exercises are connected
+- `target_concept_id` identifies the main concept that best explains the relation
+- `shared_concept_ids` lists concepts that both exercises meaningfully share
+- `difficulty_gap` is negative when the related exercise is easier and positive when it is harder
+- `progression_score` measures how good the related exercise is as a next pedagogical step
+- `similarity_score` measures concept and task similarity between the two exercises
+
+Suggested scale:
+
+- `1.0` for very close sibling or follow-up exercise
+- `0.5` to `0.8` for useful related practice
+- `0.1` to `0.4` for weak similarity or optional extension
+
+Suggested `relation_type` values:
+
+- `SIMILAR_PRACTICE`
+- `NEXT_STEP`
+- `PREREQUISITE_REVIEW`
+- `SAME_CONCEPT_HARDER`
+- `SAME_CONCEPT_EASIER`
+
 ### `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 
 Purpose:
@@ -421,8 +465,9 @@ If you want the highest-impact weighting strategy, prioritize these first:
 1. `(:Student)-[:HAS_CONCEPT_STATE]->(:Concept)` with `mastery_score`, `struggle_score`, `confidence`
 2. `(:Exercise)-[:TESTS]->(:Concept)` with `weight`
 3. `(:Exercise)-[:RECOMMENDED_FOR]->(:Concept)` with `path`, `weight`
-4. `(:Student)-[:ATTEMPTED]->(:Exercise)` with `attempt_count`, `last_attempt_at`
-5. `(:Review)-[:NEXT_REVIEW_OF]->(:Review)` with `improvement_signal`
+4. `(:Exercise)-[:RELATED_TO]->(:Exercise)` with `weight`
+5. `(:Student)-[:ATTEMPTED]->(:Exercise)` with `attempt_count`, `last_attempt_at`
+6. `(:Review)-[:NEXT_REVIEW_OF]->(:Review)` with `improvement_signal`
 
 ## Recommended Minimal Graph
 
@@ -432,6 +477,7 @@ If you want the smallest graph that still supports a strong recommendation flow,
 - `(:Submission)-[:FOR_EXERCISE]->(:Exercise)`
 - `(:Submission)-[:RECEIVED_REVIEW]->(:Review)`
 - `(:Exercise)-[:TESTS]->(:Concept)`
+- `(:Exercise)-[:RELATED_TO]->(:Exercise)`
 - `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 - `(:Student)-[:ATTEMPTED]->(:Exercise)`
 - `(:Student)-[:HAS_CONCEPT_STATE]->(:Concept)`

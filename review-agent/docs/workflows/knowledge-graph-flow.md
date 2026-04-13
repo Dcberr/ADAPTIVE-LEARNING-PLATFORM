@@ -8,7 +8,10 @@ The knowledge-graph flow is split into small APIs so graph state can be written 
 
 1. Upsert concepts with `PATCH /api/v1/knowledgegraph/concepts/{concept_id}`
 2. Upsert exercises with `PATCH /api/v1/knowledgegraph/exercises/{exercise_id}`
-3. Link exercises to concepts and recommendation paths through the exercise payload
+3. Relation inputs are passed as ids only, not nested entity payloads
+4. The API validates that every related concept and exercise already exists in Neo4j
+5. The knowledge-graph LLM evaluates `TESTS.weight`, selects `RECOMMENDED_FOR.path`, scores `RECOMMENDED_FOR.weight`, and evaluates `RELATED_TO.weight` from the resolved graph entities
+6. The repository rebuilds weighted `TESTS`, `RECOMMENDED_FOR`, and `RELATED_TO` links for the main exercise
 
 ## Student Setup Flow
 
@@ -19,9 +22,10 @@ The knowledge-graph flow is split into small APIs so graph state can be written 
 
 1. Upsert a submission with `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
 2. The submission API validates that `Student` and `Exercise` already exist
-3. Upsert a review with `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
-4. The review API validates that the referenced `Submission` already exists
-5. Review relations are refreshed to match the linked student, submission, and exercise
+3. The submission API refreshes `SUBMITTED`, `FOR_EXERCISE`, and `NEXT_ATTEMPT` relations
+4. Upsert a review with `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
+5. The review API validates that the referenced `Submission` already exists
+6. Review relations are refreshed to match the linked student, submission, and exercise
 
 ## Read Flow
 

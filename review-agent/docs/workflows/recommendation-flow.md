@@ -26,8 +26,10 @@ The client does not send the full review payload. The service loads the needed c
 - recent review history
 - student profile
 - exercise-to-concept graph links
+- exercise-to-exercise related links
 - concept prerequisite graph
 - recommendation path graph links
+- related-exercise metadata such as relation type, difficulty gap, progression score, and similarity score
 
 ## Main Outputs
 

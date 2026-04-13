@@ -5,7 +5,7 @@
 - Method: `PATCH`
 - Path: `/api/v1/knowledgegraph/concepts/{concept_id}`
 
-This API upserts a concept node in Neo4j and refreshes its prerequisite relationships.
+This API upserts a concept node in Neo4j, evaluates prerequisite strength with the LLM, and refreshes its prerequisite relationships.
 
 ## Purpose
 
@@ -19,9 +19,11 @@ Use this API when:
 
 1. The client sends `concept_id` in the path and concept fields in the body.
 2. The API upserts the `Concept` node in Neo4j.
-3. The API upserts each prerequisite concept from the request payload.
-4. The API refreshes `PREREQUISITE_OF` relations for the provided prerequisite concepts.
-5. The API returns the final stored concept payload.
+3. The API checks that every `prerequisite_id` already exists in Neo4j.
+4. If any related concept is missing, the API returns an error and does not write anything.
+5. The API uses the LLM to evaluate `PREREQUISITE_OF.strength` between the main concept and each prerequisite.
+6. The API refreshes `PREREQUISITE_OF` relations for the provided prerequisite concepts.
+7. The API returns the final stored concept payload.
 
 ## Request Schema
 
@@ -30,14 +32,7 @@ Use this API when:
   "name": "string",
   "description": "string",
   "difficulty": 1,
-  "prerequisites": [
-    {
-      "concept_id": "string",
-      "name": "string",
-      "description": "string",
-      "difficulty": 1
-    }
-  ]
+  "prerequisite_ids": ["string"]
 }
 ```
 
@@ -47,8 +42,8 @@ Use this API when:
 - `name`: display name of the concept.
 - `description`: optional concept explanation.
 - `difficulty`: integer difficulty level.
-- `prerequisites`: prerequisite concepts that should point to this concept with `PREREQUISITE_OF`.
-- each prerequisite item is also upserted as a concept node.
+- `prerequisite_ids`: concept ids that should point to this concept with `PREREQUISITE_OF`.
+- every prerequisite concept must already exist in the graph or the API returns an error.
 
 ## Example Request
 
@@ -62,19 +57,9 @@ Body:
   "name": "Input/Output",
   "description": "Read data from standard input and print the correct result to standard output.",
   "difficulty": 1,
-  "prerequisites": [
-    {
-      "concept_id": "11111111-1111-1111-1111-111111111111",
-      "name": "Variables",
-      "description": "Store values in named variables and update them during program execution.",
-      "difficulty": 1
-    },
-    {
-      "concept_id": "22222222-2222-2222-2222-222222222222",
-      "name": "Basic Arithmetic",
-      "description": "Use arithmetic operators on numeric values.",
-      "difficulty": 1
-    }
+  "prerequisite_ids": [
+    "11111111-1111-1111-1111-111111111111",
+    "22222222-2222-2222-2222-222222222222"
   ]
 }
 ```
@@ -97,7 +82,9 @@ Body:
 This API creates or updates:
 
 - `(:Concept {concept_id})`
-- `(:Concept {prerequisite_id})` for each prerequisite object
-- `(:Concept)-[:PREREQUISITE_OF]->(:Concept)` for each prerequisite concept
+- `(:Concept)-[:PREREQUISITE_OF {strength}]->(:Concept)` for each prerequisite concept
 
 The repository replaces existing incoming prerequisite edges for the main concept so the graph matches the latest request.
+
+The `strength` property is evaluated automatically by the LLM using the main concept and each prerequisite concept.
+If any `prerequisite_id` does not already exist, the API returns an error instead of creating placeholder nodes.
