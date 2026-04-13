@@ -3,7 +3,6 @@ import type {
   CourseMaterial,
   CourseTopic,
   ProblemBankEntry,
-  SubmissionRecord,
 } from "@/data/lms/extendedMockData"
 import { baseApi } from "@/store/redux/api/baseApi"
 
@@ -135,9 +134,21 @@ export type LecturerClassDetail = {
   schedule: string | null
   imageUrl?: string | null
 }
+export type ClassStudent = {
+  id: string
+  email: string
+  name: string
+  userCode: string
+  picture: string | null
+  role: string
+}
 type AddStudentToClassRequest = {
   classId: string
-  studentId: string
+  userCode: string
+}
+type RemoveStudentFromClassRequest = {
+  classId: string
+  userCode: string
 }
 export type AssignmentContext = TopicAssignmentResponse & {
   topicId: string
@@ -154,6 +165,21 @@ export type AssignmentSubmissionResponse = {
   submittedAt: string
   score: string
   studentName: string
+}
+export type SubmissionDetailTestcaseResponse = {
+  testcaseId: string
+  index: number
+  input: string
+  expectedOutput: string
+  output: string
+  error: string
+  status: string
+  runtime: number
+}
+export type SubmissionDetailResponse = {
+  code: string
+  language: string
+  testcaseResults: SubmissionDetailTestcaseResponse[]
 }
 export type AssignmentProblemResponse = {
   id: string
@@ -191,6 +217,17 @@ export type JudgeExecutionResponse = {
   totalTestcases: number
   runtime: number
 }
+export type CreateSubmissionRequest = {
+  problemId: string
+  language: string
+  code: string
+  startedAt: string
+}
+type GetAssignmentSubmissionsRequest = {
+  assignmentId: string
+  scope: "me" | "all" | "user"
+  userId?: string
+}
 
 export const lmsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -206,6 +243,17 @@ export const lmsApi = baseApi.injectEndpoints({
       query: (classId) => `/classes/${classId}`,
       transformResponse: (response: ApiResponse<LecturerClassDetail>) => response.data,
       providesTags: (_result, _error, classId) => [{ type: "Class" as const, id: classId }],
+    }),
+    getClassStudents: builder.query<ClassStudent[], string>({
+      query: (classId) => `/classes/${classId}/students`,
+      transformResponse: (response: ApiResponse<ClassStudent[]>) => response.data ?? [],
+      providesTags: (result, _error, classId) => [
+        { type: "Student" as const, id: `CLASS-${classId}` },
+        ...(result?.map((student) => ({
+          type: "Student" as const,
+          id: `${classId}-${student.userCode}`,
+        })) ?? []),
+      ],
     }),
     getClassTopics: builder.query<TopicDetailResponse[], string>({
       async queryFn(classId, _api, _extraOptions, fetchWithBQ) {
@@ -348,15 +396,30 @@ export const lmsApi = baseApi.injectEndpoints({
     }),
     getAssignmentSubmissions: builder.query<
       AssignmentSubmissionResponse[],
-      { assignmentId: string; scope: "me" | "all" }
+      GetAssignmentSubmissionsRequest
     >({
-      query: ({ assignmentId, scope }) =>
-        scope === "me"
-          ? `/submissions/assignment/${assignmentId}/me`
-          : `/submissions/assignment/${assignmentId}`,
-      transformResponse: (response: ApiResponse<AssignmentSubmissionResponse[]>) => response.data,
+      query: ({ assignmentId, scope, userId }) => {
+        if (scope === "me") {
+          return `/submissions/assignment/${assignmentId}/me`
+        }
+
+        if (scope === "user" && userId) {
+          return `/submissions/assignment/${assignmentId}/${encodeURIComponent(userId)}`
+        }
+
+        return `/submissions/assignment/${assignmentId}`
+      },
+      transformResponse: (response: ApiResponse<AssignmentSubmissionResponse[]>) =>
+        response.data ?? [],
       providesTags: (_result, _error, { assignmentId }) => [
         { type: "Submission" as const, id: assignmentId },
+      ],
+    }),
+    getSubmissionById: builder.query<SubmissionDetailResponse, string>({
+      query: (submissionId) => `/submissions/${submissionId}`,
+      transformResponse: (response: ApiResponse<SubmissionDetailResponse>) => response.data,
+      providesTags: (_result, _error, submissionId) => [
+        { type: "Submission" as const, id: submissionId },
       ],
     }),
     getAssignmentProblem: builder.query<AssignmentProblemResponse, string>({
@@ -401,16 +464,28 @@ export const lmsApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiResponse<CreatedClass>) => response.data,
       invalidatesTags: [{ type: "Class" as const, id: "LIST" }],
     }),
-    addStudentToClass: builder.mutation<null, AddStudentToClassRequest>({
-      query: ({ classId, studentId }) => ({
-        url: `/classes/${classId}/students`,
+    addStudentToClass: builder.mutation<void, AddStudentToClassRequest>({
+      query: ({ classId, userCode }) => ({
+        url: `/classes/${classId}/students/${encodeURIComponent(userCode)}`,
         method: "POST",
-        body: { studentId },
       }),
-      transformResponse: (response: ApiResponse<null>) => response.data,
+      transformResponse: () => undefined,
       invalidatesTags: (_result, _error, { classId }) => [
         { type: "Class" as const, id: "LIST" },
         { type: "Class" as const, id: classId },
+        { type: "Student" as const, id: `CLASS-${classId}` },
+      ],
+    }),
+    removeStudentFromClass: builder.mutation<void, RemoveStudentFromClassRequest>({
+      query: ({ classId, userCode }) => ({
+        url: `/classes/${classId}/students/${encodeURIComponent(userCode)}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      invalidatesTags: (_result, _error, { classId }) => [
+        { type: "Class" as const, id: "LIST" },
+        { type: "Class" as const, id: classId },
+        { type: "Student" as const, id: `CLASS-${classId}` },
       ],
     }),
     getCourses: builder.query<Course[], void>({
@@ -438,11 +513,6 @@ export const lmsApi = baseApi.injectEndpoints({
     getProblemBank: builder.query<ProblemBankEntry[], void>({
       query: () => "/problem-bank",
       providesTags: ["ProblemBank"],
-    }),
-    getSubmissions: builder.query<SubmissionRecord[], string | void>({
-      query: (assignmentId) =>
-        assignmentId ? `/assignments/${assignmentId}/submissions` : "/submissions",
-      providesTags: ["Submission"],
     }),
     createTopic: builder.mutation<CreatedTopic, CreateTopicRequest>({
       query: (body) => ({
@@ -566,12 +636,13 @@ export const lmsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["ProblemBank", "Assignment"],
     }),
-    createSubmission: builder.mutation<SubmissionRecord, SubmissionRecord>({
+    createSubmission: builder.mutation<AssignmentSubmissionResponse, CreateSubmissionRequest>({
       query: (body) => ({
         url: "/submissions",
         method: "POST",
         body,
       }),
+      transformResponse: (response: ApiResponse<AssignmentSubmissionResponse>) => response.data,
       invalidatesTags: ["Submission", "Assignment", "Student"],
     }),
   }),
@@ -580,20 +651,22 @@ export const lmsApi = baseApi.injectEndpoints({
 export const {
   useGetMyClassesQuery,
   useGetClassByIdQuery,
+  useGetClassStudentsQuery,
   useGetClassTopicsQuery,
   useGetAssignmentContextQuery,
   useGetAssignmentSubmissionsQuery,
+  useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
   useGetAssignmentTestcasesQuery,
   useJudgeExecutionMutation,
   useCreateClassMutation,
   useAddStudentToClassMutation,
+  useRemoveStudentFromClassMutation,
   useGetCoursesQuery,
   useGetCourseTopicsQuery,
   useGetCourseMaterialsQuery,
   useGetAssignmentsQuery,
   useGetProblemBankQuery,
-  useGetSubmissionsQuery,
   useCreateTopicMutation,
   useCreateDocumentMutation,
   useCreateAssignmentMutation,

@@ -1,4 +1,3 @@
-import type { StudentPerformanceRecord } from "@/data/lms/extendedMockData"
 import type { EditableTestCase } from "@/components/lms/TestCaseManager"
 
 export type TopicMaterial = {
@@ -66,6 +65,5 @@ export type LecturerCourseBundle = {
     color: string
   }
   topics: TopicBundle[]
-  students: StudentPerformanceRecord[]
   assignments: TopicAssignment[]
 }

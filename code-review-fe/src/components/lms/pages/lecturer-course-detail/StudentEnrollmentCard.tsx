@@ -20,22 +20,22 @@ export default function StudentEnrollmentCard({
   enrolledStudentsCount,
   createdAt,
   schedule,
-  studentId,
+  userCode,
   feedback,
   recentStudentIds,
   isSubmitting,
-  onStudentIdChange,
+  onUserCodeChange,
   onSubmit,
 }: {
   instructorName: string
   enrolledStudentsCount: number
   createdAt: string
   schedule: string | null
-  studentId: string
+  userCode: string
   feedback: FeedbackState
   recentStudentIds: string[]
   isSubmitting: boolean
-  onStudentIdChange: (value: string) => void
+  onUserCodeChange: (value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   return (
@@ -43,7 +43,7 @@ export default function StudentEnrollmentCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base text-[#030391]">
           <UserPlus className="size-4 text-[#1488D8]" />
-          Add student to class
+          Thêm sinh viên vào lớp
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -68,9 +68,9 @@ export default function StudentEnrollmentCard({
 
         <form className="grid gap-3 md:grid-cols-[1fr_auto]" onSubmit={onSubmit}>
           <Input
-            value={studentId}
-            onChange={(event) => onStudentIdChange(event.target.value)}
-            placeholder="Nhập student ID để thêm vào lớp"
+            value={userCode}
+            onChange={(event) => onUserCodeChange(event.target.value)}
+            placeholder="Nhập mã sinh viên để thêm vào lớp"
           />
           <Button
             type="submit"
@@ -80,10 +80,10 @@ export default function StudentEnrollmentCard({
             {isSubmitting ? (
               <>
                 <LoaderCircle className="size-4 animate-spin" />
-                Adding...
+                Đang thêm...
               </>
             ) : (
-              "Add student"
+              "Thêm sinh viên"
             )}
           </Button>
         </form>
@@ -107,7 +107,7 @@ export default function StudentEnrollmentCard({
                 key={item}
                 className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
               >
-                Added {item}
+                Đã thêm {item}
               </Badge>
             ))}
           </div>

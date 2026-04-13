@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { CalendarClock, FileCode2, ListChecks, TimerReset } from "lucide-react"
 
 import type { UserRole } from "@/data/lms/extendedMockData"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +24,26 @@ function formatDateTime(value?: string | null) {
   return parsed.toLocaleString("vi-VN")
 }
 
+function formatLongDateTime(value?: string | null) {
+  if (!value) {
+    return null
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed)
+}
+
 function formatScore(value?: number | null) {
   if (typeof value !== "number") {
     return "Chưa cấu hình"
@@ -39,6 +58,54 @@ function formatTimeLimit(value?: number | null) {
   }
 
   return `${value} phút`
+}
+
+function formatDuration(startedAt?: string | null, submittedAt?: string | null) {
+  if (!startedAt || !submittedAt) {
+    return null
+  }
+
+  const startMs = new Date(startedAt).getTime()
+  const endMs = new Date(submittedAt).getTime()
+
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
+    return null
+  }
+
+  const totalSeconds = Math.floor((endMs - startMs) / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes <= 0) {
+    return `${seconds} giây`
+  }
+
+  return `${minutes} phút ${seconds} giây`
+}
+
+function formatSubmissionScore(score: string, maxScore?: number | null) {
+  const numericScore = Number(score)
+
+  if (!Number.isFinite(numericScore)) {
+    return null
+  }
+
+  const formattedScore = numericScore.toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+  if (typeof maxScore !== "number" || !Number.isFinite(maxScore) || maxScore <= 0) {
+    return formattedScore
+  }
+
+  const formattedMaxScore = maxScore.toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  const percentage = Math.round((numericScore / maxScore) * 100)
+
+  return `${formattedScore} trên ${formattedMaxScore} (${percentage}%)`
 }
 
 export default function AssignmentDetailPage({
@@ -89,6 +156,16 @@ export default function AssignmentDetailPage({
     const score = Number(item.score)
     return Number.isFinite(score) ? Math.max(best, score) : best
   }, 0)
+  const orderedSubmissions = [...submissions].sort((left, right) => {
+    const leftTime = new Date(left.submittedAt).getTime()
+    const rightTime = new Date(right.submittedAt).getTime()
+
+    if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
+      return 0
+    }
+
+    return rightTime - leftTime
+  })
   const attemptsUsed = submissions.length
   const attemptsAllowed = assignment.maxSubmission ?? 0
   const attemptsLeft = attemptsAllowed > 0 ? Math.max(attemptsAllowed - attemptsUsed, 0) : null
@@ -193,58 +270,73 @@ export default function AssignmentDetailPage({
             </CardContent>
           </Card>
         ) : (
-          submissions.map((submission, index) => (
-            <Card key={submission.submissionId}>
-              <CardHeader>
-                <CardTitle className="text-xl text-[#030391]">Lần nộp {index + 1}</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-6 lg:grid-cols-[1fr_auto]">
-                <div className="space-y-3 text-sm">
+          <div className="grid gap-4 xl:grid-cols-2">
+            {orderedSubmissions.map((submission, index) => (
+              <Card key={submission.submissionId} className="gap-4 py-5">
+                <CardHeader className="px-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg text-[#030391]">
+                        Lần nộp {orderedSubmissions.length - index}
+                      </CardTitle>
+                      <p className="mt-2 text-sm text-slate-500">
+                        Nộp lúc {formatDateTime(submission.submittedAt)}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3 px-5 text-sm">
                   {role === "lecturer" ? (
-                    <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-100 pb-3">
-                      <p className="font-semibold text-slate-700">Sinh viên</p>
-                      <p>{submission.studentName}</p>
+                    <div className="grid grid-cols-[120px_1fr] gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+                      <p className="font-semibold text-slate-600">Sinh viên</p>
+                      <p className="text-slate-900">{submission.studentName}</p>
                     </div>
                   ) : null}
-                  <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-100 pb-3">
-                    <p className="font-semibold text-slate-700">Trạng thái</p>
-                    <p>{submission.status}</p>
+                  {[
+                    {
+                      label: "Trạng thái",
+                      value: submission.status,
+                    },
+                    {
+                      label: "Bắt đầu vào lúc",
+                      value: formatLongDateTime(submission.startedAt),
+                    },
+                    {
+                      label: "Kết thúc lúc",
+                      value: formatLongDateTime(submission.submittedAt),
+                    },
+                    {
+                      label: "Thời gian thực hiện",
+                      value: formatDuration(submission.startedAt, submission.submittedAt),
+                    },
+                    {
+                      label: "Điểm",
+                      value: formatSubmissionScore(submission.score, assignment.maxScore),
+                    },
+                  ]
+                    .filter((item) => item.value)
+                    .map((item) => (
+                      <div
+                        key={`${submission.submissionId}-${item.label}`}
+                        className="grid grid-cols-[120px_1fr] gap-3 rounded-2xl bg-slate-50 px-4 py-3"
+                      >
+                        <p className="font-semibold text-slate-600">{item.label}</p>
+                        <p className="text-slate-900">{item.value}</p>
+                      </div>
+                    ))}
+                  <div className="pt-1">
+                    <Button asChild variant="outline" className="w-full rounded-2xl">
+                      <Link
+                        href={`/${role}/assignments/${assignment.id}/submissions/${submission.submissionId}`}
+                      >
+                        Xem lại bài làm
+                      </Link>
+                    </Button>
                   </div>
-                  <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-100 pb-3">
-                    <p className="font-semibold text-slate-700">Bắt đầu lúc</p>
-                    <p>{formatDateTime(submission.startedAt)}</p>
-                  </div>
-                  <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-100 pb-3">
-                    <p className="font-semibold text-slate-700">Nộp lúc</p>
-                    <p>{formatDateTime(submission.submittedAt)}</p>
-                  </div>
-                  <div className="grid grid-cols-[220px_1fr] gap-3">
-                    <p className="font-semibold text-slate-700">Điểm</p>
-                    <p>{submission.score}</p>
-                  </div>
-                </div>
-
-                <div className="flex min-w-[240px] flex-col gap-3 rounded-3xl bg-slate-50 p-5">
-                  <div className="inline-flex items-center gap-2 text-slate-600">
-                    <ListChecks className="size-4" />
-                    {assignment.topicTitle}
-                  </div>
-                  <div className="inline-flex items-center gap-2 text-slate-600">
-                    <CalendarClock className="size-4" />
-                    {formatDateTime(submission.submittedAt)}
-                  </div>
-                  <div className="inline-flex items-center gap-2 text-slate-600">
-                    <TimerReset className="size-4" />
-                    {submission.status}
-                  </div>
-                  <div className="inline-flex items-center gap-2 text-slate-600">
-                    <FileCode2 className="size-4" />
-                    Score {submission.score}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
     </div>

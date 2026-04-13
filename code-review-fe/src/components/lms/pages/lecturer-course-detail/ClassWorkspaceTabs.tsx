@@ -10,7 +10,7 @@ import type {
   TopicCard,
 } from "@/components/lms/pages/lecturer-course-detail/types"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { StudentPerformanceRecord } from "@/data/lms/extendedMockData"
+import type { ClassStudent } from "@/store/redux/api/lmsApi"
 
 type FeedbackState =
   | {
@@ -28,11 +28,14 @@ export default function ClassWorkspaceTabs({
   collapsedTopics,
   contentFeedback,
   classroom,
-  studentId,
+  userCode,
   feedback,
   recentStudentIds,
   students,
   isAddingStudent,
+  isLoadingStudents,
+  isRemovingStudent,
+  removingStudentCode,
   formattedCreatedAt,
   onTabChange,
   onToggleTopic,
@@ -43,8 +46,9 @@ export default function ClassWorkspaceTabs({
   onOpenAssignmentModal,
   onDeleteDraftAssignment,
   onAddSection,
-  onStudentIdChange,
+  onUserCodeChange,
   onAddStudent,
+  onRemoveStudent,
   assignmentHrefPrefix,
 }: {
   activeTab: "content" | "students"
@@ -59,11 +63,14 @@ export default function ClassWorkspaceTabs({
     enrolledStudentsCount: number
     schedule: string | null
   }
-  studentId: string
+  userCode: string
   feedback: FeedbackState
   recentStudentIds: string[]
-  students: StudentPerformanceRecord[]
+  students: ClassStudent[]
   isAddingStudent: boolean
+  isLoadingStudents: boolean
+  isRemovingStudent: boolean
+  removingStudentCode: string | null
   formattedCreatedAt: string
   onTabChange: (value: "content" | "students") => void
   onToggleTopic: (topicId: string) => void
@@ -74,8 +81,9 @@ export default function ClassWorkspaceTabs({
   onOpenAssignmentModal: (topicId: string, draft?: AssignmentDraft) => void
   onDeleteDraftAssignment: (draftId: string) => void
   onAddSection: () => void
-  onStudentIdChange: (value: string) => void
+  onUserCodeChange: (value: string) => void
   onAddStudent: (event: FormEvent<HTMLFormElement>) => void
+  onRemoveStudent: (userCode: string) => Promise<void>
   assignmentHrefPrefix?: string
 }) {
   return (
@@ -118,14 +126,20 @@ export default function ClassWorkspaceTabs({
           enrolledStudentsCount={classroom.enrolledStudentsCount}
           createdAt={formattedCreatedAt}
           schedule={classroom.schedule}
-          studentId={studentId}
+          userCode={userCode}
           feedback={feedback}
           recentStudentIds={recentStudentIds}
           isSubmitting={isAddingStudent}
-          onStudentIdChange={onStudentIdChange}
+          onUserCodeChange={onUserCodeChange}
           onSubmit={onAddStudent}
         />
-        <StudentsMonitoringTab students={students} />
+        <StudentsMonitoringTab
+          students={students}
+          isLoading={isLoadingStudents}
+          isRemovingStudent={isRemovingStudent}
+          removingStudentCode={removingStudentCode}
+          onRemoveStudent={onRemoveStudent}
+        />
       </TabsContent>
     </Tabs>
   )

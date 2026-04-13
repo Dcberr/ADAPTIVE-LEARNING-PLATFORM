@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import type { CodeReviewFeedback } from "@/data/lms/extendedMockData"
-import SubmissionHistory from "@/components/lms/SubmissionHistory"
 import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/AssignmentAttemptHeader"
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
 import ProblemWorkspaceTabs from "@/components/lms/pages/code-problem/ProblemWorkspaceTabs"
@@ -22,11 +21,16 @@ import {
 import { useAppSelector } from "@/store/redux/hooks"
 import { useLmsStore } from "@/store/lmsStore"
 import {
+  type AssignmentSubmissionResponse,
   type AssignmentTestcaseResponse,
   type JudgeExecutionResponse,
+  type SubmissionDetailResponse,
+  useCreateSubmissionMutation,
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
+  useGetAssignmentSubmissionsQuery,
   useGetAssignmentTestcasesQuery,
+  useGetSubmissionByIdQuery,
   useJudgeExecutionMutation,
 } from "@/store/redux/api/lmsApi"
 
@@ -188,6 +192,32 @@ function mapJudgeExecutionToSummary(
   }
 }
 
+function mapSubmissionDetailToSummary(
+  submission: AssignmentSubmissionResponse,
+  detail: SubmissionDetailResponse
+): ExecutionSummary {
+  const total = detail.testcaseResults.length
+  const passed = detail.testcaseResults.filter((item) => item.status === "ACCEPTED").length
+  const percentage = total > 0 ? Math.round((passed / total) * 100) : 0
+  const numericScore = Number(submission.score)
+
+  return {
+    passed,
+    total,
+    percentage,
+    score: Number.isFinite(numericScore) ? numericScore : 0,
+    eligibleForReview: percentage >= 70,
+    results: detail.testcaseResults.map((item) => ({
+      idx: item.index,
+      input: item.input,
+      expected: item.expectedOutput,
+      actual: item.output || item.error || "",
+      passed: item.status === "ACCEPTED",
+      hidden: false,
+    })),
+  }
+}
+
 export default function CodeProblemPage({
   id,
   role = "student",
@@ -197,6 +227,7 @@ export default function CodeProblemPage({
 }) {
   const router = useRouter()
   const mockBundle = getAssignmentBundle(id)
+  const hasMockBundle = Boolean(mockBundle.assignment && mockBundle.problem)
   const { data: assignmentContext, isLoading: isLoadingContext } = useGetAssignmentContextQuery(id, {
     skip: Boolean(mockBundle.assignment && mockBundle.problem),
   })
@@ -205,11 +236,20 @@ export default function CodeProblemPage({
   })
   const { data: assignmentTestcases = [], isLoading: isLoadingTestcases } =
     useGetAssignmentTestcasesQuery(id, {
-      skip: Boolean(mockBundle.assignment && mockBundle.problem),
+        skip: Boolean(mockBundle.assignment && mockBundle.problem),
     })
+  const {
+    data: backendSubmissionHistory = [],
+  } = useGetAssignmentSubmissionsQuery(
+    {
+      assignmentId: id,
+      scope: role === "student" ? "me" : "all",
+    },
+    { skip: hasMockBundle }
+  )
   const [judgeExecution] = useJudgeExecutionMutation()
+  const [createSubmission] = useCreateSubmissionMutation()
   const cachedProblem = useMemo(() => getCachedAssignmentProblem(id), [id])
-  const hasMockBundle = Boolean(mockBundle.assignment && mockBundle.problem)
   const assignment = useMemo(
     () => mockBundle.assignment ?? (assignmentContext ? buildDynamicAssignment(assignmentContext) : null),
     [assignmentContext, mockBundle.assignment]
@@ -233,12 +273,12 @@ export default function CodeProblemPage({
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const [execution, setExecution] = useState<ExecutionSummary | null>(null)
   const [review, setReview] = useState<CodeReviewFeedback | null>(null)
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null)
   const [recommendedProblems, setRecommendedProblems] = useState<
     Awaited<ReturnType<typeof getRecommendedProblems>>
   >([])
   const [runningAction, setRunningAction] = useState<"run" | "submit" | "review" | null>(null)
   const submissions = useAppSelector((state) => state.lms.submissions)
-  const hasHydrated = useAppSelector((state) => state.lms.hasHydrated)
   const availableLanguages = hasMockBundle ? mockLanguages : cppOnlyLanguages
   const timeLimitMinutes =
     assignmentContext?.timeLimit ??
@@ -249,20 +289,34 @@ export default function CodeProblemPage({
     [id, submissions]
   )
   const latestSubmission = submissionHistory[0] ?? mockBundle.latestSubmission
+  const latestBackendSubmission = backendSubmissionHistory[0]
+  const { data: latestBackendSubmissionDetail } = useGetSubmissionByIdQuery(
+    latestBackendSubmission?.submissionId ?? "",
+    {
+      skip: hasMockBundle || !latestBackendSubmission?.submissionId,
+    }
+  )
 
   const fallbackExecution = useMemo(
-    () =>
-      latestSubmission
-        ? {
-            passed: latestSubmission.passed,
-            total: latestSubmission.total,
-            percentage: Math.round((latestSubmission.passed / latestSubmission.total) * 100),
-            score: latestSubmission.score,
-            results: latestSubmission.testResults,
-            eligibleForReview: latestSubmission.score >= 70,
-          }
-        : null,
-    [latestSubmission]
+    () => {
+      if (hasMockBundle && latestSubmission) {
+        return {
+          passed: latestSubmission.passed,
+          total: latestSubmission.total,
+          percentage: Math.round((latestSubmission.passed / latestSubmission.total) * 100),
+          score: latestSubmission.score,
+          results: latestSubmission.testResults,
+          eligibleForReview: latestSubmission.score >= 70,
+        }
+      }
+
+      if (!hasMockBundle && latestBackendSubmission && latestBackendSubmissionDetail) {
+        return mapSubmissionDetailToSummary(latestBackendSubmission, latestBackendSubmissionDetail)
+      }
+
+      return null
+    },
+    [hasMockBundle, latestBackendSubmission, latestBackendSubmissionDetail, latestSubmission]
   )
 
   const displayedExecution = useMemo(
@@ -270,7 +324,10 @@ export default function CodeProblemPage({
     [execution, fallbackExecution]
   )
   const canRequestReview =
-    (displayedExecution?.eligibleForReview ?? false) || (latestSubmission?.score ?? 0) >= 70
+    (displayedExecution?.eligibleForReview ?? false) ||
+    (hasMockBundle
+      ? (latestSubmission?.score ?? 0) >= 70
+      : Number(latestBackendSubmission?.score ?? 0) >= 70)
   const activeCode = code ?? (problem ? problem.starterCode[language] ?? "" : "")
 
   const getElapsedSeconds = useCallback(
@@ -296,7 +353,10 @@ export default function CodeProblemPage({
       return
     }
 
-    const baseScore = displayedExecution?.score ?? latestSubmission?.score ?? 0
+    const baseScore =
+      displayedExecution?.score ??
+      (hasMockBundle ? latestSubmission?.score : Number(latestBackendSubmission?.score ?? 0)) ??
+      0
 
     if (!displayedExecution?.eligibleForReview && baseScore < 70) {
       handleTabChange("result")
@@ -319,7 +379,9 @@ export default function CodeProblemPage({
     displayedExecution?.eligibleForReview,
     displayedExecution?.score,
     handleTabChange,
+    hasMockBundle,
     latestSubmission?.score,
+    latestBackendSubmission?.score,
     activeCode,
   ])
 
@@ -330,55 +392,89 @@ export default function CodeProblemPage({
       }
 
       setRunningAction(mode)
+      setActionFeedback(null)
       let summary: ExecutionSummary
 
-      if (hasMockBundle) {
-        summary = await runAssignmentExecution(assignment.id, language, activeCode, mode, {
-          startedAt: new Date(startedAtMs).toISOString(),
-          durationSeconds: getElapsedSeconds(),
-        })
-      } else if (mode === "run" && assignmentProblem?.id) {
-        try {
-          const judgeResult = await judgeExecution({
+      try {
+        if (hasMockBundle) {
+          summary = await runAssignmentExecution(assignment.id, language, activeCode, mode, {
+            startedAt: new Date(startedAtMs).toISOString(),
+            durationSeconds: getElapsedSeconds(),
+          })
+        } else if (mode === "run" && assignmentProblem?.id) {
+          try {
+            const judgeResult = await judgeExecution({
+              problemId: assignmentProblem.id,
+              language,
+              code: activeCode,
+            }).unwrap()
+
+            summary = mapJudgeExecutionToSummary(judgeResult, assignment, assignmentTestcases)
+          } catch {
+            summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
+          }
+        } else if (mode === "submit") {
+          if (!assignmentProblem?.id) {
+            throw new Error(
+              "Thiếu problemId từ backend nên chưa thể gửi bài thật. Cần kiểm tra lại API /problems/assignment/{assignmentId}."
+            )
+          }
+
+          const createdSubmission = await createSubmission({
             problemId: assignmentProblem.id,
             language,
             code: activeCode,
+            startedAt: new Date(startedAtMs).toISOString(),
           }).unwrap()
+          const nextScore = Number(createdSubmission.score)
 
-          summary = mapJudgeExecutionToSummary(judgeResult, assignment, assignmentTestcases)
-        } catch {
+          summary =
+            execution ??
+            fallbackExecution ??
+            simulateDynamicExecution(assignment, problem!, activeCode, mode)
+
+          setExecution({
+            ...summary,
+            score: Number.isFinite(nextScore) ? nextScore : summary.score,
+            eligibleForReview:
+              summary.eligibleForReview || (Number.isFinite(nextScore) ? nextScore >= 70 : false),
+          })
+          setReview(null)
+          setRecommendedProblems([])
+          handleTabChange("result")
+          setRunningAction(null)
+          router.push(`/${role}/assignments/${assignment.id}`)
+          return
+        } else {
           summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
         }
-      } else {
-        summary = simulateDynamicExecution(assignment, problem!, activeCode, mode)
-      }
 
-      if (!hasMockBundle && mode === "submit") {
-        useLmsStore.getState().addSubmission({
-          id: `submission-${Date.now()}`,
-          assignmentId: assignment.id,
-          startedAt: new Date(startedAtMs).toISOString(),
-          submittedAt: new Date().toISOString(),
-          finishedAt: new Date().toISOString(),
-          durationSeconds: getElapsedSeconds(),
-          language,
-          score: summary.score,
-          passed: summary.passed,
-          total: summary.total,
-          status: toSubmissionStatus(summary.score),
-          code: activeCode,
-          testResults: summary.results,
-        })
-      }
+        if (hasMockBundle && mode === "submit") {
+          useLmsStore.getState().addSubmission({
+            id: `submission-${Date.now()}`,
+            assignmentId: assignment.id,
+            startedAt: new Date(startedAtMs).toISOString(),
+            submittedAt: new Date().toISOString(),
+            finishedAt: new Date().toISOString(),
+            durationSeconds: getElapsedSeconds(),
+            language,
+            score: summary.score,
+            passed: summary.passed,
+            total: summary.total,
+            status: toSubmissionStatus(summary.score),
+            code: activeCode,
+            testResults: summary.results,
+          })
+        }
 
-      setExecution(summary)
-      setReview(null)
-      setRecommendedProblems([])
-      handleTabChange("result")
-      setRunningAction(null)
-
-      if (mode === "submit") {
-        router.push(`/${role}/assignments/${assignment.id}`)
+        setExecution(summary)
+        setReview(null)
+        setRecommendedProblems([])
+        handleTabChange("result")
+      } catch (error) {
+        setActionFeedback(error instanceof Error ? error.message : "Không thể thực hiện thao tác này.")
+      } finally {
+        setRunningAction(null)
       }
     },
     [
@@ -386,6 +482,9 @@ export default function CodeProblemPage({
       assignment,
       assignmentProblem,
       assignmentTestcases,
+      createSubmission,
+      execution,
+      fallbackExecution,
       getElapsedSeconds,
       handleTabChange,
       hasMockBundle,
@@ -456,7 +555,11 @@ export default function CodeProblemPage({
         />
       </div>
 
-      {hasHydrated ? <SubmissionHistory submissions={submissionHistory} /> : null}
+      {actionFeedback ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {actionFeedback}
+        </div>
+      ) : null}
     </div>
   )
 }
