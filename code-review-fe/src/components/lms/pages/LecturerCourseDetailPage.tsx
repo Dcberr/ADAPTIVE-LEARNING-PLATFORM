@@ -303,8 +303,8 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         .filter(Boolean),
       description: assignmentDraft.description.trim(),
       problemConstraint: assignmentDraft.constraints.trim(),
-      starterCodes: assignmentDraft.starterCode.cpp.trim()
-        ? { cpp: assignmentDraft.starterCode.cpp }
+      functionSkeletons: assignmentDraft.functionSkeleton.cpp.trim()
+        ? { cpp: assignmentDraft.functionSkeleton.cpp }
         : {},
       testcases: assignmentDraft.testCases.map((item) => ({
         input: item.input,
@@ -318,7 +318,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         saveCachedAssignmentProblem(createdAssignment.id, {
           description: assignmentDraft.description.trim(),
           problemConstraint: assignmentDraft.constraints.trim(),
-          starterCodeCpp: assignmentDraft.starterCode.cpp,
+          functionSkeletonCpp: assignmentDraft.functionSkeleton.cpp,
           testcases: assignmentDraft.testCases.map((item) => ({
             input: item.input,
             expectedOutput: item.expectedOutput,

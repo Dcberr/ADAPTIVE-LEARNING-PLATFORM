@@ -77,7 +77,7 @@ type CreateAssignmentRequest = {
   tags: string[]
   description: string
   problemConstraint: string
-  starterCodes: Record<string, string>
+  functionSkeletons: Record<string, string>
   testcases: Array<{
     input: string
     expectedOutput: string
@@ -159,7 +159,7 @@ export type AssignmentProblemResponse = {
   id: string
   description: string
   problemConstraint: string
-  starterCodes: Record<string, string>
+  functionSkeletons: Record<string, string>
 }
 export type AssignmentTestcaseResponse = {
   id: string
@@ -490,7 +490,7 @@ export const lmsApi = baseApi.injectEndpoints({
         tags,
         description,
         problemConstraint,
-        starterCodes,
+        functionSkeletons,
         testcases,
       }) => ({
         url: "/assignments",
@@ -508,7 +508,7 @@ export const lmsApi = baseApi.injectEndpoints({
           problem: {
             description,
             problemConstraint,
-            starterCodes,
+            functionSkeletons,
             testcases,
           },
         },

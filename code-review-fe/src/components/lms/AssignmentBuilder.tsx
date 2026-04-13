@@ -13,7 +13,7 @@ type AssignmentDraft = {
   title: string
   description: string
   difficulty: "Easy" | "Medium" | "Hard"
-  starterCode: string
+  functionSkeleton: string
   score: string
   timeLimit: string
   deadline: string
@@ -41,7 +41,7 @@ export default function AssignmentBuilder({
     title: "",
     description: "",
     difficulty: "Easy",
-    starterCode: "",
+    functionSkeleton: "",
     score: "100",
     timeLimit: "2s",
     deadline: "",
@@ -119,9 +119,9 @@ export default function AssignmentBuilder({
         <Textarea
           placeholder="Starter code"
           rows={8}
-          value={draft.starterCode}
+          value={draft.functionSkeleton}
           onChange={(event) =>
-            setDraft((state) => ({ ...state, starterCode: event.target.value }))
+            setDraft((state) => ({ ...state, functionSkeleton: event.target.value }))
           }
         />
 
