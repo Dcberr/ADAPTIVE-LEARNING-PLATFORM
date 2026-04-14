@@ -11,4 +11,14 @@ public interface ReviewService {
 
     List<ReviewResponse> getSubmissionReviews(UUID submissionId);
 
+    List<ReviewResponse> getSubmissionReviewsByUser(UUID submissionId, UUID userId);
+
+    ReviewResponse reviewCode(UUID problemId, String code, String language, UUID userId);
+
+    List<ReviewResponse> getProblemReviews(UUID problemId);
+
+    List<ReviewResponse> getProblemReviewsByUser(UUID problemId, UUID userId);
+
+    List<ReviewResponse> getAllReviewsForUser(UUID userId);
+
 }

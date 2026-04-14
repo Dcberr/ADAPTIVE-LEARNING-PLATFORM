@@ -21,6 +21,12 @@ public class CodeReview {
 
     private UUID submissionId;
 
+    private UUID problemId;
+
+    private UUID userId;
+
+    private String language;
+
     @Column(columnDefinition = "TEXT")
     private String summary;
 

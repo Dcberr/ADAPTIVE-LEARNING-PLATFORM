@@ -20,6 +20,8 @@ import com.example.demo.review.entity.CodeReview;
 import com.example.demo.review.repository.CodeReviewRepository;
 import com.example.demo.submission.entity.Submission;
 import com.example.demo.submission.repository.SubmissionRepository;
+import com.example.demo.user.entity.Role;
+import com.example.demo.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewAgentClient reviewAgentClient;
 
     private final CodeReviewRepository codeReviewRepository;
+    private final UserRepository userRepository;
 
     private final ObjectMapper objectMapper;
 
@@ -147,15 +150,15 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewResponse review =
                 reviewAgentClient.reviewCode(body);
 
-        saveReview(submissionId, review);
+        saveReview(problem.getId(), submissionId, review, submission.getLanguage(), submission.getUserId());
 
         // review.setTestcaseResults(testcases);
 
         return review;
     }
 
-    private void saveReview(UUID submissionId,
-                            ReviewResponse review) {
+    private void saveReview(UUID problemId, UUID submissionId,
+                            ReviewResponse review, String language, UUID userId) {
 
         try {
 
@@ -169,6 +172,9 @@ public class ReviewServiceImpl implements ReviewService {
                             .detail(review.getDetail())
                             .reviewItemsJson(reviewItemsJson)
                             .createdAt(Instant.now())
+                            .problemId(problemId)
+                            .language(language)
+                            .userId(userId)
                             .build();
 
             codeReviewRepository.save(entity);
@@ -184,11 +190,176 @@ public class ReviewServiceImpl implements ReviewService {
 
         return codeReviewRepository.findBySubmissionId(submissionId)
                 .stream()
-                .map(r -> ReviewResponse.builder()
-                        .summary(r.getSummary())
-                        .detail(r.getDetail())
-                        .build())
+                .map(r -> deserializeReview(r.getReviewItemsJson()))
                 .toList();
+    }
+
+    @Override
+    public ReviewResponse reviewCode(UUID problemId, String code, String language, UUID userId) {
+        Problem problem = problemRepository.findById(problemId)
+                .orElseThrow();
+
+        List<TestcaseResult> testcases =
+                executionService.runByTestcase(RunTestcaseRequest.builder()
+                                .problemId(problemId)
+                                .language(language)
+                                .code(code)
+                                .build())
+                        .getTestcases();
+
+        log.info("Testcase results for direct review: {}", testcases);
+
+        List<ReviewTestcaseResult> testcaseResults =
+                testcases.stream()
+                        .map(tc -> ReviewTestcaseResult.builder()
+                                .testcaseId(tc.getTestcaseId())
+                                .input(tc.getInput())
+                                .expectedOutput(tc.getExpectedOutput())
+                                .passed(tc.getStatus() == JudgeStatus.ACCEPTED)
+                                .actualOutput(tc.getOutput())
+                                .build())
+                        .toList();
+
+        Map<String, Object> body = Map.of(
+                "assignment", Map.of(
+                        "content", problem.getDescription(),
+                        "language", language
+                ),
+                "code", code,
+                "test_results", testcaseResults.stream()
+                        .map(tc -> Map.of(
+                                "testcase_id", tc.getTestcaseId(),
+                                "name", "Testcase " + tc.getInput(),
+                                "input", tc.getInput(),
+                                "expect", tc.getExpectedOutput(),
+                                "actual", normalize(tc.getActualOutput())
+                        ))
+                        .toList(),
+                "history", List.of()
+        );
+
+        log.info("Review request body for direct code review: {}", body);
+
+        ReviewResponse review = reviewAgentClient.reviewCode(body);
+
+        // Save review to database
+        saveDirectCodeReview(problemId, language, review, userId);
+
+        return review;
+    }
+
+    private void saveDirectCodeReview(UUID problemId, String language, ReviewResponse review, UUID userId) {
+        try {
+            String reviewItemsJson = objectMapper.writeValueAsString(review);
+
+            CodeReview entity = CodeReview.builder()
+                    .problemId(problemId)
+                    .language(language)
+                    .summary(review.getSummary())
+                    .detail(review.getDetail())
+                    .reviewItemsJson(reviewItemsJson)
+                    .createdAt(Instant.now())
+                    .userId(userId)
+                    .build();
+
+            codeReviewRepository.save(entity);
+        } catch (Exception e) {
+            log.error("Failed to save direct code review", e);
+        }
+    }
+
+    @Override
+    public List<ReviewResponse> getProblemReviews(UUID problemId) {
+        return codeReviewRepository.findByProblemId(problemId)
+                .stream()
+                .map(r -> deserializeReview(r.getReviewItemsJson()))
+                .toList();
+    }
+
+    @Override
+    public List<ReviewResponse> getSubmissionReviewsByUser(UUID submissionId, UUID userId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow();
+        
+        var userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("User not found");
+        }
+        
+        var user = userOpt.get();
+        
+        // Only allow if user is the submission owner or is an instructor/admin
+        if (!submission.getUserId().equals(userId) && 
+            !user.getRole().equals(Role.INSTRUCTOR) && 
+            !user.getRole().equals(Role.ADMIN)) {
+            throw new SecurityException("Unauthorized access");
+        }
+
+        return codeReviewRepository.findBySubmissionId(submissionId)
+                .stream()
+                .map(r -> deserializeReview(r.getReviewItemsJson()))
+                .toList();
+    }
+
+    @Override
+    public List<ReviewResponse> getProblemReviewsByUser(UUID problemId, UUID userId) {
+        var userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("User not found");
+        }
+        
+        var user = userOpt.get();
+        
+        // Check if user is instructor or admin
+        boolean isInstructor = user.getRole().equals(Role.INSTRUCTOR) || user.getRole().equals(Role.ADMIN);
+        
+        if (isInstructor) {
+            // Instructors can see all reviews for a problem
+            return codeReviewRepository.findByProblemId(problemId)
+                    .stream()
+                    .map(r -> deserializeReview(r.getReviewItemsJson()))
+                    .toList();
+        } else {
+            // Students can only see their own direct code reviews (where userId = their userId and submissionId is null)
+            return codeReviewRepository.findByProblemIdAndUserId(problemId, userId)
+                    .stream()
+                    .filter(r -> r.getSubmissionId() == null)  // Only direct reviews without submission
+                    .map(r -> deserializeReview(r.getReviewItemsJson()))
+                    .toList();
+        }
+    }
+
+    @Override
+    public List<ReviewResponse> getAllReviewsForUser(UUID userId) {
+        var userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("User not found");
+        }
+        
+        var user = userOpt.get();
+        
+        // Only instructors and admins can view all reviews
+        if (!user.getRole().equals(Role.INSTRUCTOR) && 
+            !user.getRole().equals(Role.ADMIN)) {
+            throw new SecurityException("Only instructors can view all reviews");
+        }
+
+        return codeReviewRepository.findAll()
+                .stream()
+                .map(r -> deserializeReview(r.getReviewItemsJson()))
+                .toList();
+    }
+
+    private ReviewResponse deserializeReview(String reviewJsonString) {
+        try {
+            return objectMapper.readValue(reviewJsonString, ReviewResponse.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize review JSON", e);
+            return ReviewResponse.builder()
+                    .summary("Error parsing review")
+                    .detail("Could not deserialize review data")
+                    .build();
+        }
     }
 
     private String normalize(String output) {

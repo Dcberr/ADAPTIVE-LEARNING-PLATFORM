@@ -12,4 +12,8 @@ public interface CodeReviewRepository
 
     List<CodeReview> findBySubmissionId(UUID submissionId);
 
+    List<CodeReview> findByProblemId(UUID problemId);
+
+    List<CodeReview> findByProblemIdAndUserId(UUID problemId, UUID userId);
+
 }

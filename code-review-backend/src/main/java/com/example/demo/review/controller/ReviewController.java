@@ -15,6 +15,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.core.Authentication;
+
+import com.example.demo.review.dto.ReviewCodeRequest;
+
 @Tag(name = "Review", description = "APIs for code review (AI-based)")
 @RestController
 @RequestMapping("/reviews")
@@ -34,14 +38,54 @@ public class ReviewController {
         );
     }
 
-    @Operation(summary = "Get review history of a submission")
-    @GetMapping("/submission/{submissionId}")
-    public ApiResponse<List<ReviewResponse>> history(
-            @Parameter(description = "Submission ID")
-            @PathVariable UUID submissionId
+//     @Operation(summary = "Get review history of a submission")
+//     @GetMapping("/submission/{submissionId}")
+//     public ApiResponse<List<ReviewResponse>> history(
+//             Authentication auth,
+//             @Parameter(description = "Submission ID")
+//             @PathVariable UUID submissionId
+//     ) {
+//         UUID userId = (UUID) auth.getPrincipal();
+//         return ApiResponse.success(
+//                 reviewService.getSubmissionReviewsByUser(submissionId, userId)
+//         );
+//     }
+
+    @Operation(summary = "Review code directly without submission")
+    @PostMapping("/code")
+    public ApiResponse<ReviewResponse> reviewCode(
+            Authentication auth,
+            @RequestBody ReviewCodeRequest request
     ) {
+        UUID userId = (UUID) auth.getPrincipal();
         return ApiResponse.success(
-                reviewService.getSubmissionReviews(submissionId)
+                reviewService.reviewCode(request.getProblemId(), request.getCode(), request.getLanguage(), userId)
+        ); 
+    }
+
+    @Operation(summary = "Get all reviews for a problem")
+    @GetMapping("/problem/{problemId}")
+    public ApiResponse<List<ReviewResponse>> getProblemReviews(
+            Authentication auth,
+            @Parameter(description = "Problem ID")
+            @PathVariable UUID problemId
+    ) {
+        UUID userId = (UUID) auth.getPrincipal();
+        return ApiResponse.success(
+                reviewService.getProblemReviewsByUser(problemId, userId)
         );
     }
+
+//     @Operation(summary = "Get all reviews (instructor only)")
+//     @GetMapping("/all")
+//     public ApiResponse<List<ReviewResponse>> getAllReviews(
+//             Authentication auth
+//     ) {
+//         UUID userId = (UUID) auth.getPrincipal();
+//         return ApiResponse.success(
+//                 reviewService.getAllReviewsForUser(userId)
+//         );
+//     }
+
 }
+    
