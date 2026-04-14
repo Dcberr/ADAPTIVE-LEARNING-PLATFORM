@@ -19,6 +19,8 @@ public interface SubmissionRepository
 
     List<Submission> findByProblemId(UUID problemId);
 
+    List<Submission> findByProblemIdAndIdNot(UUID problemId, UUID submissionId);
+
     @Query(value = """
         SELECT 
             s.id AS submissionId,
@@ -99,5 +101,7 @@ public interface SubmissionRepository
             ORDER BY s.submittedAt DESC
         """)
         List<SubmissionResponse> getAllSubmissionsByAssignmentId(UUID assignmentId);
+
+    
 
 }

@@ -25,7 +25,6 @@ public class ReviewAgentClient {
     public ReviewResponse reviewCode(
             Map<String, Object> body
     ) {
-        log.info("Reviewing code with body: {}", body);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -33,7 +32,6 @@ public class ReviewAgentClient {
         HttpEntity<Map<String, Object>> request =
                 new HttpEntity<>(body, headers);
 
-        log.info("Review request: {}", request);
 
         ResponseEntity<ReviewResponse> response =
                 restTemplate.postForEntity(
@@ -41,8 +39,6 @@ public class ReviewAgentClient {
                         request,
                         ReviewResponse.class
                 );
-
-        log.info("Review response: {}", response.getBody());
 
         return response.getBody();
     }

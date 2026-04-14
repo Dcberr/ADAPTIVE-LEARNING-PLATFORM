@@ -94,6 +94,32 @@ public class ReviewServiceImpl implements ReviewService {
         log.info("Normalized passed status: {}", testcaseResults.get(0).isPassed());
         log.info("Normalized input: {}", testcaseResults.get(0).getInput());
         log.info("Normalized testcase result: {}", testcaseResults.get(0));
+        // Build history from previous submissions
+        List<Map<String, Object>> history = submissionRepository
+                .findByProblemIdAndIdNot(problem.getId(), submissionId)
+                .stream()
+                .sorted((a, b) -> b.getSubmittedAt().compareTo(a.getSubmittedAt()))
+                .map(prevSubmission -> {
+                    List<TestcaseResult> prevTestcases = executionService.runByTestcase(
+                            RunTestcaseRequest.builder()
+                                    .problemId(problem.getId())
+                                    .language(prevSubmission.getLanguage())
+                                    .code(prevSubmission.getCode())
+                                    .build()
+                    ).getTestcases();
+                    
+                    List<UUID> failedTestcaseIds = prevTestcases.stream()
+                            .filter(tc -> tc.getStatus() != JudgeStatus.ACCEPTED)
+                            .map(TestcaseResult::getTestcaseId)
+                            .toList();
+                    
+                    return Map.of(
+                            "code", prevSubmission.getCode(),
+                            "failed_test_case_ids", failedTestcaseIds
+                    );
+                })
+                .toList();
+
         Map<String, Object> body = Map.of(
                 "assignment", Map.of(
                         "content", problem.getDescription(),
@@ -108,20 +134,15 @@ public class ReviewServiceImpl implements ReviewService {
                                 "testcase_id", tc.getTestcaseId(),
                                 "name", "Testcase " + tc.getInput(), 
                                 "input", tc.getInput(),
-                                "status", tc.isPassed() ? "fail" : "pass",
+                                // "status", tc.isPassed() ? "PASSED" : "FAILED",
                                 "expect", tc.getExpectedOutput(),
                                 "actual", normalize(tc.getActualOutput())
                         ))
                         .toList(),
-                "history", List.of(
-                        Map.of(
-                        "code", "",
-                        "failed_test_case_ids", List.of()
-                        )
-                )
+                "history", history
         );
 
-        log.info("Review request body 1: {}", body);
+        log.info("Body send to review agent: {}", body);
 
         ReviewResponse review =
                 reviewAgentClient.reviewCode(body);

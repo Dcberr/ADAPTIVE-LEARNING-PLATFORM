@@ -2,10 +2,15 @@ FROM python:3.14-slim AS builder
 
 WORKDIR /app
 
+COPY pyproject.toml uv.lock README.md ./
+
+RUN pip install uv && uv sync
+
 COPY . .
 
-RUN pip install uv \
-    && uv build
+RUN uv build
+
+# =========================
 
 FROM python:3.14-slim
 
