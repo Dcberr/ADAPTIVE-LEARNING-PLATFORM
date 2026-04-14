@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 class TestResult(BaseModel):
     testcase_id: UUID
     name: str
-    status: str
     input: str
     expect: str
     actual: str

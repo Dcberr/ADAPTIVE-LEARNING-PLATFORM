@@ -47,7 +47,7 @@ async def review_code(
                     "actual": case.actual,
                     "expected": case.expect,
                 }
-                for case in [result for result in request.test_results if result.status == "fail"]
+                for case in [result for result in request.test_results]
             ],
             assignment_requirements=request.assignment.content,
             history=[
@@ -61,7 +61,9 @@ async def review_code(
                 for submission in request.history
             ],
         )
-        logger.debug("Created initial workflow state summary: %s", summarize_state(state_in))
+        logger.debug(
+            "Created initial workflow state summary: %s", summarize_state(state_in)
+        )
 
         # Run the review graph
         result_state = await review_code_service.review_code(state_in)
@@ -98,54 +100,86 @@ async def review_code(
             review_items=review_items,
             scorecard=ScoreCard(
                 problem_solving_creativity=ScoreCardItem(
-                    score=result_state["scorecard"]["problem_solving_creativity"]["score"],
-                    label=result_state["scorecard"]["problem_solving_creativity"]["label"],
-                    explanation=result_state["scorecard"]["problem_solving_creativity"]["explanation"],
+                    score=result_state["scorecard"]["problem_solving_creativity"][
+                        "score"
+                    ],
+                    label=result_state["scorecard"]["problem_solving_creativity"][
+                        "label"
+                    ],
+                    explanation=result_state["scorecard"]["problem_solving_creativity"][
+                        "explanation"
+                    ],
                 ),
                 logic_traceability=ScoreCardItem(
                     score=result_state["scorecard"]["logic_traceability"]["score"],
                     label=result_state["scorecard"]["logic_traceability"]["label"],
-                    explanation=result_state["scorecard"]["logic_traceability"]["explanation"],
+                    explanation=result_state["scorecard"]["logic_traceability"][
+                        "explanation"
+                    ],
                 ),
                 generalization_score=ScoreCardItem(
                     score=result_state["scorecard"]["generalization_score"]["score"],
                     label=result_state["scorecard"]["generalization_score"]["label"],
-                    explanation=result_state["scorecard"]["generalization_score"]["explanation"],
+                    explanation=result_state["scorecard"]["generalization_score"][
+                        "explanation"
+                    ],
                 ),
                 construct_appropriateness=ScoreCardItem(
-                    score=result_state["scorecard"]["construct_appropriateness"]["score"],
-                    label=result_state["scorecard"]["construct_appropriateness"]["label"],
-                    explanation=result_state["scorecard"]["construct_appropriateness"]["explanation"],
+                    score=result_state["scorecard"]["construct_appropriateness"][
+                        "score"
+                    ],
+                    label=result_state["scorecard"]["construct_appropriateness"][
+                        "label"
+                    ],
+                    explanation=result_state["scorecard"]["construct_appropriateness"][
+                        "explanation"
+                    ],
                 ),
                 self_correction_path=ScoreCardItem(
                     score=result_state["scorecard"]["self_correction_path"]["score"],
                     label=result_state["scorecard"]["self_correction_path"]["label"],
-                    explanation=result_state["scorecard"]["self_correction_path"]["explanation"],
+                    explanation=result_state["scorecard"]["self_correction_path"][
+                        "explanation"
+                    ],
                 ),
                 variable_understanding=ScoreCardItem(
                     score=result_state["scorecard"]["variable_understanding"]["score"],
                     label=result_state["scorecard"]["variable_understanding"]["label"],
-                    explanation=result_state["scorecard"]["variable_understanding"]["explanation"],
+                    explanation=result_state["scorecard"]["variable_understanding"][
+                        "explanation"
+                    ],
                 ),
                 control_flow_understanding=ScoreCardItem(
-                    score=result_state["scorecard"]["control_flow_understanding"]["score"],
-                    label=result_state["scorecard"]["control_flow_understanding"]["label"],
-                    explanation=result_state["scorecard"]["control_flow_understanding"]["explanation"],
+                    score=result_state["scorecard"]["control_flow_understanding"][
+                        "score"
+                    ],
+                    label=result_state["scorecard"]["control_flow_understanding"][
+                        "label"
+                    ],
+                    explanation=result_state["scorecard"]["control_flow_understanding"][
+                        "explanation"
+                    ],
                 ),
                 input_output_awareness=ScoreCardItem(
                     score=result_state["scorecard"]["input_output_awareness"]["score"],
                     label=result_state["scorecard"]["input_output_awareness"]["label"],
-                    explanation=result_state["scorecard"]["input_output_awareness"]["explanation"],
+                    explanation=result_state["scorecard"]["input_output_awareness"][
+                        "explanation"
+                    ],
                 ),
                 edge_case_awareness=ScoreCardItem(
                     score=result_state["scorecard"]["edge_case_awareness"]["score"],
                     label=result_state["scorecard"]["edge_case_awareness"]["label"],
-                    explanation=result_state["scorecard"]["edge_case_awareness"]["explanation"],
+                    explanation=result_state["scorecard"]["edge_case_awareness"][
+                        "explanation"
+                    ],
                 ),
                 debugging_readiness=ScoreCardItem(
                     score=result_state["scorecard"]["debugging_readiness"]["score"],
                     label=result_state["scorecard"]["debugging_readiness"]["label"],
-                    explanation=result_state["scorecard"]["debugging_readiness"]["explanation"],
+                    explanation=result_state["scorecard"]["debugging_readiness"][
+                        "explanation"
+                    ],
                 ),
             ),
         )
