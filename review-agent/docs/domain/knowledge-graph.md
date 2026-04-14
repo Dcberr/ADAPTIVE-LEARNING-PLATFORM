@@ -401,6 +401,11 @@ Suggested scale:
 - `severity_change < 0` means the review got less severe
 - `severity_change > 0` means the review got more severe
 
+Implementation note:
+
+- this relation is refreshed by the review write API around adjacent reviews for the same student
+- the edge should carry `student_id`, `linked_at`, `same_concept`, `improvement_signal`, and `severity_change`
+
 ## Recommendation Relationships
 
 ### Exercise to Concept by Recommendation Path

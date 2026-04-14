@@ -2,7 +2,7 @@
 
 ## Endpoint
 
-- Method: `PATCH`
+- Method: `PUT`
 - Path: `/api/v1/knowledgegraph/concepts/{concept_id}`
 
 This API upserts a concept node in Neo4j, evaluates prerequisite strength with the LLM, and refreshes its prerequisite relationships.
@@ -48,7 +48,7 @@ Use this API when:
 ## Example Request
 
 Path:
-`PATCH /api/v1/knowledgegraph/concepts/33333333-3333-3333-3333-333333333333`
+`PUT /api/v1/knowledgegraph/concepts/33333333-3333-3333-3333-333333333333`
 
 Body:
 
@@ -84,7 +84,7 @@ This API creates or updates:
 - `(:Concept {concept_id})`
 - `(:Concept)-[:PREREQUISITE_OF {strength}]->(:Concept)` for each prerequisite concept
 
-The repository replaces existing incoming prerequisite edges for the main concept so the graph matches the latest request.
+The repository overwrites the stored concept fields and replaces existing incoming prerequisite edges for the main concept so the graph matches the latest request exactly.
 
 The `strength` property is evaluated automatically by the LLM using the main concept and each prerequisite concept.
 If any `prerequisite_id` does not already exist, the API returns an error instead of creating placeholder nodes.

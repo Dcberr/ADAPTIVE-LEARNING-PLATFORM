@@ -25,3 +25,5 @@ For now, the example payloads are documented inline inside the API docs in [../a
 Current concrete examples:
 
 - [knowledge-graph/exercise.json](/Users/thaibao/projects/review-code-app/review-agent/docs/examples/knowledge-graph/exercise.json)
+- [recommendation/request.json](/Users/thaibao/projects/review-code-app/review-agent/docs/examples/recommendation/request.json)
+- [recommendation/response.json](/Users/thaibao/projects/review-code-app/review-agent/docs/examples/recommendation/response.json)

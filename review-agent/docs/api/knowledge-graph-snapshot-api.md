@@ -124,6 +124,17 @@ Use this API when:
         "summary": "string",
         "detail": "string"
       }
+    ],
+    "review_relations": [
+      {
+        "previous_review_id": "string",
+        "next_review_id": "string",
+        "student_id": "string",
+        "linked_at": "string",
+        "same_concept": true,
+        "improvement_signal": 0.4,
+        "severity_change": -0.25
+      }
     ]
   }
 }
@@ -136,3 +147,4 @@ Use this API when:
 - It is useful for validating whether path-based upserts have produced the expected graph entities and relationships.
 - `exercise_relations` contains outgoing `RELATED_TO` links from the main exercise to each related exercise, including relation type and recommendation-ranking metadata.
 - `submission_relations` contains outgoing `NEXT_ATTEMPT` links between submissions, including improvement and regression scores.
+- `review_relations` contains outgoing `NEXT_REVIEW_OF` links between adjacent reviews, including recommendation-facing progress metadata.

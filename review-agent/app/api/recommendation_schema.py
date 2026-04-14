@@ -12,23 +12,34 @@ class RecommendationRequest(BaseModel):
 
 
 class RecommendationExercise(ExerciseRecord):
-    path: Literal["REINFORCE", "IMPROVE", "NEXT_CONCEPT"]
-    target_concept: str
+    concept_ids: list[str]
     directive: str
 
 
 class RecommendationRoadmapStep(BaseModel):
     step: int
-    focus: str
     exercise: RecommendationExercise
+
+
+class RecommendationGraphSummary(BaseModel):
+    current_concept_weight: float
+    best_path_weight: float
+    best_related_exercise_weight: float
+    latest_review_improvement_signal: float
+    latest_review_severity_change: float
+    latest_submission_improvement_ratio: float
+    latest_submission_regression_ratio: float
 
 
 class RecommendationResponse(BaseModel):
     student_id: str
+    current_exercise_id: str
+    anchor_concept: str
     assigned_path: Literal["REINFORCE", "IMPROVE", "NEXT_CONCEPT"]
-    target_concept: str
+    focus_concept_id: str
     critical_errors: int
     framework: RecommendationScoringFramework
+    graph_summary: RecommendationGraphSummary
     reasoning: str
     roadmap_summary: str
     roadmap: list[RecommendationRoadmapStep]

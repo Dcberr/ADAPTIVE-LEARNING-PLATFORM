@@ -11,6 +11,7 @@ This folder is organized for coding agents and teammates who need a fast path to
 
 - [api/README.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/README.md): index of all API contracts
 - [api/review-code-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/review-code-api.md): code review endpoint
+- [api/recommendation-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/recommendation-api.md): next-exercise roadmap endpoint
 - [api/concept-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/concept-api.md): concept upsert endpoint
 - [api/exercise-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/exercise-api.md): exercise upsert endpoint
 - [api/student-profile-import-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/student-profile-import-api.md): student profile upsert endpoint

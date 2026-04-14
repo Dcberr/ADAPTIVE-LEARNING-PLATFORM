@@ -2,7 +2,7 @@
 
 ## Endpoint
 
-- Method: `PATCH`
+- Method: `PUT`
 - Path: `/api/v1/knowledgegraph/exercises/{exercise_id}`
 
 This API upserts an exercise node in Neo4j and refreshes its concept, recommendation-path, and related-exercise links.
@@ -56,7 +56,7 @@ Use this API when:
 ## Example Request
 
 Path:
-`PATCH /api/v1/knowledgegraph/exercises/exercise-two-sum`
+`PUT /api/v1/knowledgegraph/exercises/exercise-two-sum`
 
 Body:
 
@@ -101,4 +101,4 @@ This API creates or updates:
 - `(:Exercise)-[:RECOMMENDED_FOR {path, weight}]->(:Concept)` for each concept/path combination
 - `(:Exercise)-[:RELATED_TO {weight, relation_type, target_concept_id, shared_concept_ids, difficulty_gap, progression_score, similarity_score}]->(:Exercise)` for each `related_exercise_ids[]` entry
 
-Before rebuilding those links, the API validates that all related concept and exercise ids already exist. Then it evaluates `TESTS.weight`, `RECOMMENDED_FOR.path`, `RECOMMENDED_FOR.weight`, and `RELATED_TO` metadata with the knowledge-graph LLM, and finally the repository clears existing `TESTS`, `RECOMMENDED_FOR`, and outgoing `RELATED_TO` edges for the main exercise.
+Before rebuilding those links, the API validates that all related concept and exercise ids already exist. Then it evaluates `TESTS.weight`, `RECOMMENDED_FOR.path`, `RECOMMENDED_FOR.weight`, and `RELATED_TO` metadata with the knowledge-graph LLM, and finally the repository overwrites the exercise fields and clears existing `TESTS`, `RECOMMENDED_FOR`, and outgoing `RELATED_TO` edges for the main exercise so the graph matches the request exactly.

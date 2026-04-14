@@ -1,0 +1,45 @@
+{
+  "student_id": "student-001",
+  "current_exercise_id": "exercise-two-sum",
+  "anchor_concept": "input-output",
+  "assigned_path": "IMPROVE",
+  "focus_concept_id": "input-output",
+  "critical_errors": 1,
+  "framework": {
+    "risk_level": "medium",
+    "readiness_level": "developing",
+    "explanation": "Risk level reflects how cautious the roadmap should be based on current errors and recent trend. Readiness level reflects whether the student should reinforce, improve, or move to a next concept."
+  },
+  "graph_summary": {
+    "current_concept_weight": 1.0,
+    "best_path_weight": 0.91,
+    "best_related_exercise_weight": 0.86,
+    "latest_review_improvement_signal": 0.42,
+    "latest_review_severity_change": -0.25,
+    "latest_submission_improvement_ratio": 0.35,
+    "latest_submission_regression_ratio": 0.0
+  },
+  "reasoning": "The student is improving but still needs more stable input and numeric handling before moving fully to a new concept.",
+  "roadmap_summary": "Start with a very similar exercise, then broaden the same concept, then prepare for the next concept.",
+  "roadmap": [
+    {
+      "step": 1,
+      "exercise": {
+        "exercise_id": "exercise-sum-three-numbers",
+        "title": "Sum Three Numbers",
+        "description": "Read three integers and print their sum.",
+        "content": "Write a program that reads three integers and prints their sum.",
+        "difficulty": "easy",
+        "tags": [
+          "input-output",
+          "arithmetic"
+        ],
+        "concept_ids": [
+          "input-output",
+          "arithmetic"
+        ],
+        "directive": "Step 1: Practice the same core skill in a very similar task first."
+      }
+    }
+  ]
+}

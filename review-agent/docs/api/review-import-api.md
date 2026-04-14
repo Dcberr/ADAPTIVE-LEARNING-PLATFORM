@@ -2,10 +2,10 @@
 
 ## Overview
 
-The old combined `POST /api/v1/knowledgegraph/import-review` flow has been replaced by two separate patch upsert APIs:
+The old combined `POST /api/v1/knowledgegraph/import-review` flow has been replaced by two separate full upsert APIs:
 
-- `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
-- `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
+- `PUT /api/v1/knowledgegraph/submissions/{submission_id}`
+- `PUT /api/v1/knowledgegraph/reviews/{review_id}`
 
 These APIs are designed to be called in order:
 
@@ -16,7 +16,7 @@ This split keeps graph validation explicit: the submission write confirms `Stude
 
 ## Submission API
 
-- Method: `PATCH`
+- Method: `PUT`
 - Path: `/api/v1/knowledgegraph/submissions/{submission_id}`
 
 ### Validation Rules
@@ -53,7 +53,7 @@ This split keeps graph validation explicit: the submission write confirms `Stude
 ### Example Request
 
 Path:
-`PATCH /api/v1/knowledgegraph/submissions/submission-001`
+`PUT /api/v1/knowledgegraph/submissions/submission-001`
 
 Body:
 
@@ -101,11 +101,11 @@ Body:
 - `(:Submission)-[:FOR_EXERCISE]->(:Exercise)`
 - `(:Submission)-[:NEXT_ATTEMPT {student_id, linked_at, same_exercise, improvement_ratio, regression_ratio}]->(:Submission)` when there is a prior attempt by the same student on the same exercise
 
-If the submission already exists, its properties are updated and these relations are refreshed to match the latest `student_id`, `exercise_id`, and adjacent-attempt progression links.
+If the submission already exists, its stored fields are overwritten by the request and these relations are refreshed to match the latest `student_id`, `exercise_id`, and adjacent-attempt progression links.
 
 ## Review API
 
-- Method: `PATCH`
+- Method: `PUT`
 - Path: `/api/v1/knowledgegraph/reviews/{review_id}`
 
 ### Validation Rules
@@ -113,6 +113,8 @@ If the submission already exists, its properties are updated and these relations
 - `submission_id` must already exist in the graph
 - if it does not exist, the API returns `404`
 - `student_id` and `exercise_id` are derived from the linked submission
+- all review fields in the request body are required
+- the request overwrites the stored review fields for that `review_id`
 
 ### Flow
 
@@ -120,7 +122,7 @@ If the submission already exists, its properties are updated and these relations
 2. The API verifies that the referenced `submission_id` already exists.
 3. The repository inserts or updates the `Review` node.
 4. The repository derives `student_id` and `exercise_id` from the linked submission.
-5. The repository refreshes review relations, including submission, exercise, student, and review-history links.
+5. The repository refreshes review relations, including student, submission, exercise, and adjacent review-history links.
 6. The API returns the stored review payload.
 
 ### Request Schema
@@ -214,7 +216,7 @@ If the submission already exists, its properties are updated and these relations
 ### Example Request
 
 Path:
-`PATCH /api/v1/knowledgegraph/reviews/review-001`
+`PUT /api/v1/knowledgegraph/reviews/review-001`
 
 Body:
 
@@ -318,6 +320,6 @@ Body:
 - `(:Submission)-[:RECEIVED_REVIEW]->(:Review)`
 - `(:Review)-[:REVIEWS_SUBMISSION]->(:Submission)`
 - `(:Review)-[:REVIEWS_EXERCISE]->(:Exercise)` when the submission is linked to an exercise
-- `(:Review)-[:NEXT_REVIEW_OF]->(:Review)` chain for the same student
+- `(:Review)-[:NEXT_REVIEW_OF {student_id, linked_at, same_concept, improvement_signal, severity_change}]->(:Review)` for adjacent reviews by the same student
 
 If the review already exists, its properties are updated and these relations are refreshed to match the linked submission.

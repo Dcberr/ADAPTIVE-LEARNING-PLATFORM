@@ -16,7 +16,7 @@ The recommendation input is no longer required to carry the full review payload.
 
 The latest review context, student profile, and exercise concept are loaded from Neo4j during the recommendation flow.
 
-The recommendation path is decided internally by the recommendation reasoner. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+The recommendation path is decided internally through a planner-plus-graph flow. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
 
 ## High-Level Flows
 
@@ -29,23 +29,23 @@ Client
 
 ```text
 Client
-  -> PATCH /api/v1/knowledgegraph/concepts/{concept_id}
+  -> PUT /api/v1/knowledgegraph/concepts/{concept_id}
   -> Neo4j concept upsert
 
 Client
-  -> PATCH /api/v1/knowledgegraph/exercises/{exercise_id}
+  -> PUT /api/v1/knowledgegraph/exercises/{exercise_id}
   -> Neo4j exercise upsert
 
 Client
-  -> PATCH /api/v1/knowledgegraph/students/{student_id}
+  -> PUT /api/v1/knowledgegraph/students/{student_id}
   -> Neo4j student upsert
 
 Client
-  -> PATCH /api/v1/knowledgegraph/submissions/{submission_id}
+  -> PUT /api/v1/knowledgegraph/submissions/{submission_id}
   -> Neo4j submission upsert
 
 Client
-  -> PATCH /api/v1/knowledgegraph/reviews/{review_id}
+  -> PUT /api/v1/knowledgegraph/reviews/{review_id}
   -> Neo4j review upsert
 
 Client
@@ -57,11 +57,13 @@ Client
 Client
   -> POST /api/v1/recommendation
   -> Recommendation LangGraph
-     1. ReviewContextLoader
-     2. ProfileScorer
-     3. GraphRAGRetriever
-     4. RecommendationReasoner
-     5. DirectiveBuilder
+     1. RecommendationContextLoader
+     2. QueryPlanner
+     3. PathSelector
+     4. TargetConceptSelector
+     5. ExerciseCandidateRetriever
+     6. RoadmapBuilder
+     7. RecommendationExplainer
   -> RecommendationResponse with roadmap
 ```
 
@@ -95,11 +97,11 @@ Current endpoints:
 
 - `POST /api/v1/review_code`
 - `POST /api/v1/recommendation`
-- `PATCH /api/v1/knowledgegraph/concepts/{concept_id}`
-- `PATCH /api/v1/knowledgegraph/exercises/{exercise_id}`
-- `PATCH /api/v1/knowledgegraph/students/{student_id}`
-- `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
-- `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
+- `PUT /api/v1/knowledgegraph/concepts/{concept_id}`
+- `PUT /api/v1/knowledgegraph/exercises/{exercise_id}`
+- `PUT /api/v1/knowledgegraph/students/{student_id}`
+- `PUT /api/v1/knowledgegraph/submissions/{submission_id}`
+- `PUT /api/v1/knowledgegraph/reviews/{review_id}`
 - `GET /api/v1/knowledgegraph`
 
 ## Review Architecture
@@ -196,7 +198,7 @@ Responsibilities:
 Concept write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `PATCH /api/v1/knowledgegraph/concepts/{concept_id}`
+- endpoint: `PUT /api/v1/knowledgegraph/concepts/{concept_id}`
 
 Concept payload:
 
@@ -208,7 +210,7 @@ Concept payload:
 Exercise write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `PATCH /api/v1/knowledgegraph/exercises/{exercise_id}`
+- endpoint: `PUT /api/v1/knowledgegraph/exercises/{exercise_id}`
 
 Exercise payload:
 
@@ -231,7 +233,7 @@ Exercise write behavior:
 Student write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `PATCH /api/v1/knowledgegraph/students/{student_id}`
+- endpoint: `PUT /api/v1/knowledgegraph/students/{student_id}`
 
 Student payload:
 
@@ -240,7 +242,7 @@ Student payload:
 Submission write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
+- endpoint: `PUT /api/v1/knowledgegraph/submissions/{submission_id}`
 
 Submission payload:
 
@@ -259,7 +261,7 @@ Submission write behavior:
 Review write API:
 
 - file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/review-agent/app/api/knowledge_graph_route.py)
-- endpoint: `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
+- endpoint: `PUT /api/v1/knowledgegraph/reviews/{review_id}`
 
 Review payload:
 
@@ -269,6 +271,13 @@ Review payload:
 - `review_items`
 - `scorecard`
 - `current_concept`
+
+Review write behavior:
+
+- validates that the resolved `Submission` already exists
+- overwrites the stored review fields from the request
+- refreshes `Student -> Review`, `Submission -> Review`, `Review -> Submission`, and `Review -> Exercise`
+- rebuilds adjacent `NEXT_REVIEW_OF` links with `same_concept`, `improvement_signal`, and `severity_change`
 
 Graph read API:
 
@@ -293,8 +302,10 @@ Recommendation loads:
 
 - the latest review for `(student_id, exercise_id)`
 - the linked review history from `NEXT_REVIEW_OF`
+- the latest submission trend from `NEXT_ATTEMPT`
 - the stored student profile for that student
 - the current concept from the exercise's graph links
+- weighted candidate exercises from `TESTS`, `RECOMMENDED_FOR`, `RELATED_TO`, and `PREREQUISITE_OF`
 
 ### Student Profile Scoring
 
@@ -316,38 +327,18 @@ Each metric is currently normalized from `0.0` to `1.0`.
 
 File: [app/models/recommendation_framework.py](/Users/thaibao/projects/review-code-app/review-agent/app/models/recommendation_framework.py)
 
-The recommendation workflow computes a framework specifically for exercise assignment:
+The recommendation workflow computes a framework specifically for roadmap assignment:
 
-- `foundation_risk`
-- `efficiency_gap`
-- `progression_readiness`
-- `support_need`
+- `risk_level`
+- `readiness_level`
 - `explanation`
 
 Framework intent:
 
-- `foundation_risk`: how unsafe it is to move the student forward before repairing core understanding
-- `efficiency_gap`: how much the student needs better constructs, strategy, or implementation quality
-- `progression_readiness`: how ready the student is to unlock a new concept
-- `support_need`: how much scaffolding the next exercise should provide
+- `risk_level`: how cautious the roadmap should be before the student advances
+- `readiness_level`: whether the student should reinforce, improve, or move to a next concept
 
-### Scoring Framework Logic
-
-The current implementation combines:
-
-- review-agent error count
-- review-agent warning count
-- review-agent scorecard metrics
-- student profile scoring
-
-Current weighting strategy:
-
-- `foundation_risk` emphasizes logic failures, debugging weakness, and low mastery
-- `efficiency_gap` emphasizes implementation quality and efficiency awareness
-- `progression_readiness` emphasizes mastery, transfer, velocity, self-correction, and debugging readiness
-- `support_need` is a blended signal using the three metrics above
-
-This framework is computed before the reasoner chooses a path.
+This framework is computed from graph-backed rules before the LLM explanation step.
 
 ## Recommendation LangGraph
 
@@ -358,10 +349,12 @@ File: [app/services/recommendation_service.py](/Users/thaibao/projects/review-co
 The recommendation workflow uses `StateGraph(RecommendationState)` with these nodes:
 
 - `review_context_loader`
-- `profile_scorer`
-- `graph_rag_retriever`
-- `recommendation_reasoner`
-- `directive_builder`
+- `query_planner`
+- `path_selector`
+- `target_concept_selector`
+- `candidate_retriever`
+- `roadmap_builder`
+- `explanation_builder`
 
 ### Node Responsibilities
 
@@ -371,61 +364,65 @@ The recommendation workflow uses `StateGraph(RecommendationState)` with these no
 - filters by current concept when available
 - loads recent linked review history for trend-aware reasoning
 
-`ProfileScorer`
+`QueryPlanner`
 
-- reads the stored latest `ReviewResponse`
-- reads `StudentProfileScoring`
-- counts critical errors from review items
-- computes the recommendation scoring framework
+- uses the LLM to choose one fixed query plan from an allowed set
+- proposes:
+  - `start_entity`
+  - `query_plan_id`
+  - `assigned_path`
+  - `target_concept_hint`
+- does not generate raw Cypher
+- falls back to a deterministic plan when needed
 
-`GraphRAGRetriever`
+`PathSelector`
 
-- queries Neo4j for candidate exercises across all paths
-- retrieves concept-aware candidates for:
+- reads latest review quality, review trend, submission trend, and student profile
+- combines deterministic scores with planner preference
+- assigns one path from:
   - `REINFORCE`
   - `IMPROVE`
   - `NEXT_CONCEPT`
+- computes `risk_level` and `readiness_level`
+
+`TargetConceptSelector`
+
+- uses `review.current_concept` or max `TESTS.weight` as the anchor concept
+- considers the planner target-concept hint
+- for `NEXT_CONCEPT`, selects the next concept with the strongest prerequisite and exercise support
+
+`CandidateRetriever`
+
+- queries Neo4j for weighted candidates for the selected path and target concept
+- returns `path_weight`, `tests_weight`, `related_weight`, `progression_score`, and `similarity_score`
 - filters out exercises already linked to the student through `ATTEMPTED` or `ASSIGNED`
-- returns graph context to the reasoner
 
-`RecommendationReasoner`
+`RoadmapBuilder`
 
-- uses the LLM
-- consumes:
-  - latest stored review summary
-  - latest stored review items
-  - latest stored review scorecard
-  - recent linked review history
-  - student profile scoring
-  - computed recommendation framework
-  - GraphRAG candidates from Neo4j
-- decides:
-  - `assigned_path`
-  - `target_concept`
-  - `exercise_ids`
-  - reasoning text
+- ranks candidates deterministically
+- combines graph weights with student-profile adjustment
+- adds a small query-plan bias based on the selected fixed plan
+- selects the ordered roadmap and computes graph summary metrics
 
-Important rule:
+`ExplanationBuilder`
 
-- the reasoner, not the user, decides the path
-
-`DirectiveBuilder`
-
-- converts the selected result into an ordered roadmap
-- attaches step-level directives for multiple exercises
-- returns exercises from simpler to more demanding when possible
-- stores the final roadmap back into Neo4j as `ASSIGNED` relationships for the student
+- uses the LLM only after the roadmap is already selected
+- generates:
+  - `reasoning`
+  - `roadmap_summary`
+  - step-level directives
 
 ### GraphRAG Strategy
 
-The current GraphRAG pattern is:
+The current recommendation pattern is:
 
-1. retrieve graph-structured recommendation candidates from Neo4j using Cypher
-2. retrieve the latest linked review chain for the student
-3. serialize review history plus graph candidates into a compact reasoning context
-4. ask the recommendation reasoner to choose one path and a small roadmap of exercises from retrieved graph evidence
+1. retrieve graph-structured context and weighted candidates from Neo4j using Cypher
+2. let an internal planner LLM choose one fixed query plan and start entity
+3. combine planner preference with deterministic graph-backed rules for path and target concept
+4. rank candidates with graph weights, student-profile adjustment, and a small query-plan bias
+5. use the LLM only to explain the selected roadmap
 
-This is a graph-grounded retrieval-and-reasoning design rather than a hardcoded rule engine.
+This is a planner-plus-graph ranking design, not a free-form LLM reasoner.
 
 ## Data Models
 
@@ -532,6 +529,8 @@ main.py
 - recommendation is now both LangGraph-powered and Neo4j-backed
 - path assignment is reasoner-driven
 - roadmap generation is graph-grounded
+- roadmap responses expose graph-backed `focus_concept_id`
+- roadmap exercises expose `concept_ids` and `directive` without per-step `focus`, `path`, or `target_concept`
 - student profile scoring is a first-class input
 - student state is persisted and reused across recommendations
 - review history is linked and reused across recommendations
