@@ -13,12 +13,8 @@ import {
 } from "@/components/lms/pages/lecturer-course-detail/constants"
 import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 import { type TopicDraft } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
-import type {
-  AssignmentDraft,
-  LecturerCourseBundle,
-} from "@/components/lms/pages/lecturer-course-detail/types"
+import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
-import { studentPerformance } from "@/data/lms/extendedMockData"
 import { getBackendBaseUrl } from "@/lib/auth"
 import { saveCachedAssignmentProblem } from "@/lib/assignment-problem-cache"
 import {
@@ -27,7 +23,9 @@ import {
   useCreateDocumentMutation,
   useCreateTopicMutation,
   useGetClassByIdQuery,
+  useGetClassStudentsQuery,
   useGetClassTopicsQuery,
+  useRemoveStudentFromClassMutation,
 } from "@/store/redux/api/lmsApi"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -55,10 +53,11 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [topicDraft, setTopicDraft] = useState<TopicDraft>({ title: "", description: "" })
   const [resourceDraft, setResourceDraft] = useState<ResourceDraft>(emptyResourceDraft)
   const [assignmentDraft, setAssignmentDraft] = useState(emptyAssignmentDraft)
-  const [studentId, setStudentId] = useState("")
+  const [userCode, setUserCode] = useState("")
   const [feedback, setFeedback] = useState<FeedbackState>(null)
   const [contentFeedback, setContentFeedback] = useState<FeedbackState>(null)
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
+  const [removingStudentCode, setRemovingStudentCode] = useState<string | null>(null)
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<LecturerTab>("content")
   const {
     data: classroom,
@@ -68,17 +67,25 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     refetch,
   } = useGetClassByIdQuery(classId)
   const {
+    data: enrolledStudents = [],
+    isFetching: isFetchingStudents,
+    isLoading: isLoadingStudents,
+    refetch: refetchStudents,
+  } = useGetClassStudentsQuery(classId)
+  const {
     data: topicDetails = [],
     isFetching: isFetchingTopics,
     refetch: refetchTopics,
   } = useGetClassTopicsQuery(classId)
   const [addStudentToClass, { isLoading: isAddingStudent }] = useAddStudentToClassMutation()
+  const [removeStudentFromClass, { isLoading: isRemovingStudent }] =
+    useRemoveStudentFromClassMutation()
   const [createDocument, { isLoading: isCreatingDocument }] = useCreateDocumentMutation()
   const [createAssignment, { isLoading: isCreatingAssignment }] = useCreateAssignmentMutation()
   const [createTopic, { isLoading: isCreatingTopic }] = useCreateTopicMutation()
   const backendBaseUrl = getBackendBaseUrl()
 
-  const bundle = useMemo<LecturerCourseBundle | null>(() => {
+  const bundle = useMemo(() => {
     if (!classroom) {
       return null
     }
@@ -120,16 +127,19 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         id: classId,
         code: classroom.status,
         name: classroom.name,
-        description: `Instructor ${classroom.instructorName} • ${classroom.enrolledStudentsCount} students • ${
+        description: `Instructor ${classroom.instructorName} • ${enrolledStudents.length} students • ${
           classroom.schedule ?? "Schedule chưa cấu hình"
         } • Created ${formatClassDate(classroom.createdAt)}`,
         color: "bg-[#030391]",
       },
       topics,
-      students: studentPerformance.filter((student) => student.courseId === classId),
       assignments: topics.flatMap((topic) => topic.assignments),
     }
-  }, [backendBaseUrl, classId, classroom, topicDetails, topicDrafts])
+  }, [backendBaseUrl, classId, classroom, enrolledStudents.length, topicDetails, topicDrafts])
+
+  const resolvedEnrolledStudentsCount = isLoadingStudents
+    ? classroom?.enrolledStudentsCount ?? 0
+    : enrolledStudents.length
 
   const topicCards = useMemo(
     () =>
@@ -354,11 +364,11 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const handleAddStudent = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const normalizedStudentId = studentId.trim()
-    if (!normalizedStudentId) {
+    const normalizedUserCode = userCode.trim()
+    if (!normalizedUserCode) {
       setFeedback({
         tone: "error",
-        message: "Student ID là bắt buộc.",
+        message: "Mã sinh viên là bắt buộc.",
       })
       return
     }
@@ -366,23 +376,49 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     try {
       await addStudentToClass({
         classId,
-        studentId: normalizedStudentId,
+        userCode: normalizedUserCode,
       }).unwrap()
       setRecentStudentIds((state) =>
-        [normalizedStudentId, ...state.filter((id) => id !== normalizedStudentId)].slice(0, 5)
+        [normalizedUserCode, ...state.filter((id) => id !== normalizedUserCode)].slice(0, 5)
       )
-      setStudentId("")
+      setUserCode("")
       setFeedback({
         tone: "success",
-        message: `Đã thêm student ${normalizedStudentId} vào lớp.`,
+        message: `Đã thêm sinh viên ${normalizedUserCode} vào lớp.`,
       })
     } catch {
       setFeedback({
         tone: "error",
-        message: "Không thể thêm học sinh vào lớp. Kiểm tra lại student ID hoặc quyền hiện tại.",
+        message: "Không thể thêm sinh viên vào lớp. Kiểm tra lại mã sinh viên hoặc quyền hiện tại.",
       })
     }
   }
+
+  const handleRemoveStudent = useCallback(
+    async (studentUserCode: string) => {
+      setRemovingStudentCode(studentUserCode)
+
+      try {
+        await removeStudentFromClass({
+          classId,
+          userCode: studentUserCode,
+        }).unwrap()
+        setRecentStudentIds((state) => state.filter((item) => item !== studentUserCode))
+        setFeedback({
+          tone: "success",
+          message: `Đã xóa sinh viên ${studentUserCode} khỏi lớp.`,
+        })
+      } catch {
+        setFeedback({
+          tone: "error",
+          message: "Không thể xóa sinh viên khỏi lớp. Kiểm tra lại quyền hiện tại rồi thử lại.",
+        })
+      } finally {
+        setRemovingStudentCode(null)
+      }
+    },
+    [classId, removeStudentFromClass]
+  )
 
   if (isLoading) {
     return (
@@ -420,19 +456,22 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         classId={classId}
         className={bundle.course.name}
         instructorName={classroom.instructorName}
-        enrolledStudentsCount={classroom.enrolledStudentsCount}
+        enrolledStudentsCount={resolvedEnrolledStudentsCount}
         schedule={classroom.schedule}
         imageUrl={classroom.imageUrl}
         editMode={editMode}
         isRefreshing={
           isFetching ||
+          isFetchingStudents ||
           isFetchingTopics ||
           isCreatingTopic ||
           isCreatingDocument ||
-          isCreatingAssignment
+          isCreatingAssignment ||
+          isRemovingStudent
         }
         onRefresh={() => {
           void refetch()
+          void refetchStudents()
           void refetchTopics()
         }}
         onToggleEditMode={() => setEditMode((value) => !value)}
@@ -447,12 +486,18 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         topicCards={topicCards}
         collapsedTopics={collapsedTopics}
         contentFeedback={contentFeedback}
-        classroom={classroom}
-        studentId={studentId}
+        classroom={{
+          ...classroom,
+          enrolledStudentsCount: resolvedEnrolledStudentsCount,
+        }}
+        userCode={userCode}
         feedback={feedback}
         recentStudentIds={recentStudentIds}
-        students={bundle.students}
+        students={enrolledStudents}
         isAddingStudent={isAddingStudent}
+        isLoadingStudents={isLoadingStudents}
+        isRemovingStudent={isRemovingStudent}
+        removingStudentCode={removingStudentCode}
         formattedCreatedAt={formatClassDate(classroom.createdAt)}
         onTabChange={handleTabChange}
         onToggleTopic={handleToggleTopic}
@@ -484,8 +529,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         }
         onAddSection={handleAddSection}
         assignmentHrefPrefix="/lecturer/assignments"
-        onStudentIdChange={setStudentId}
+        onUserCodeChange={setUserCode}
         onAddStudent={handleAddStudent}
+        onRemoveStudent={handleRemoveStudent}
       />
 
       <ClassWorkspaceModals
