@@ -5,6 +5,7 @@ This folder contains endpoint-level contracts.
 ## Review APIs
 
 - [review-code-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/review-code-api.md)
+- [recommendation-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/recommendation-api.md)
 
 ## Knowledge Graph APIs
 

@@ -6,8 +6,8 @@ The knowledge-graph flow is split into small APIs so graph state can be written 
 
 ## Curriculum Setup Flow
 
-1. Upsert concepts with `PATCH /api/v1/knowledgegraph/concepts/{concept_id}`
-2. Upsert exercises with `PATCH /api/v1/knowledgegraph/exercises/{exercise_id}`
+1. Upsert concepts with `PUT /api/v1/knowledgegraph/concepts/{concept_id}`
+2. Upsert exercises with `PUT /api/v1/knowledgegraph/exercises/{exercise_id}`
 3. Relation inputs are passed as ids only, not nested entity payloads
 4. The API validates that every related concept and exercise already exists in Neo4j
 5. The knowledge-graph LLM evaluates `TESTS.weight`, selects `RECOMMENDED_FOR.path`, scores `RECOMMENDED_FOR.weight`, and evaluates `RELATED_TO.weight` from the resolved graph entities
@@ -15,17 +15,17 @@ The knowledge-graph flow is split into small APIs so graph state can be written 
 
 ## Student Setup Flow
 
-1. Upsert a student profile with `PATCH /api/v1/knowledgegraph/students/{student_id}`
+1. Upsert a student profile with `PUT /api/v1/knowledgegraph/students/{student_id}`
 2. Store normalized learner-level profile scores on the `Student` node
 
 ## Submission And Review Flow
 
-1. Upsert a submission with `PATCH /api/v1/knowledgegraph/submissions/{submission_id}`
+1. Upsert a submission with `PUT /api/v1/knowledgegraph/submissions/{submission_id}`
 2. The submission API validates that `Student` and `Exercise` already exist
 3. The submission API refreshes `SUBMITTED`, `FOR_EXERCISE`, and `NEXT_ATTEMPT` relations
-4. Upsert a review with `PATCH /api/v1/knowledgegraph/reviews/{review_id}`
-5. The review API validates that the referenced `Submission` already exists
-6. Review relations are refreshed to match the linked student, submission, and exercise
+4. Upsert a review with `PUT /api/v1/knowledgegraph/reviews/{review_id}`
+5. The review API validates that the referenced `Submission` exists and overwrites the stored review fields from the request
+6. Review relations are refreshed to match the linked student, submission, exercise, and adjacent review-history chain
 
 ## Read Flow
 

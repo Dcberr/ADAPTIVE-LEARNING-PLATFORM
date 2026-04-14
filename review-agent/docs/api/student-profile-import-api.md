@@ -2,10 +2,10 @@
 
 ## Endpoint
 
-- Method: `PATCH`
+- Method: `PUT`
 - Path: `/api/v1/knowledgegraph/students/{student_id}`
 
-This API inserts a student profile into the knowledge graph if the student does not already exist. If the student already exists, the current implementation returns the existing stored profile and does not update it.
+This API creates or overwrites the stored student profile for the given `student_id`.
 
 ## Purpose
 
@@ -17,10 +17,9 @@ Use this API when:
 ## Flow
 
 1. The client sends `student_id` in the path and `student_profile` in the body.
-2. The API checks whether the student already exists in Neo4j.
-3. If the student does not exist, the repository creates the `Student` node and stores the profile scores.
-4. If the student already exists, the repository leaves it unchanged.
-5. The API returns `student_id` with the stored profile values.
+2. The repository creates the `Student` node if it does not exist.
+3. The repository overwrites the stored profile scores with the request values.
+4. The API returns `student_id` with the stored profile values.
 
 ## Request Schema
 
@@ -79,18 +78,13 @@ Use this API when:
 
 ## Graph Writes
 
-When the student does not exist yet, this API creates:
+This API creates or overwrites:
 
 - `Student`
 - profile score properties on that `Student`
 
-When the student already exists:
-
-- no student properties are updated
-
 ## Notes
 
-- This endpoint currently behaves as an insert-if-missing API, not a true update API.
 - The response now returns only `student_id` and `student_profile`.
-- Example path: `PATCH /api/v1/knowledgegraph/students/student-001`
+- Example path: `PUT /api/v1/knowledgegraph/students/student-001`
 - For profile recalculation after a review, use `PATCH /api/v1/knowledgegraph/students/{student_id}/profile`.

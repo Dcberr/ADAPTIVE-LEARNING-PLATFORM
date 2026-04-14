@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel
 
 
 class RecommendationScoringFramework(BaseModel):
-    foundation_risk: float = Field(..., ge=0, le=100)
-    efficiency_gap: float = Field(..., ge=0, le=100)
-    progression_readiness: float = Field(..., ge=0, le=100)
-    support_need: float = Field(..., ge=0, le=100)
+    risk_level: Literal["high", "medium", "low"]
+    readiness_level: Literal["emerging", "developing", "ready"]
     explanation: str

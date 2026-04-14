@@ -33,7 +33,7 @@ Domain rule:
 
 - the request must carry `student_id`
 - that student must already exist
-- the relation is refreshed on every submission patch
+- the relation is refreshed on every submission write
 
 Meaning:
 
@@ -49,7 +49,7 @@ Domain rule:
 
 - the request must carry `exercise_id`
 - that exercise must already exist
-- the relation is refreshed on every submission patch
+- the relation is refreshed on every submission write
 
 Meaning:
 
@@ -64,7 +64,7 @@ Relations:
 
 Domain rule:
 
-- these are created by the review patch API, not the submission patch API
+- these are created by the review write API, not the submission write API
 - the submission must already exist before review import can succeed
 
 Meaning:
@@ -79,7 +79,7 @@ Relation:
 
 Domain rule:
 
-- this relation is refreshed by the submission patch API
+- this relation is refreshed by the submission write API
 - it links adjacent attempts by the same student on the same exercise
 - if a past submission is patched again, the adjacent links around it are rebuilt
 

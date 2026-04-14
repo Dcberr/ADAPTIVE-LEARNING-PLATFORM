@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.patch(
+@router.put(
     "/knowledgegraph/concepts/{concept_id}",
     response_model=KnowledgeGraphConceptResponse,
 )
@@ -91,7 +91,7 @@ async def upsert_concept(
         raise HTTPException(status_code=500, detail=f"Concept upsert failed: {exc}")
 
 
-@router.patch(
+@router.put(
     "/knowledgegraph/exercises/{exercise_id}",
     response_model=KnowledgeGraphExerciseResponse,
 )
@@ -185,7 +185,7 @@ async def upsert_exercise(
         raise HTTPException(status_code=500, detail=f"Exercise upsert failed: {exc}")
 
 
-@router.patch(
+@router.put(
     "/knowledgegraph/students/{student_id}",
     response_model=KnowledgeGraphStudentResponse,
 )
@@ -208,7 +208,7 @@ async def upsert_student(
         raise HTTPException(status_code=500, detail=f"Student upsert failed: {exc}")
 
 
-@router.patch(
+@router.put(
     "/knowledgegraph/submissions/{submission_id}",
     response_model=KnowledgeGraphSubmissionResponse,
 )
@@ -233,7 +233,7 @@ async def upsert_submission(
         raise HTTPException(status_code=500, detail=f"Submission upsert failed: {exc}")
 
 
-@router.patch(
+@router.put(
     "/knowledgegraph/reviews/{review_id}", response_model=KnowledgeGraphReviewResponse
 )
 async def upsert_review(

@@ -59,6 +59,16 @@ class SubmissionRelation(BaseModel):
     regression_ratio: float = 0.0
 
 
+class ReviewRelation(BaseModel):
+    previous_review_id: str
+    next_review_id: str
+    student_id: str = ""
+    linked_at: str = ""
+    same_concept: bool = False
+    improvement_signal: float = 0.0
+    severity_change: float = 0.0
+
+
 class KnowledgeGraphDocument(BaseModel):
     concepts: list[ConceptRecord] = Field(default_factory=list)
     concept_relations: list[ConceptRelation] = Field(default_factory=list)
@@ -70,3 +80,4 @@ class KnowledgeGraphDocument(BaseModel):
     submissions: list[SubmissionRecord] = Field(default_factory=list)
     submission_relations: list[SubmissionRelation] = Field(default_factory=list)
     reviews: list[ReviewRecord] = Field(default_factory=list)
+    review_relations: list[ReviewRelation] = Field(default_factory=list)

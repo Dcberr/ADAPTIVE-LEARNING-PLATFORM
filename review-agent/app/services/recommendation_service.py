@@ -7,10 +7,12 @@ from openai import OpenAI
 
 from app.api.recommendation_schema import (
     RecommendationExercise,
+    RecommendationGraphSummary,
     RecommendationRequest,
     RecommendationRoadmapStep,
     RecommendationResponse,
 )
+from app.models.exercise_record import ExerciseRecord
 from app.models.knowledge_graph import AssignedPath
 from app.models.recommendation_framework import RecommendationScoringFramework
 from app.models.recommendation_state import RecommendationState
@@ -19,7 +21,34 @@ from app.utils.parse_json_response import safe_parse_json_response
 
 
 class RecommendationService:
-    """LangGraph recommendation flow using Neo4j GraphRAG and stored review context."""
+    """Graph-first recommendation flow with LLM explanation only."""
+
+    QUERY_PLANS = {
+        "review_reinforce_plan": {
+            "start_entity": "Review",
+            "assigned_path": "REINFORCE",
+        },
+        "review_improve_plan": {
+            "start_entity": "Review",
+            "assigned_path": "IMPROVE",
+        },
+        "concept_next_concept_plan": {
+            "start_entity": "Concept",
+            "assigned_path": "NEXT_CONCEPT",
+        },
+        "submission_progress_plan": {
+            "start_entity": "Submission",
+            "assigned_path": "IMPROVE",
+        },
+        "exercise_related_plan": {
+            "start_entity": "Exercise",
+            "assigned_path": "IMPROVE",
+        },
+        "full_progression_plan": {
+            "start_entity": "Student",
+            "assigned_path": "IMPROVE",
+        },
+    }
 
     def __init__(
         self,
@@ -42,6 +71,13 @@ class RecommendationService:
         initial_state: RecommendationState = {
             "student_id": request.student_id,
             "exercise_id": request.exercise_id,
+            "planner_start_entity": "",
+            "planner_query_plan_id": "",
+            "planner_confidence": 0.0,
+            "planner_rationale": "",
+            "planner_target_concept_hint": "",
+            "anchor_concept": "",
+            "anchor_concept_weight": 0.0,
             "current_concept": "",
             "review": None,
             "review_history": [],
@@ -49,19 +85,24 @@ class RecommendationService:
             "mastered_concepts": [],
             "attempted_exercise_ids": [],
             "critical_errors": 0,
+            "latest_review_improvement_signal": 0.0,
+            "latest_review_severity_change": 0.0,
+            "latest_submission_improvement_ratio": 0.0,
+            "latest_submission_regression_ratio": 0.0,
             "assigned_path": "IMPROVE",
             "target_concept": "",
             "reasoning": "",
             "framework": RecommendationScoringFramework(
-                foundation_risk=0,
-                efficiency_gap=0,
-                progression_readiness=0,
-                support_need=0,
+                risk_level="medium",
+                readiness_level="developing",
                 explanation="",
             ),
+            "graph_summary": {},
             "retrieved_candidates": [],
+            "target_concept_candidates": [],
             "selected_exercises": [],
             "roadmap_directives": [],
+            "roadmap_summary": "",
         }
 
         final_state = cast(RecommendationState, self.workflow.invoke(initial_state))
@@ -76,64 +117,56 @@ class RecommendationService:
             exercise_ids=[exercise.exercise_id for exercise in selected_exercises],
             review_id=final_state["review"].review_id if final_state["review"] else None,
         )
+        exercise_concept_map = self.knowledge_graph_repository.get_concept_ids_by_exercise(
+            [exercise.exercise_id for exercise in selected_exercises]
+        )
 
         return RecommendationResponse(
             student_id=final_state["student_id"],
+            current_exercise_id=final_state["exercise_id"],
+            anchor_concept=final_state["anchor_concept"],
             assigned_path=final_state["assigned_path"],
-            target_concept=final_state["target_concept"],
+            focus_concept_id=final_state["target_concept"],
             critical_errors=final_state["critical_errors"],
             framework=final_state["framework"],
+            graph_summary=RecommendationGraphSummary.model_validate(
+                final_state["graph_summary"]
+            ),
             reasoning=final_state["reasoning"],
-            roadmap_summary=self._build_roadmap_summary(final_state),
+            roadmap_summary=final_state["roadmap_summary"],
             roadmap=[
                 RecommendationRoadmapStep(
                     step=index,
-                    focus=self._build_step_focus(
-                        final_state["assigned_path"],
-                        final_state["target_concept"],
-                        index,
-                    ),
                     exercise=RecommendationExercise(
-                        path=final_state["assigned_path"],
-                        target_concept=final_state["target_concept"],
+                        concept_ids=exercise_concept_map.get(exercise.exercise_id, []),
                         directive=final_state["roadmap_directives"][index - 1],
                         **exercise.model_dump(),
                     ),
                 )
-                for index, exercise in enumerate(selected_exercises, start=1)
+                for index, (exercise, candidate) in enumerate(
+                    zip(selected_exercises, final_state["retrieved_candidates"][: len(selected_exercises)]),
+                    start=1,
+                )
             ],
-        )
-
-    def _build_roadmap_summary(self, state: RecommendationState) -> str:
-        exercise_count = len(state["selected_exercises"])
-        if state["assigned_path"] == "REINFORCE":
-            return (
-                f"This roadmap gives {exercise_count} reinforcing exercise(s) to rebuild the core idea in "
-                f"{state['target_concept']} before the student advances."
-            )
-        if state["assigned_path"] == "NEXT_CONCEPT":
-            return (
-                f"This roadmap uses {exercise_count} exercise(s) to transition the student into "
-                f"{state['target_concept']} with gradually increasing complexity."
-            )
-        return (
-            f"This roadmap uses {exercise_count} exercise(s) to improve implementation quality in "
-            f"{state['target_concept']} while keeping the student on the same conceptual track."
         )
 
     def _build_workflow(self):
         workflow = StateGraph(RecommendationState)
         workflow.add_node("review_context_loader", self._review_context_loader)
-        workflow.add_node("profile_scorer", self._profile_scorer)
-        workflow.add_node("graph_rag_retriever", self._graph_rag_retriever)
-        workflow.add_node("recommendation_reasoner", self._recommendation_reasoner)
-        workflow.add_node("directive_builder", self._directive_builder)
+        workflow.add_node("query_planner", self._query_planner)
+        workflow.add_node("path_selector", self._path_selector)
+        workflow.add_node("target_concept_selector", self._target_concept_selector)
+        workflow.add_node("candidate_retriever", self._candidate_retriever)
+        workflow.add_node("roadmap_builder", self._roadmap_builder)
+        workflow.add_node("explanation_builder", self._explanation_builder)
         workflow.set_entry_point("review_context_loader")
-        workflow.add_edge("review_context_loader", "profile_scorer")
-        workflow.add_edge("profile_scorer", "graph_rag_retriever")
-        workflow.add_edge("graph_rag_retriever", "recommendation_reasoner")
-        workflow.add_edge("recommendation_reasoner", "directive_builder")
-        workflow.set_finish_point("directive_builder")
+        workflow.add_edge("review_context_loader", "query_planner")
+        workflow.add_edge("query_planner", "path_selector")
+        workflow.add_edge("path_selector", "target_concept_selector")
+        workflow.add_edge("target_concept_selector", "candidate_retriever")
+        workflow.add_edge("candidate_retriever", "roadmap_builder")
+        workflow.add_edge("roadmap_builder", "explanation_builder")
+        workflow.set_finish_point("explanation_builder")
         return workflow.compile()
 
     def _review_context_loader(self, state: RecommendationState) -> RecommendationState:
@@ -141,122 +174,47 @@ class RecommendationService:
             student_id=state["student_id"],
             exercise_id=state["exercise_id"],
         )
+        review = context["review"]
+        critical_errors = sum(1 for item in review.review_items if item.type == "Error")
+
         new_state = dict(state)
+        new_state["anchor_concept"] = context["current_concept"]
+        new_state["anchor_concept_weight"] = context["current_concept_weight"]
         new_state["current_concept"] = context["current_concept"]
-        new_state["review"] = context["review"]
+        new_state["review"] = review
         new_state["review_history"] = context["review_history"]
         new_state["student_profile"] = context["student_profile"]
         new_state["mastered_concepts"] = context["mastered_concepts"]
         new_state["attempted_exercise_ids"] = context["attempted_exercise_ids"]
+        new_state["critical_errors"] = critical_errors
+        new_state["latest_review_improvement_signal"] = context[
+            "latest_review_improvement_signal"
+        ]
+        new_state["latest_review_severity_change"] = context[
+            "latest_review_severity_change"
+        ]
+        new_state["latest_submission_improvement_ratio"] = context[
+            "latest_submission_improvement_ratio"
+        ]
+        new_state["latest_submission_regression_ratio"] = context[
+            "latest_submission_regression_ratio"
+        ]
         return cast(RecommendationState, new_state)
 
-    def _profile_scorer(self, state: RecommendationState) -> RecommendationState:
-        def normalize_scorecard(score: float) -> float:
-            return max(0.0, min(1.0, (score - 1.0) / 4.0))
+    def _query_planner(self, state: RecommendationState) -> RecommendationState:
+        fallback_query_plan_id = self._fallback_query_plan_id(state)
+        fallback_plan = self.QUERY_PLANS[fallback_query_plan_id]
 
-        review = state["review"]
-        if review is None:
-            raise ValueError("Recommendation requires a stored review context.")
-
-        profile = state["student_profile"]
-        if profile is None:
-            raise ValueError("Recommendation requires a stored student profile.")
-        error_count = sum(1 for item in review.review_items if item.type == "Error")
-        warning_count = sum(1 for item in review.review_items if item.type == "Warning")
-
-        scorecard_values = review.scorecard.model_dump()
-        logic_scores = [
-            normalize_scorecard(scorecard_values["logic_traceability"]["score"]),
-            normalize_scorecard(scorecard_values["generalization_score"]["score"]),
-            normalize_scorecard(scorecard_values["control_flow_understanding"]["score"]),
-            normalize_scorecard(scorecard_values["edge_case_awareness"]["score"]),
-        ]
-        efficiency_scores = [
-            normalize_scorecard(scorecard_values["construct_appropriateness"]["score"]),
-            normalize_scorecard(scorecard_values["generalization_score"]["score"]),
-            profile.efficiency_awareness,
-        ]
-        progression_scores = [
-            profile.concept_mastery,
-            profile.concept_transfer,
-            profile.learning_velocity,
-            normalize_scorecard(scorecard_values["self_correction_path"]["score"]),
-            normalize_scorecard(scorecard_values["debugging_readiness"]["score"]),
-        ]
-
-        foundation_risk = min(
-            100.0,
-            round(
-                (1 - profile.concept_mastery) * 60
-                + (1 - profile.debugging_independence) * 40
-                + (1 - sum(logic_scores) / len(logic_scores)) * 50
-                + error_count * 10,
-                2,
-            ),
+        planned_query_plan_id = fallback_query_plan_id
+        planned_start_entity = fallback_plan["start_entity"]
+        planned_assigned_path = cast(AssignedPath, fallback_plan["assigned_path"])
+        planned_target_concept_hint = state["anchor_concept"]
+        planner_rationale = (
+            "Planner fallback selected the safest fixed plan from current review, "
+            "trend, and graph signals."
         )
-        efficiency_gap = min(
-            100.0,
-            round(
-                (1 - sum(efficiency_scores) / len(efficiency_scores)) * 75
-                + warning_count * 6,
-                2,
-            ),
-        )
-        progression_readiness = max(
-            0.0,
-            min(
-                100.0,
-                round(sum(progression_scores) / len(progression_scores) * 100, 2),
-            ),
-        )
-        support_need = min(
-            100.0,
-            round(
-                foundation_risk * 0.45
-                + efficiency_gap * 0.2
-                + (100 - progression_readiness) * 0.35,
-                2,
-            ),
-        )
+        planner_confidence = 0.5
 
-        framework = RecommendationScoringFramework(
-            foundation_risk=foundation_risk,
-            efficiency_gap=efficiency_gap,
-            progression_readiness=progression_readiness,
-            support_need=support_need,
-            explanation=(
-                "Framework combines stored review-agent output with student profile scoring. "
-                "Foundation risk emphasizes logic failures and debugging weakness, efficiency gap highlights "
-                "solution-quality concerns, progression readiness reflects mastery and transfer, and support need "
-                "summarizes how much scaffolding the next exercise should provide."
-            ),
-        )
-
-        new_state = dict(state)
-        new_state["critical_errors"] = error_count
-        new_state["framework"] = framework
-        return cast(RecommendationState, new_state)
-
-    def _graph_rag_retriever(self, state: RecommendationState) -> RecommendationState:
-        all_candidates: list[dict[str, Any]] = []
-        for path in ("REINFORCE", "IMPROVE", "NEXT_CONCEPT"):
-            all_candidates.extend(
-                self.knowledge_graph_repository.retrieve_candidates(
-                    student_id=state["student_id"],
-                    current_concept=state["current_concept"],
-                    assigned_path=cast(AssignedPath, path),
-                    mastered_concepts=state["mastered_concepts"],
-                    attempted_exercise_ids=state["attempted_exercise_ids"],
-                    limit=3,
-                )
-            )
-
-        new_state = dict(state)
-        new_state["retrieved_candidates"] = all_candidates
-        return cast(RecommendationState, new_state)
-
-    def _recommendation_reasoner(self, state: RecommendationState) -> RecommendationState:
-        prompt = self._build_reasoner_prompt(state)
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -264,225 +222,592 @@ class RecommendationService:
                     {
                         "role": "system",
                         "content": (
-                            "You are a recommendation reasoner for CS1 education. "
-                            "Choose exactly one path from REINFORCE, IMPROVE, NEXT_CONCEPT. "
-                            "Build a roadmap with multiple exercises. Use the stored review, review history, "
-                            "scoring framework, student profile, and Neo4j graph candidates. "
+                            "You are a graph query planner for CS1 exercise recommendation. "
+                            "Choose one fixed query_plan_id from the allowed list only. "
                             "Return valid JSON only."
                         ),
                     },
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": self._build_planner_prompt(state)},
+                ],
+                temperature=0.1,
+                max_tokens=min(self.max_tokens, 900),
+            )
+            model_text = response.choices[0].message.content
+            parsed = safe_parse_json_response(model_text)
+            candidate_query_plan_id = str(parsed.get("query_plan_id", "")).strip()
+            if candidate_query_plan_id in self.QUERY_PLANS:
+                selected_plan = self.QUERY_PLANS[candidate_query_plan_id]
+                planned_query_plan_id = candidate_query_plan_id
+                planned_start_entity = str(parsed.get("start_entity") or selected_plan["start_entity"])
+                planned_assigned_path = cast(
+                    AssignedPath,
+                    parsed.get("assigned_path") or selected_plan["assigned_path"],
+                )
+                planned_target_concept_hint = (
+                    str(parsed.get("target_concept_hint") or state["anchor_concept"]).strip()
+                    or state["anchor_concept"]
+                )
+                planner_rationale = (
+                    str(parsed.get("rationale", "")).strip() or planner_rationale
+                )
+                try:
+                    planner_confidence = max(
+                        0.0,
+                        min(1.0, float(parsed.get("confidence", planner_confidence))),
+                    )
+                except (TypeError, ValueError):
+                    planner_confidence = 0.5
+        except Exception:
+            pass
+
+        new_state = dict(state)
+        new_state["planner_query_plan_id"] = planned_query_plan_id
+        new_state["planner_start_entity"] = planned_start_entity
+        new_state["planner_confidence"] = planner_confidence
+        new_state["planner_rationale"] = planner_rationale
+        new_state["planner_target_concept_hint"] = planned_target_concept_hint
+        new_state["assigned_path"] = planned_assigned_path
+        return cast(RecommendationState, new_state)
+
+    def _path_selector(self, state: RecommendationState) -> RecommendationState:
+        review = state["review"]
+        profile = state["student_profile"]
+        if review is None or profile is None:
+            raise ValueError("Recommendation requires review and student profile context.")
+
+        scorecard_average = self._scorecard_average(review.scorecard.model_dump())
+        error_pressure = min(1.0, state["critical_errors"] / 3.0)
+        reinforce_score = min(
+            1.0,
+            0.35 * error_pressure
+            + 0.20 * (1.0 - scorecard_average)
+            + 0.20 * state["latest_submission_regression_ratio"]
+            + 0.15 * max(-state["latest_review_severity_change"], 0.0)
+            + 0.10 * max(0.0, 0.6 - profile.debugging_independence),
+        )
+        improve_score = min(
+            1.0,
+            0.30 * state["latest_review_improvement_signal"]
+            + 0.25 * state["latest_submission_improvement_ratio"]
+            + 0.20 * min(1.0, state["critical_errors"] / 2.0)
+            + 0.15 * (1.0 - abs(scorecard_average - 0.6))
+            + 0.10 * (1.0 - max(profile.concept_mastery - 0.7, 0.0)),
+        )
+        next_concept_score = min(
+            1.0,
+            0.30 * scorecard_average
+            + 0.25 * state["latest_review_improvement_signal"]
+            + 0.20 * state["latest_submission_improvement_ratio"]
+            + 0.15 * profile.concept_mastery
+            + 0.10 * profile.learning_velocity
+            - 0.20 * error_pressure,
+        )
+
+        scores = {
+            "REINFORCE": reinforce_score,
+            "IMPROVE": improve_score,
+            "NEXT_CONCEPT": max(0.0, next_concept_score),
+        }
+        assigned_path = cast(AssignedPath, max(scores, key=scores.get))
+
+        planned_path = state["assigned_path"]
+        if state["planner_confidence"] >= 0.6 and planned_path in scores:
+            planned_score = scores[planned_path]
+            best_score = scores[assigned_path]
+            if planned_score + 0.15 >= best_score:
+                assigned_path = planned_path
+
+        risk_level = "medium"
+        if reinforce_score >= 0.55:
+            risk_level = "high"
+        elif next_concept_score >= 0.55 and error_pressure < 0.2:
+            risk_level = "low"
+
+        readiness_level = "developing"
+        if next_concept_score >= 0.6:
+            readiness_level = "ready"
+        elif reinforce_score >= 0.55:
+            readiness_level = "emerging"
+
+        new_state = dict(state)
+        new_state["assigned_path"] = assigned_path
+        new_state["framework"] = RecommendationScoringFramework(
+            risk_level=cast(Any, risk_level),
+            readiness_level=cast(Any, readiness_level),
+            explanation=(
+                "Risk level reflects how cautious the roadmap should be based on current errors and recent trend. "
+                "Readiness level reflects whether the student should reinforce, improve, or move to a next concept."
+            ),
+        )
+        return cast(RecommendationState, new_state)
+
+    def _target_concept_selector(self, state: RecommendationState) -> RecommendationState:
+        assigned_path = state["assigned_path"]
+        target_concept = state["planner_target_concept_hint"] or state["anchor_concept"]
+        target_candidates: list[dict[str, Any]] = []
+
+        if assigned_path == "NEXT_CONCEPT":
+            target_candidates = self.knowledge_graph_repository.get_next_concept_candidates(
+                current_concept=state["anchor_concept"],
+                attempted_exercise_ids=state["attempted_exercise_ids"],
+                mastered_concepts=state["mastered_concepts"],
+            )
+            if target_candidates:
+                profile = state["student_profile"]
+                readiness = (
+                    (
+                        profile.concept_mastery
+                        + profile.concept_transfer
+                        + profile.learning_velocity
+                    )
+                    / 3.0
+                    if profile is not None
+                    else 0.5
+                )
+                for candidate in target_candidates:
+                    candidate["score"] = (
+                        0.50 * candidate["prerequisite_strength"]
+                        + 0.30 * candidate["best_path_weight"]
+                        + 0.20 * readiness
+                    )
+                target_candidates.sort(key=lambda item: item["score"], reverse=True)
+                target_concept = target_candidates[0]["concept_id"]
+        elif state["planner_target_concept_hint"]:
+            target_concept = state["planner_target_concept_hint"]
+
+        new_state = dict(state)
+        new_state["target_concept"] = target_concept
+        new_state["target_concept_candidates"] = target_candidates
+        return cast(RecommendationState, new_state)
+
+    def _candidate_retriever(self, state: RecommendationState) -> RecommendationState:
+        candidates = self.knowledge_graph_repository.retrieve_candidates(
+            student_id=state["student_id"],
+            current_exercise_id=state["exercise_id"],
+            current_concept=state["anchor_concept"],
+            target_concept=state["target_concept"],
+            assigned_path=state["assigned_path"],
+            attempted_exercise_ids=state["attempted_exercise_ids"],
+            limit=10 if state["planner_query_plan_id"] == "full_progression_plan" else 8,
+        )
+        ranked_candidates = self._rank_candidates(state, candidates)
+
+        new_state = dict(state)
+        new_state["retrieved_candidates"] = ranked_candidates
+        return cast(RecommendationState, new_state)
+
+    def _roadmap_builder(self, state: RecommendationState) -> RecommendationState:
+        candidates = state["retrieved_candidates"]
+        if not candidates:
+            raise ValueError("Neo4j did not return any recommendation roadmap candidates.")
+
+        selected_candidates: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+        for candidate in candidates:
+            exercise_id = candidate["exercise"].exercise_id
+            if exercise_id in seen_ids:
+                continue
+            selected_candidates.append(candidate)
+            seen_ids.add(exercise_id)
+            if len(selected_candidates) == 3:
+                break
+
+        if not selected_candidates:
+            raise ValueError("No unique exercise candidates found for roadmap.")
+
+        best_candidate = selected_candidates[0]
+        graph_summary = {
+            "current_concept_weight": state["anchor_concept_weight"],
+            "best_path_weight": best_candidate["path_weight"],
+            "best_related_exercise_weight": best_candidate["related_weight"],
+            "latest_review_improvement_signal": state["latest_review_improvement_signal"],
+            "latest_review_severity_change": state["latest_review_severity_change"],
+            "latest_submission_improvement_ratio": state[
+                "latest_submission_improvement_ratio"
+            ],
+            "latest_submission_regression_ratio": state[
+                "latest_submission_regression_ratio"
+            ],
+        }
+
+        new_state = dict(state)
+        new_state["retrieved_candidates"] = selected_candidates
+        new_state["selected_exercises"] = [
+            candidate["exercise"] for candidate in selected_candidates
+        ]
+        new_state["graph_summary"] = graph_summary
+        return cast(RecommendationState, new_state)
+
+    def _explanation_builder(self, state: RecommendationState) -> RecommendationState:
+        exercises = state["selected_exercises"]
+        if not exercises:
+            raise ValueError("Explanation builder requires selected exercises.")
+
+        reasoning = self._fallback_reasoning(state)
+        roadmap_summary = self._fallback_roadmap_summary(state)
+        directives = self._fallback_directives(state)
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a CS1 recommendation explainer. "
+                            "Do not change the selected path or exercises. "
+                            "Explain the roadmap for the student in simple educational language. "
+                            "Return valid JSON only."
+                        ),
+                    },
+                    {"role": "user", "content": self._build_explainer_prompt(state)},
                 ],
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
             model_text = response.choices[0].message.content
             parsed = safe_parse_json_response(model_text)
-            assigned_path = cast(
-                AssignedPath,
-                parsed.get("assigned_path") or self._fallback_path(state),
+            reasoning = str(parsed.get("reasoning", "")).strip() or reasoning
+            roadmap_summary = (
+                str(parsed.get("roadmap_summary", "")).strip() or roadmap_summary
             )
-            target_concept = parsed.get("target_concept") or state["current_concept"]
-            selected_exercise_ids = parsed.get("exercise_ids") or []
-            reasoning = parsed.get("reasoning", "").strip() or self._fallback_reasoning(
-                state, assigned_path
-            )
+            parsed_directives = parsed.get("directives") or []
+            if isinstance(parsed_directives, list):
+                cleaned = [str(item).strip() for item in parsed_directives if str(item).strip()]
+                if len(cleaned) >= len(exercises):
+                    directives = cleaned[: len(exercises)]
         except Exception:
-            assigned_path = self._fallback_path(state)
-            target_concept = state["current_concept"]
-            selected_exercise_ids = []
-            reasoning = self._fallback_reasoning(state, assigned_path)
-
-        selected_candidates = self._select_candidates(
-            state["retrieved_candidates"],
-            assigned_path,
-            target_concept,
-            selected_exercise_ids,
-        )
+            pass
 
         new_state = dict(state)
-        new_state["assigned_path"] = assigned_path
-        new_state["target_concept"] = selected_candidates[0]["target_concept"]
-        new_state["selected_exercises"] = [
-            candidate["exercise"] for candidate in selected_candidates
-        ]
         new_state["reasoning"] = reasoning
-        return cast(RecommendationState, new_state)
-
-    def _directive_builder(self, state: RecommendationState) -> RecommendationState:
-        exercises = state["selected_exercises"]
-        if not exercises:
-            raise ValueError("Directive builder requires selected exercises.")
-
-        framework = state["framework"]
-        new_state = dict(state)
-        directives: list[str] = []
-        for index, exercise in enumerate(exercises, start=1):
-            if state["assigned_path"] == "REINFORCE":
-                directives.append(
-                    f"Step {index}: work on {exercise.title} to rebuild confidence in {state['target_concept']}. "
-                    f"This step supports the student while foundation risk is {framework.foundation_risk:.1f}."
-                )
-            elif state["assigned_path"] == "NEXT_CONCEPT":
-                directives.append(
-                    f"Step {index}: use {exercise.title} to move deeper into {state['target_concept']}. "
-                    f"This step extends the student's readiness score of {framework.progression_readiness:.1f}."
-                )
-            else:
-                directives.append(
-                    f"Step {index}: solve {exercise.title} to improve implementation quality in {state['target_concept']}. "
-                    f"This step targets the efficiency gap score of {framework.efficiency_gap:.1f}."
-                )
+        new_state["roadmap_summary"] = roadmap_summary
         new_state["roadmap_directives"] = directives
         return cast(RecommendationState, new_state)
 
-    def _build_reasoner_prompt(self, state: RecommendationState) -> str:
+    def _rank_candidates(
+        self,
+        state: RecommendationState,
+        candidates: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        profile = state["student_profile"]
+        if profile is None:
+            raise ValueError("Recommendation requires a stored student profile.")
+
+        ranked: list[dict[str, Any]] = []
+        for candidate in candidates:
+            graph_score = self._graph_candidate_score(state["assigned_path"], candidate)
+            graph_score = self._apply_query_plan_bias(state, candidate, graph_score)
+            profile_adjustment = self._profile_candidate_adjustment(
+                state["assigned_path"], candidate, profile
+            )
+            final_score = max(
+                0.0,
+                min(1.0, 0.75 * graph_score + 0.25 * profile_adjustment),
+            )
+            enriched = dict(candidate)
+            enriched["graph_score"] = graph_score
+            enriched["profile_adjustment"] = profile_adjustment
+            enriched["final_score"] = final_score
+            enriched["assigned_path"] = (
+                "NEXT_CONCEPT"
+                if state["assigned_path"] == "NEXT_CONCEPT" and candidate["difficulty_gap"] > 0.2
+                else state["assigned_path"]
+            )
+            ranked.append(enriched)
+
+        ranked.sort(
+            key=lambda item: (
+                item["final_score"],
+                item["path_weight"],
+                item["related_weight"],
+                item["progression_score"],
+            ),
+            reverse=True,
+        )
+        return ranked
+
+    def _apply_query_plan_bias(
+        self,
+        state: RecommendationState,
+        candidate: dict[str, Any],
+        graph_score: float,
+    ) -> float:
+        plan_id = state["planner_query_plan_id"]
+        adjusted = graph_score
+        if plan_id == "review_reinforce_plan":
+            adjusted += 0.10 * candidate["similarity_score"] + 0.05 * candidate["related_weight"]
+        elif plan_id == "review_improve_plan":
+            adjusted += 0.08 * candidate["progression_score"] + 0.05 * candidate["related_weight"]
+        elif plan_id == "concept_next_concept_plan":
+            adjusted += 0.10 * candidate["path_weight"] + 0.05 * max(candidate["difficulty_gap"], 0.0)
+        elif plan_id == "submission_progress_plan":
+            adjusted += 0.08 * state["latest_submission_improvement_ratio"] + 0.05 * candidate["progression_score"]
+        elif plan_id == "exercise_related_plan":
+            adjusted += 0.12 * candidate["related_weight"] + 0.06 * candidate["similarity_score"]
+        elif plan_id == "full_progression_plan":
+            adjusted += 0.05 * state["latest_review_improvement_signal"] + 0.05 * state["latest_submission_improvement_ratio"]
+        return max(0.0, min(1.0, adjusted))
+
+    def _graph_candidate_score(
+        self, assigned_path: AssignedPath, candidate: dict[str, Any]
+    ) -> float:
+        path_fit = candidate["path_weight"]
+        concept_fit = candidate["tests_weight"]
+        related_fit = candidate["related_weight"]
+        progression_fit = candidate["progression_score"]
+        similarity_fit = candidate["similarity_score"]
+        easier_fit = max(0.0, 1.0 - max(candidate["difficulty_gap"], 0.0))
+        moderate_fit = max(0.0, 1.0 - abs(candidate["difficulty_gap"] - 0.3))
+        next_step_fit = max(0.0, 1.0 - abs(candidate["difficulty_gap"] - 0.5))
+
+        if assigned_path == "REINFORCE":
+            return min(
+                1.0,
+                0.35 * path_fit
+                + 0.25 * concept_fit
+                + 0.20 * related_fit
+                + 0.15 * similarity_fit
+                + 0.05 * easier_fit,
+            )
+        if assigned_path == "NEXT_CONCEPT":
+            return min(
+                1.0,
+                0.35 * path_fit
+                + 0.25 * concept_fit
+                + 0.20 * progression_fit
+                + 0.10 * next_step_fit
+                + 0.10 * max(candidate["related_weight"], 0.2),
+            )
+        return min(
+            1.0,
+            0.30 * path_fit
+            + 0.25 * concept_fit
+            + 0.20 * progression_fit
+            + 0.15 * related_fit
+            + 0.10 * moderate_fit,
+        )
+
+    def _profile_candidate_adjustment(
+        self,
+        assigned_path: AssignedPath,
+        candidate: dict[str, Any],
+        profile,
+    ) -> float:
+        if assigned_path == "REINFORCE":
+            return min(
+                1.0,
+                0.40 * (1.0 - profile.debugging_independence)
+                + 0.30 * (1.0 - profile.implementation_consistency)
+                + 0.30 * max(0.0, 1.0 - max(candidate["difficulty_gap"], 0.0)),
+            )
+        if assigned_path == "NEXT_CONCEPT":
+            return min(
+                1.0,
+                0.40 * profile.concept_mastery
+                + 0.30 * profile.concept_transfer
+                + 0.30 * profile.learning_velocity,
+            )
+        return min(
+            1.0,
+            0.35 * profile.implementation_consistency
+            + 0.35 * profile.debugging_independence
+            + 0.30 * profile.concept_transfer,
+        )
+
+    @staticmethod
+    def _scorecard_average(scorecard: dict) -> float:
+        scores = []
+        for item in scorecard.values():
+            raw_score = item.get("score")
+            if raw_score is None:
+                continue
+            try:
+                score = float(raw_score)
+            except (TypeError, ValueError):
+                continue
+            scores.append(max(0.0, min(1.0, (score - 1.0) / 4.0)))
+        return sum(scores) / len(scores) if scores else 0.0
+
+    def _fallback_query_plan_id(self, state: RecommendationState) -> str:
+        if state["critical_errors"] > 0 and state["latest_review_improvement_signal"] < 0.3:
+            return "review_reinforce_plan"
+        if state["latest_submission_regression_ratio"] > 0.2:
+            return "submission_progress_plan"
+        if state["latest_review_improvement_signal"] >= 0.45 and state["latest_submission_improvement_ratio"] >= 0.35:
+            return "concept_next_concept_plan"
+        if state["anchor_concept_weight"] >= 0.8:
+            return "exercise_related_plan"
+        return "review_improve_plan"
+
+    def _fallback_reasoning(self, state: RecommendationState) -> str:
+        if state["assigned_path"] == "REINFORCE":
+            return (
+                "The student still has important errors on the current concept, so the roadmap starts with "
+                "the strongest similar practice before broadening the task."
+            )
+        if state["assigned_path"] == "NEXT_CONCEPT":
+            return (
+                "The student shows enough stability on the current concept, so the roadmap uses the strongest "
+                "next-step concept and supporting exercises to move forward gradually."
+            )
+        return (
+            "The student is improving but is not fully stable yet, so the roadmap keeps the same concept and "
+            "uses the strongest nearby exercises to improve implementation quality step by step."
+        )
+
+    def _fallback_roadmap_summary(self, state: RecommendationState) -> str:
+        count = len(state["selected_exercises"])
+        if state["assigned_path"] == "REINFORCE":
+            return (
+                f"Start with {count} exercise(s) that strongly reinforce {state['target_concept']} before the student advances."
+            )
+        if state["assigned_path"] == "NEXT_CONCEPT":
+            return (
+                f"Use {count} exercise(s) to transition from {state['anchor_concept']} into {state['target_concept']} with gradual progression."
+            )
+        return (
+            f"Use {count} exercise(s) to improve {state['target_concept']} through nearby practice and broader transfer."
+        )
+
+    def _fallback_directives(self, state: RecommendationState) -> list[str]:
+        directives: list[str] = []
+        for index, exercise in enumerate(state["selected_exercises"], start=1):
+            if state["assigned_path"] == "REINFORCE":
+                directive = (
+                    f"Practice {exercise.title} to rebuild confidence in {state['target_concept']} with a similar exercise shape."
+                )
+            elif state["assigned_path"] == "NEXT_CONCEPT":
+                directive = (
+                    f"Use {exercise.title} to move from {state['anchor_concept']} toward {state['target_concept']} with one clear next step."
+                )
+            else:
+                directive = (
+                    f"Solve {exercise.title} to improve implementation quality in {state['target_concept']} before moving further."
+                )
+            directives.append(f"Step {index}: {directive}")
+        return directives
+
+    def _build_explainer_prompt(self, state: RecommendationState) -> str:
         review = state["review"]
         if review is None:
-            raise ValueError("Recommendation reasoner requires a stored review context.")
+            raise ValueError("Recommendation explanation requires review context.")
 
-        candidates = [
-            {
-                "target_concept": item["target_concept"],
-                "concept_name": item["concept_name"],
-                "exercise_id": item["exercise"].exercise_id,
-                "title": item["exercise"].title,
-                "difficulty": item["exercise"].difficulty,
-                "description": item["exercise"].description,
-            }
-            for item in state["retrieved_candidates"]
-        ]
         return f"""
 Student ID: {state['student_id']}
-Current concept: {state['current_concept']}
+Current exercise id: {state['exercise_id']}
+Anchor concept: {state['anchor_concept']}
+Assigned path: {state['assigned_path']}
+Target concept: {state['target_concept']}
 
-Latest stored review summary:
+Latest review summary:
 {review.summary}
 
-Latest stored review items:
-{[item.model_dump() for item in review.review_items]}
+Important review items:
+{[item.model_dump() for item in review.review_items[:3]]}
 
-Latest stored scorecard:
-{review.scorecard.model_dump()}
-
-Recent linked reviews for this student:
-{[record.model_dump() for record in state['review_history']]}
-
-Student profile scoring:
-{state['student_profile'].model_dump()}
-
-Recommendation scoring framework:
+Framework:
 {state['framework'].model_dump()}
 
-GraphRAG candidates from Neo4j:
-{candidates}
+Graph summary:
+{state['graph_summary']}
+
+Selected exercises:
+{[
+    {
+        "exercise_id": candidate["exercise"].exercise_id,
+        "title": candidate["exercise"].title,
+        "path_weight": candidate["path_weight"],
+        "tests_weight": candidate["tests_weight"],
+        "related_weight": candidate["related_weight"],
+        "progression_score": candidate["progression_score"],
+        "similarity_score": candidate["similarity_score"],
+    }
+    for candidate in state["retrieved_candidates"]
+]}
 
 Task:
-1. Choose exactly one assigned_path from REINFORCE, IMPROVE, NEXT_CONCEPT.
-2. Choose one target_concept.
-3. Choose 2 or 3 exercise_ids from the provided candidates to form a learning roadmap.
-4. Order them from simpler to more demanding.
-5. Use the linked review history when deciding whether the student is improving, stuck, or ready to progress.
-6. Give a concise reasoning paragraph.
+1. Explain why this roadmap fits the student now.
+2. Summarize the roadmap in one short paragraph.
+3. Write one directive sentence for each selected exercise.
 
 Return JSON only:
 {{
-  "assigned_path": "REINFORCE",
-  "target_concept": "Loops",
-  "exercise_ids": ["loops_001", "loops_002", "loops_003"],
-  "reasoning": "short grounded explanation"
+  "reasoning": "string",
+  "roadmap_summary": "string",
+  "directives": ["string", "string", "string"]
 }}
 """
 
-    def _fallback_path(self, state: RecommendationState) -> AssignedPath:
-        framework = state["framework"]
-        if framework.foundation_risk >= 55 or state["critical_errors"] > 0:
-            return "REINFORCE"
-        if framework.progression_readiness >= 80 and framework.foundation_risk < 35:
-            return "NEXT_CONCEPT"
-        return "IMPROVE"
+    def _build_planner_prompt(self, state: RecommendationState) -> str:
+        review = state["review"]
+        profile = state["student_profile"]
+        if review is None or profile is None:
+            raise ValueError("Recommendation planner requires review and profile context.")
 
-    def _fallback_reasoning(
-        self, state: RecommendationState, assigned_path: AssignedPath
-    ) -> str:
-        framework = state["framework"]
-        review_history_count = len(state["review_history"])
-        if assigned_path == "REINFORCE":
-            return (
-                f"Assigned REINFORCE because foundation risk is {framework.foundation_risk:.1f} "
-                f"with {state['critical_errors']} critical error(s). Review history count considered: {review_history_count}."
-            )
-        if assigned_path == "NEXT_CONCEPT":
-            return (
-                f"Assigned NEXT_CONCEPT because progression readiness is {framework.progression_readiness:.1f} "
-                f"and foundation risk is controlled at {framework.foundation_risk:.1f}."
-            )
-        return (
-            f"Assigned IMPROVE because efficiency gap is {framework.efficiency_gap:.1f} "
-            f"while the student has enough foundation to stay on the current concept."
-        )
+        scorecard = review.scorecard.model_dump()
+        top_review_items = [item.model_dump() for item in review.review_items[:3]]
 
-    def _select_candidates(
-        self,
-        candidates: list[dict[str, Any]],
-        assigned_path: AssignedPath,
-        target_concept: str,
-        selected_exercise_ids: list[str],
-    ) -> list[dict[str, Any]]:
-        filtered = [
-            candidate
-            for candidate in candidates
-            if candidate["target_concept"] == target_concept
-        ]
-        chosen: list[dict[str, Any]] = []
-        seen_ids: set[str] = set()
-        if selected_exercise_ids:
-            for exercise_id in selected_exercise_ids:
-                for candidate in filtered:
-                    if (
-                        candidate["exercise"].exercise_id == exercise_id
-                        and exercise_id not in seen_ids
-                    ):
-                        chosen.append(candidate)
-                        seen_ids.add(exercise_id)
-                        break
-        if chosen:
-            return chosen[:3]
-        if filtered:
-            return filtered[:3]
+        return f"""
+Allowed query plans:
+- review_reinforce_plan
+- review_improve_plan
+- concept_next_concept_plan
+- submission_progress_plan
+- exercise_related_plan
+- full_progression_plan
 
-        path_candidates = []
-        for candidate in candidates:
-            if assigned_path == "NEXT_CONCEPT" and candidate["target_concept"] != target_concept:
-                path_candidates.append(candidate)
-            elif assigned_path != "NEXT_CONCEPT" and candidate["target_concept"] == target_concept:
-                path_candidates.append(candidate)
-        if path_candidates:
-            return path_candidates[:3]
-        if candidates:
-            return candidates[:3]
-        raise ValueError("Neo4j did not return any recommendation roadmap candidates.")
+Allowed start entities:
+- Review
+- Submission
+- Exercise
+- Concept
+- Student
 
-    def _build_step_focus(
-        self, assigned_path: AssignedPath, target_concept: str, step: int
-    ) -> str:
-        if assigned_path == "REINFORCE":
-            focuses = [
-                f"Rebuild the basics of {target_concept}",
-                f"Practice stable use of {target_concept}",
-                f"Consolidate confidence in {target_concept}",
-            ]
-        elif assigned_path == "NEXT_CONCEPT":
-            focuses = [
-                f"Enter the next concept: {target_concept}",
-                f"Apply {target_concept} in a larger task",
-                f"Strengthen transfer within {target_concept}",
-            ]
-        else:
-            focuses = [
-                f"Improve implementation quality in {target_concept}",
-                f"Reduce inefficiency in {target_concept}",
-                f"Refine strategy for {target_concept}",
-            ]
-        index = min(step - 1, len(focuses) - 1)
-        return focuses[index]
+Current request:
+- student_id: {state['student_id']}
+- exercise_id: {state['exercise_id']}
+
+Latest review:
+- summary: {review.summary}
+- current_concept: {state['anchor_concept']}
+- critical_errors: {state['critical_errors']}
+- top_items: {top_review_items}
+- scorecard_summary: {{
+    "logic_traceability": {scorecard.get("logic_traceability", {}).get("score", 0)},
+    "generalization_score": {scorecard.get("generalization_score", {}).get("score", 0)},
+    "debugging_readiness": {scorecard.get("debugging_readiness", {}).get("score", 0)}
+  }}
+
+Review trend:
+- latest_review_improvement_signal: {state['latest_review_improvement_signal']}
+- latest_review_severity_change: {state['latest_review_severity_change']}
+
+Submission trend:
+- latest_submission_improvement_ratio: {state['latest_submission_improvement_ratio']}
+- latest_submission_regression_ratio: {state['latest_submission_regression_ratio']}
+
+Student profile:
+- concept_mastery: {profile.concept_mastery}
+- implementation_consistency: {profile.implementation_consistency}
+- debugging_independence: {profile.debugging_independence}
+- efficiency_awareness: {profile.efficiency_awareness}
+- concept_transfer: {profile.concept_transfer}
+- learning_velocity: {profile.learning_velocity}
+
+Exercise graph summary:
+- anchor_concept_weight: {state['anchor_concept_weight']}
+- review_history_count: {len(state['review_history'])}
+- attempted_exercise_count: {len(state['attempted_exercise_ids'])}
+
+Choose the best query plan and start entity for recommending the next exercise roadmap.
+Return JSON only:
+{{
+  "start_entity": "Review",
+  "query_plan_id": "review_improve_plan",
+  "assigned_path": "IMPROVE",
+  "target_concept_hint": "{state['anchor_concept']}",
+  "confidence": 0.84,
+  "rationale": "short grounded reason"
+}}
+"""
