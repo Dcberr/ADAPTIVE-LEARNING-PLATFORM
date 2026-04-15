@@ -135,7 +135,7 @@ The review system is a LangGraph-based multi-agent workflow for CS1 code review.
 
 ## Runtime Model Configuration
 
-Model wiring lives in `app/api/review_code_deps.py`.
+Model wiring lives in `app/api/review_code_deps.py` and reads environment-backed settings from `app/config.py`.
 
 - Fireworks client source: `get_fireworks_client()`
 - General Fireworks model env var: `FIREWORKS_MODEL`
@@ -143,7 +143,7 @@ Model wiring lives in `app/api/review_code_deps.py`.
 - General default model: `fireworks/deepseek-v3p2`
 - Current review default model: `fireworks/kimi-k2p5`
 
-All review agents currently use `get_review_fireworks_model_name()`, so by default the review flow runs on:
+All review agents currently use the shared settings-backed Fireworks request config, so by default the review flow runs on:
 
 - `fireworks/kimi-k2p5`
 

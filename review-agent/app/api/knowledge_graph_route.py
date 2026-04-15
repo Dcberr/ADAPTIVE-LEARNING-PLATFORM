@@ -20,7 +20,7 @@ from app.api.knowledge_graph_schema import (
 )
 from app.models.exercise_record import ExerciseRecord
 from app.models.knowledge_graph import ConceptRecord
-from app.services.knowledge_graph_repository import KnowledgeGraphRepository
+from app.repositories.knowledge_graph_repository import KnowledgeGraphRepository
 from app.agents.exercise_weight_agent import ExerciseWeightAgent
 from app.agents.prerequisite_weight_agent import PrerequisiteWeightAgent
 

@@ -8,7 +8,7 @@ from app.api.review_code_deps import (
     get_fireworks_client,
     get_fireworks_request_config,
 )
-from app.services.knowledge_graph_repository import KnowledgeGraphRepository
+from app.repositories.knowledge_graph_repository import KnowledgeGraphRepository
 
 
 def get_neo4j_driver(request: Request) -> Driver:

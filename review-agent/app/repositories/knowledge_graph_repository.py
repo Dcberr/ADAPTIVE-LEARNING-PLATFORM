@@ -227,6 +227,362 @@ class KnowledgeGraphRepository:
                 concept_map.setdefault(record["exercise_id"], []).append(record["concept_id"])
             return concept_map
 
+    def fetch_recommendation_base_context(
+        self,
+        *,
+        student_id: str,
+        exercise_id: str,
+    ) -> dict:
+        exercise = self.get_exercises_by_ids([exercise_id]).get(exercise_id)
+        if exercise is None:
+            raise ValueError(f"Exercise '{exercise_id}' was not found in Neo4j.")
+
+        with self.driver.session() as session:
+            tested_concepts = [
+                {
+                    "concept_id": record["concept_id"],
+                    "weight": float(record["weight"] or 0.0),
+                }
+                for record in session.run(
+                    """
+                    MATCH (:Exercise {exercise_id: $exercise_id})-[r:TESTS]->(c:Concept)
+                    RETURN c.concept_id AS concept_id,
+                           coalesce(r.weight, 1.0) AS weight
+                    ORDER BY weight DESC, c.concept_id ASC
+                    """,
+                    exercise_id=exercise_id,
+                )
+            ]
+            recommended_paths = [
+                {
+                    "concept_id": record["concept_id"],
+                    "path": record["path"],
+                    "weight": float(record["weight"] or 0.0),
+                }
+                for record in session.run(
+                    """
+                    MATCH (:Exercise {exercise_id: $exercise_id})-[r:RECOMMENDED_FOR]->(c:Concept)
+                    RETURN c.concept_id AS concept_id,
+                           r.path AS path,
+                           coalesce(r.weight, 1.0) AS weight
+                    ORDER BY weight DESC, c.concept_id ASC
+                    """,
+                    exercise_id=exercise_id,
+                )
+            ]
+            student_record = session.run(
+                """
+                MATCH (s:Student {student_id: $student_id})
+                OPTIONAL MATCH (s)-[:MASTERED]->(mastered:Concept)
+                WITH s, collect(DISTINCT mastered.concept_id) AS mastered_concepts
+                OPTIONAL MATCH (s)-[:ATTEMPTED]->(attempted:Exercise)
+                RETURN coalesce(s.concept_mastery, 0.5) AS concept_mastery,
+                       coalesce(s.implementation_consistency, 0.5) AS implementation_consistency,
+                       coalesce(s.debugging_independence, 0.5) AS debugging_independence,
+                       coalesce(s.efficiency_awareness, 0.5) AS efficiency_awareness,
+                       coalesce(s.concept_transfer, 0.5) AS concept_transfer,
+                       coalesce(s.learning_velocity, 0.5) AS learning_velocity,
+                       coalesce(s.profile_notes, '') AS profile_notes,
+                       mastered_concepts AS mastered_concepts,
+                       collect(DISTINCT attempted.exercise_id) AS attempted_exercise_ids
+                LIMIT 1
+                """,
+                student_id=student_id,
+            ).single()
+            if student_record is None:
+                raise ValueError(f"Student '{student_id}' was not found in Neo4j.")
+
+            latest_review_record = session.run(
+                """
+                MATCH (:Student {student_id: $student_id})-[:RECEIVED_REVIEW]->(r:Review {exercise_id: $exercise_id})
+                RETURN r.review_id AS review_id,
+                       coalesce(r.summary, '') AS summary,
+                       coalesce(r.detail, '') AS detail,
+                       coalesce(r.review_items_json, '[]') AS review_items_json,
+                       coalesce(r.scorecard_json, '{}') AS scorecard_json,
+                       coalesce(r.created_at, '') AS created_at,
+                       coalesce(r.current_concept, '') AS current_concept,
+                       coalesce(r.submission_id, '') AS submission_id
+                ORDER BY r.created_at DESC
+                LIMIT 1
+                """,
+                student_id=student_id,
+                exercise_id=exercise_id,
+            ).single()
+            if latest_review_record is None:
+                raise ValueError(
+                    f"No stored review found for student '{student_id}' and exercise '{exercise_id}'."
+                )
+
+            latest_submission_record = session.run(
+                """
+                MATCH (:Student {student_id: $student_id})-[:SUBMITTED]->(sub:Submission)-[:FOR_EXERCISE]->(:Exercise {exercise_id: $exercise_id})
+                RETURN sub.submission_id AS submission_id,
+                       coalesce(sub.code, '') AS code,
+                       coalesce(sub.testcase_outputs_json, '[]') AS testcase_outputs_json,
+                       coalesce(sub.created_at, '') AS created_at
+                ORDER BY sub.created_at DESC
+                LIMIT 1
+                """,
+                student_id=student_id,
+                exercise_id=exercise_id,
+            ).single()
+
+        review = ReviewResponse(
+            review_id=latest_review_record["review_id"],
+            summary=latest_review_record["summary"],
+            detail=latest_review_record["detail"],
+            review_items=[
+                ReviewItem.model_validate(item)
+                for item in json.loads(latest_review_record["review_items_json"])
+            ],
+            scorecard=ScoreCard.model_validate(
+                json.loads(latest_review_record["scorecard_json"])
+            ),
+        )
+        review_record = ReviewRecord(
+            review_id=latest_review_record["review_id"],
+            student_id=student_id,
+            exercise_id=exercise_id,
+            submission_id=latest_review_record["submission_id"],
+            current_concept=latest_review_record["current_concept"],
+            created_at=latest_review_record["created_at"],
+            summary=latest_review_record["summary"],
+            detail=latest_review_record["detail"],
+        )
+        latest_submission = None
+        if latest_submission_record is not None:
+            latest_submission = SubmissionRecord.model_validate(
+                {
+                    "submission_id": latest_submission_record["submission_id"],
+                    "student_id": student_id,
+                    "exercise_id": exercise_id,
+                    "code": latest_submission_record["code"],
+                    "testcase_outputs": json.loads(
+                        latest_submission_record["testcase_outputs_json"] or "[]"
+                    ),
+                    "created_at": latest_submission_record["created_at"],
+                }
+            )
+
+        current_concept = latest_review_record["current_concept"] or (
+            tested_concepts[0]["concept_id"] if tested_concepts else ""
+        )
+        current_concept_weight = 1.0
+        for concept in tested_concepts:
+            if concept["concept_id"] == current_concept:
+                current_concept_weight = float(concept["weight"] or 1.0)
+                break
+
+        return {
+            "exercise": exercise,
+            "tested_concepts": tested_concepts,
+            "recommended_paths": recommended_paths,
+            "review": review,
+            "review_record": review_record,
+            "student_profile": StudentProfileScoring(
+                concept_mastery=student_record["concept_mastery"],
+                implementation_consistency=student_record["implementation_consistency"],
+                debugging_independence=student_record["debugging_independence"],
+                efficiency_awareness=student_record["efficiency_awareness"],
+                concept_transfer=student_record["concept_transfer"],
+                learning_velocity=student_record["learning_velocity"],
+                notes=student_record["profile_notes"],
+            ),
+            "latest_submission": latest_submission,
+            "current_concept": current_concept,
+            "current_concept_weight": current_concept_weight,
+            "mastered_concepts": student_record["mastered_concepts"] or [],
+            "attempted_exercise_ids": student_record["attempted_exercise_ids"] or [],
+            "critical_errors": sum(1 for item in review.review_items if item.type == "Error"),
+        }
+
+    def fetch_review_trend_context(
+        self,
+        *,
+        review_id: str,
+        student_id: str,
+        history_limit: int = 3,
+    ) -> dict:
+        with self.driver.session() as session:
+            review_history = [
+                ReviewRecord(
+                    review_id=record["review_id"],
+                    student_id=record["student_id"],
+                    exercise_id=record["exercise_id"],
+                    submission_id=record["submission_id"],
+                    current_concept=record["current_concept"],
+                    created_at=record["created_at"],
+                    summary=record["summary"],
+                    detail=record["detail"],
+                )
+                for record in session.run(
+                    """
+                    MATCH path = (prev:Review)-[:NEXT_REVIEW_OF*1..5]->(current:Review {review_id: $review_id})
+                    RETURN prev.review_id AS review_id,
+                           coalesce(prev.student_id, $student_id) AS student_id,
+                           coalesce(prev.exercise_id, '') AS exercise_id,
+                           coalesce(prev.submission_id, '') AS submission_id,
+                           coalesce(prev.current_concept, '') AS current_concept,
+                           coalesce(prev.created_at, '') AS created_at,
+                           coalesce(prev.summary, '') AS summary,
+                           coalesce(prev.detail, '') AS detail,
+                           length(path) AS depth
+                    ORDER BY depth ASC, prev.created_at DESC
+                    LIMIT $history_limit
+                    """,
+                    review_id=review_id,
+                    student_id=student_id,
+                    history_limit=history_limit,
+                )
+            ]
+            latest_transition = session.run(
+                """
+                MATCH (prev:Review)-[rel:NEXT_REVIEW_OF]->(curr:Review {review_id: $review_id})
+                RETURN prev.review_id AS previous_review_id,
+                       coalesce(rel.improvement_signal, 0.0) AS improvement_signal,
+                       coalesce(rel.severity_change, 0.0) AS severity_change
+                ORDER BY coalesce(rel.linked_at, '') DESC
+                LIMIT 1
+                """,
+                review_id=review_id,
+            ).single()
+
+        return {
+            "review_history": review_history,
+            "latest_review_improvement_signal": float(
+                latest_transition["improvement_signal"] if latest_transition else 0.0
+            ),
+            "latest_review_severity_change": float(
+                latest_transition["severity_change"] if latest_transition else 0.0
+            ),
+            "previous_review_id": (
+                str(latest_transition["previous_review_id"]) if latest_transition else ""
+            ),
+        }
+
+    def fetch_submission_trend_context(self, *, submission_id: str) -> dict:
+        with self.driver.session() as session:
+            latest_transition = session.run(
+                """
+                MATCH (prev:Submission)-[rel:NEXT_ATTEMPT]->(curr:Submission {submission_id: $submission_id})
+                RETURN prev.submission_id AS previous_submission_id,
+                       coalesce(rel.improvement_ratio, 0.0) AS improvement_ratio,
+                       coalesce(rel.regression_ratio, 0.0) AS regression_ratio
+                ORDER BY coalesce(rel.linked_at, '') DESC
+                LIMIT 1
+                """,
+                submission_id=submission_id,
+            ).single()
+        return {
+            "latest_submission_improvement_ratio": float(
+                latest_transition["improvement_ratio"] if latest_transition else 0.0
+            ),
+            "latest_submission_regression_ratio": float(
+                latest_transition["regression_ratio"] if latest_transition else 0.0
+            ),
+            "previous_submission_id": (
+                str(latest_transition["previous_submission_id"]) if latest_transition else ""
+            ),
+        }
+
+    def fetch_exercise_graph_context(
+        self,
+        *,
+        exercise_id: str,
+        focus_concept_id: str = "",
+        limit: int = 6,
+    ) -> dict:
+        with self.driver.session() as session:
+            related_exercises = [
+                {
+                    "exercise_id": record["exercise_id"],
+                    "title": record["title"],
+                    "weight": float(record["weight"] or 0.0),
+                    "relation_type": record["relation_type"] or "",
+                    "target_concept_id": record["target_concept_id"] or "",
+                    "shared_concept_ids": record["shared_concept_ids"] or [],
+                    "difficulty_gap": float(record["difficulty_gap"] or 0.0),
+                    "progression_score": float(record["progression_score"] or 0.0),
+                    "similarity_score": float(record["similarity_score"] or 0.0),
+                }
+                for record in session.run(
+                    """
+                    MATCH (:Exercise {exercise_id: $exercise_id})-[r:RELATED_TO]->(e:Exercise)
+                    RETURN e.exercise_id AS exercise_id,
+                           coalesce(e.title, '') AS title,
+                           coalesce(r.weight, 1.0) AS weight,
+                           coalesce(r.relation_type, '') AS relation_type,
+                           coalesce(r.target_concept_id, '') AS target_concept_id,
+                           coalesce(r.shared_concept_ids, []) AS shared_concept_ids,
+                           coalesce(r.difficulty_gap, 0.0) AS difficulty_gap,
+                           coalesce(r.progression_score, 0.0) AS progression_score,
+                           coalesce(r.similarity_score, 0.0) AS similarity_score
+                    ORDER BY weight DESC, progression_score DESC, similarity_score DESC
+                    LIMIT $limit
+                    """,
+                    exercise_id=exercise_id,
+                    limit=limit,
+                )
+            ]
+            path_links = [
+                {
+                    "concept_id": record["concept_id"],
+                    "path": record["path"],
+                    "weight": float(record["weight"] or 0.0),
+                }
+                for record in session.run(
+                    """
+                    MATCH (:Exercise {exercise_id: $exercise_id})-[r:RECOMMENDED_FOR]->(c:Concept)
+                    WHERE $focus_concept_id = '' OR c.concept_id = $focus_concept_id
+                    RETURN c.concept_id AS concept_id,
+                           r.path AS path,
+                           coalesce(r.weight, 1.0) AS weight
+                    ORDER BY weight DESC, c.concept_id ASC
+                    """,
+                    exercise_id=exercise_id,
+                    focus_concept_id=focus_concept_id,
+                )
+            ]
+        return {
+            "related_exercises": related_exercises,
+            "path_links": path_links,
+        }
+
+    def fetch_concept_progression_context(
+        self,
+        *,
+        current_concept: str,
+        attempted_exercise_ids: list[str],
+        mastered_concepts: list[str],
+        limit: int = 5,
+    ) -> list[dict]:
+        return self.get_next_concept_candidates(
+            current_concept=current_concept,
+            attempted_exercise_ids=attempted_exercise_ids,
+            mastered_concepts=mastered_concepts,
+            limit=limit,
+        )
+
+    def fetch_student_history_context(self, *, student_id: str) -> dict:
+        with self.driver.session() as session:
+            record = session.run(
+                """
+                MATCH (s:Student {student_id: $student_id})
+                OPTIONAL MATCH (s)-[:ATTEMPTED]->(attempted:Exercise)
+                WITH s, collect(DISTINCT attempted.exercise_id) AS attempted_exercise_ids
+                OPTIONAL MATCH (s)-[:ASSIGNED]->(assigned:Exercise)
+                RETURN attempted_exercise_ids AS attempted_exercise_ids,
+                       collect(DISTINCT assigned.exercise_id) AS assigned_exercise_ids
+                LIMIT 1
+                """,
+                student_id=student_id,
+            ).single()
+        return {
+            "attempted_exercise_ids": record["attempted_exercise_ids"] if record else [],
+            "assigned_exercise_ids": record["assigned_exercise_ids"] if record else [],
+        }
+
     def get_review_payload(self, review_id: str) -> dict | None:
         with self.driver.session() as session:
             record = session.run(
@@ -262,6 +618,37 @@ class KnowledgeGraphRepository:
             ),
             "review_items": json.loads(record["review_items_json"] or "[]"),
             "scorecard": json.loads(record["scorecard_json"] or "{}"),
+        }
+
+    def get_submission_payload(self, submission_id: str) -> dict | None:
+        with self.driver.session() as session:
+            record = session.run(
+                """
+                MATCH (sub:Submission {submission_id: $submission_id})
+                RETURN sub.submission_id AS submission_id,
+                       coalesce(sub.student_id, '') AS student_id,
+                       coalesce(sub.exercise_id, '') AS exercise_id,
+                       coalesce(sub.code, '') AS code,
+                       coalesce(sub.testcase_outputs_json, '[]') AS testcase_outputs_json,
+                       coalesce(sub.created_at, '') AS created_at
+                LIMIT 1
+                """,
+                submission_id=submission_id,
+            ).single()
+        if record is None:
+            return None
+
+        return {
+            "submission": SubmissionRecord.model_validate(
+                {
+                    "submission_id": record["submission_id"],
+                    "student_id": record["student_id"],
+                    "exercise_id": record["exercise_id"],
+                    "code": record["code"],
+                    "testcase_outputs": json.loads(record["testcase_outputs_json"] or "[]"),
+                    "created_at": record["created_at"],
+                }
+            )
         }
 
     def upsert_concept(

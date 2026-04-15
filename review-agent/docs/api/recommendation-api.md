@@ -12,20 +12,21 @@ This API generates a roadmap of recommended next exercises for a student based o
 Use this API when:
 
 - you want the next exercise roadmap after a reviewed submission
-- you want recommendation to use the latest review, recent review history, submission trend, and student profile
-- you want graph-weighted exercise selection with student-facing explanation
+- you want recommendation to use stored review, submission, profile, and graph context from Neo4j
+- you want the roadmap explanation to cite previous review, code, and exercise evidence through structured refs
 
 ## Flow
 
 1. The client sends `student_id` and `exercise_id`.
-2. The service loads the latest review, review history, submission trend, student profile, and current concept from Neo4j.
-3. The service uses an internal planner LLM to choose a fixed query plan, start entity, target-concept hint, and path preference.
-4. The service combines that planner decision with graph-backed rules to choose the assigned path and target concept.
-5. The service ranks candidate exercises from weighted graph relations.
-6. The service builds a roadmap of ordered exercises.
-7. The LLM explains the selected roadmap and produces student-facing directives.
-8. The service stores `ASSIGNED` and `RECOMMENDS` relations for the selected roadmap.
-9. The API returns the roadmap response.
+2. The service loads base context from Neo4j.
+3. The LLM decides which extra context blocks should be loaded.
+4. The service conditionally loads those extra context blocks.
+5. The LLM decides the recommendation path and focus concept.
+6. The service queries weighted candidate exercises from Neo4j.
+7. The LLM selects the roadmap exercises and step directives.
+8. The LLM builds structured explanation blocks with refs.
+9. The service stores `ASSIGNED` and `RECOMMENDS` relations for the selected roadmap.
+10. The API returns the roadmap response.
 
 ## Request Schema
 
@@ -33,15 +34,6 @@ Use this API when:
 {
   "student_id": "string",
   "exercise_id": "string"
-}
-```
-
-## Example Request
-
-```json
-{
-  "student_id": "student-001",
-  "exercise_id": "exercise-two-sum"
 }
 ```
 
@@ -69,8 +61,26 @@ Use this API when:
     "latest_submission_improvement_ratio": 0.35,
     "latest_submission_regression_ratio": 0.0
   },
-  "reasoning": "string",
-  "roadmap_summary": "string",
+  "reasoning": {
+    "content": "string with {ref_id}",
+    "refs": [
+      {
+        "ref_id": "string",
+        "content": "string",
+        "ref_category": "code"
+      }
+    ]
+  },
+  "roadmap_summary": {
+    "content": "string with {ref_id}",
+    "refs": [
+      {
+        "ref_id": "string",
+        "content": "string",
+        "ref_category": "exercise"
+      }
+    ]
+  },
   "roadmap": [
     {
       "step": 1,
@@ -89,23 +99,11 @@ Use this API when:
 }
 ```
 
-## Graph Signals Used
-
-- latest `Review`
-- recent `NEXT_REVIEW_OF`
-- latest `Submission`
-- recent `NEXT_ATTEMPT`
-- `Student` profile
-- `Exercise -> TESTS -> Concept`
-- `Exercise -> RECOMMENDED_FOR -> Concept`
-- `Exercise -> RELATED_TO -> Exercise`
-- `Concept -> PREREQUISITE_OF -> Concept`
-
 ## Notes
 
-- recommendation uses an internal planner step, but graph-weighted relations still choose the final roadmap before the LLM writes explanations
-- student profile is used as an adjustment layer, not as the primary selector
-- `focus_concept_id` is the main concept the recommendation flow chose to emphasize
-- each roadmap exercise also returns its own `concept_ids` from Neo4j node data
-- the roadmap step no longer exposes `focus`, `path`, or `target_concept`
-- each roadmap exercise carries `concept_ids` so the client can read concept coverage directly from Neo4j-backed exercise data
+- the recommendation flow is now LLM-led at four stages: context planning, path decision, roadmap selection, and explanation building
+- graph retrieval still stays constrained to fixed repository queries; the LLM does not generate raw Cypher
+- `focus_concept_id` is the concept the chosen roadmap is centered on
+- explanation refs are always returned separately from the prose
+- each explanation ref includes `ref_id`, `content`, and `ref_category`
+- allowed `ref_category` values are `code`, `review`, and `exercise`

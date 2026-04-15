@@ -1,11 +1,11 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from neo4j import GraphDatabase
 from openai import OpenAI
 
+from .config import get_settings
 from .api.knowledge_graph_route import router as knowledge_graph_router
 from .api.recommendation_route import router as recommendation_router
 from .api.review_code_route import router as review_router
@@ -17,28 +17,28 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-DEFAULT_FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    api_key = os.environ.get("FIREWORKS_API_KEY")
-    if not api_key:
-        raise ValueError("Environment variable FIREWORKS_API_KEY is not set.")
-
-    base_url = os.environ.get("FIREWORKS_BASE_URL", DEFAULT_FIREWORKS_BASE_URL)
-    app.state.fireworks_client = OpenAI(api_key=api_key, base_url=base_url)
+    settings = get_settings()
+    base_url = settings.fireworks_base_url
+    app.state.settings = settings
+    app.state.fireworks_client = OpenAI(
+        api_key=settings.fireworks_api_key,
+        base_url=base_url,
+    )
     logger.info("Initialized Fireworks client at application startup with base_url=%s", base_url)
 
-    neo4j_uri = os.environ.get("NEO4J_URI")
-    neo4j_username = os.environ.get("NEO4J_USERNAME")
-    neo4j_password = os.environ.get("NEO4J_PASSWORD")
-    if neo4j_uri and neo4j_username and neo4j_password:
+    if settings.neo4j_is_configured:
         app.state.neo4j_driver = GraphDatabase.driver(
-            neo4j_uri,
-            auth=(neo4j_username, neo4j_password),
+            settings.neo4j_uri,
+            auth=(settings.neo4j_username, settings.neo4j_password),
         )
-        logger.info("Initialized Neo4j driver at application startup with uri=%s", neo4j_uri)
+        logger.info(
+            "Initialized Neo4j driver at application startup with uri=%s",
+            settings.neo4j_uri,
+        )
     else:
         app.state.neo4j_driver = None
         logger.warning("Neo4j environment variables are not fully configured.")

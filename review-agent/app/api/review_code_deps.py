@@ -1,4 +1,3 @@
-import os
 import logging
 from dataclasses import dataclass
 from fastapi import Depends, Request
@@ -9,15 +8,17 @@ from app.agents.improvement_agent import ImprovementAgent
 from app.agents.overview_agent import OverviewAgent
 from app.agents.review_link_agent import ReviewLinkAgent
 from app.agents.scoring_agent import ScoringAgent
+from app.config import (
+    DEFAULT_FIREWORKS_MODEL,
+    DEFAULT_KNOWLEDGE_GRAPH_FIREWORKS_MODEL,
+    DEFAULT_REVIEW_FIREWORKS_MODEL,
+    Settings,
+    get_settings,
+)
 from app.services.review_code_service import ReviewCodeService
 
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_FIREWORKS_MODEL = "fireworks/deepseek-v3p2"
-DEFAULT_REVIEW_FIREWORKS_MODEL = "fireworks/kimi-k2p5"
-DEFAULT_KNOWLEDGE_GRAPH_FIREWORKS_MODEL = "fireworks/kimi-k2p5"
-
 FIREWORKS_MODEL_REQUIREMENTS = {
     "default": {
         "env": "FIREWORKS_MODEL",
@@ -72,23 +73,26 @@ def get_fireworks_client(request: Request) -> OpenAI:
     return client
 
 
-def get_fireworks_model_name(requirement: str = "default") -> str:
+def get_settings_dependency() -> Settings:
+    return get_settings()
+
+
+def get_fireworks_model_name(
+    requirement: str = "default",
+    settings: Settings | None = None,
+) -> str:
     config = FIREWORKS_MODEL_REQUIREMENTS.get(requirement)
     if config is None:
         raise ValueError(f"Unknown Fireworks model requirement: {requirement}")
 
-    env_name = config["env"]
     default_model = config["default"]
     label = config["label"]
-    model_name = os.environ.get(
-        env_name,
-        os.environ.get("FIREWORKS_MODEL", default_model),
-    )
+    resolved_settings = settings or get_settings()
+    model_name = resolved_settings.get_fireworks_model_name(requirement)
     if model_name != default_model:
         logger.info(
-            "Using %s Fireworks model from environment (%s): %s",
+            "Using %s Fireworks model from settings: %s",
             label,
-            env_name,
             model_name,
         )
     else:
@@ -99,6 +103,7 @@ def get_fireworks_model_name(requirement: str = "default") -> str:
 def get_fireworks_request_config(
     requirement: str = "default",
     profile: str = "default",
+    settings: Settings | None = None,
 ) -> FireworksRequestConfig:
     requirement_profiles = FIREWORKS_REQUEST_PROFILES.get(requirement)
     if requirement_profiles is None:
@@ -106,14 +111,17 @@ def get_fireworks_request_config(
 
     profile_config = requirement_profiles.get(profile) or requirement_profiles["default"]
     return FireworksRequestConfig(
-        model_name=get_fireworks_model_name(requirement),
+        model_name=get_fireworks_model_name(requirement, settings=settings),
         temperature=profile_config["temperature"],
         max_tokens=profile_config["max_tokens"],
     )
 
 
-def get_logic_agent(client=Depends(get_fireworks_client)) -> LogicAgent:
-    config = get_fireworks_request_config("review", "logic")
+def get_logic_agent(
+    client=Depends(get_fireworks_client),
+    settings: Settings = Depends(get_settings_dependency),
+) -> LogicAgent:
+    config = get_fireworks_request_config("review", "logic", settings=settings)
     return LogicAgent(
         client=client,
         model_name=config.model_name,
@@ -122,8 +130,11 @@ def get_logic_agent(client=Depends(get_fireworks_client)) -> LogicAgent:
     )
 
 
-def get_fix_hint_agent(client=Depends(get_fireworks_client)) -> FixHintAgent:
-    config = get_fireworks_request_config("review", "fix_hint")
+def get_fix_hint_agent(
+    client=Depends(get_fireworks_client),
+    settings: Settings = Depends(get_settings_dependency),
+) -> FixHintAgent:
+    config = get_fireworks_request_config("review", "fix_hint", settings=settings)
     return FixHintAgent(
         client=client,
         model_name=config.model_name,
@@ -132,8 +143,11 @@ def get_fix_hint_agent(client=Depends(get_fireworks_client)) -> FixHintAgent:
     )
 
 
-def get_improvement_agent(client=Depends(get_fireworks_client)) -> ImprovementAgent:
-    config = get_fireworks_request_config("review", "improvement")
+def get_improvement_agent(
+    client=Depends(get_fireworks_client),
+    settings: Settings = Depends(get_settings_dependency),
+) -> ImprovementAgent:
+    config = get_fireworks_request_config("review", "improvement", settings=settings)
     return ImprovementAgent(
         client=client,
         model_name=config.model_name,
@@ -142,8 +156,11 @@ def get_improvement_agent(client=Depends(get_fireworks_client)) -> ImprovementAg
     )
 
 
-def get_review_link_agent(client=Depends(get_fireworks_client)) -> ReviewLinkAgent:
-    config = get_fireworks_request_config("review", "review_link")
+def get_review_link_agent(
+    client=Depends(get_fireworks_client),
+    settings: Settings = Depends(get_settings_dependency),
+) -> ReviewLinkAgent:
+    config = get_fireworks_request_config("review", "review_link", settings=settings)
     return ReviewLinkAgent(
         client=client,
         model_name=config.model_name,
@@ -152,8 +169,11 @@ def get_review_link_agent(client=Depends(get_fireworks_client)) -> ReviewLinkAge
     )
 
 
-def get_overview_agent(client=Depends(get_fireworks_client)) -> OverviewAgent:
-    config = get_fireworks_request_config("review", "overview")
+def get_overview_agent(
+    client=Depends(get_fireworks_client),
+    settings: Settings = Depends(get_settings_dependency),
+) -> OverviewAgent:
+    config = get_fireworks_request_config("review", "overview", settings=settings)
     return OverviewAgent(
         client=client,
         model_name=config.model_name,
@@ -162,8 +182,11 @@ def get_overview_agent(client=Depends(get_fireworks_client)) -> OverviewAgent:
     )
 
 
-def get_scoring_agent(client=Depends(get_fireworks_client)) -> ScoringAgent:
-    config = get_fireworks_request_config("review", "scoring")
+def get_scoring_agent(
+    client=Depends(get_fireworks_client),
+    settings: Settings = Depends(get_settings_dependency),
+) -> ScoringAgent:
+    config = get_fireworks_request_config("review", "scoring", settings=settings)
     return ScoringAgent(
         client=client,
         model_name=config.model_name,
