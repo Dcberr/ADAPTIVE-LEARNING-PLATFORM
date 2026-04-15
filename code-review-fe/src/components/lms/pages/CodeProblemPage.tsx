@@ -24,6 +24,7 @@ import {
   type AssignmentSubmissionResponse,
   type AssignmentTestcaseResponse,
   type JudgeExecutionResponse,
+  type CodeReviewResponse,
   type SubmissionDetailResponse,
   useCreateSubmissionMutation,
   useGetAssignmentContextQuery,
@@ -32,6 +33,7 @@ import {
   useGetAssignmentTestcasesQuery,
   useGetSubmissionByIdQuery,
   useJudgeExecutionMutation,
+  useReviewCodeMutation,
 } from "@/store/redux/api/lmsApi"
 
 const mockLanguages = ["python", "javascript", "java", "cpp"] as const
@@ -218,6 +220,59 @@ function mapSubmissionDetailToSummary(
   }
 }
 
+function mapCodeReviewResponseToFeedback(
+  assignmentId: string,
+  response: CodeReviewResponse
+): CodeReviewFeedback {
+  const positiveItems = response.review_items.filter((item) => item.type.toLowerCase() === "info")
+  const negativeItems = response.review_items.filter((item) => item.type.toLowerCase() !== "info")
+  const strengths = positiveItems.map((item) => item.issue).filter(Boolean)
+  const weaknesses = negativeItems.map((item) => item.issue).filter(Boolean)
+  const improvements = response.review_items
+    .map((item) => item.fix_suggestion)
+    .filter((item): item is string => Boolean(item))
+
+  return {
+    assignmentId,
+    strengths:
+      strengths.length > 0
+        ? strengths
+        : response.summary
+          ? [response.summary]
+          : ["Bài nộp đã có đủ dữ liệu để hệ thống phân tích."],
+    weaknesses:
+      weaknesses.length > 0
+        ? weaknesses
+        : response.detail
+          ? [response.detail]
+          : [],
+    improvements,
+    summary: response.summary,
+    detail: response.detail,
+    reviewId: response.review_id,
+    reviewItems: response.review_items.map((item) => ({
+      line: item.line,
+      column: item.column,
+      type: item.type,
+      issue: item.issue,
+      codeSnippet: item.code_snippet,
+      fixSuggestion: item.fix_suggestion,
+      reviewLink: item.review_link
+        ? {
+            currentIssue: item.review_link.current_issue,
+            currentCodeSnippet: item.review_link.current_code_snippet,
+            previousSubmissionIndexes: item.review_link.previous_submission_indexes,
+            previousCodeSnippet: item.review_link.previous_code_snippet,
+            whatImproved: item.review_link.what_improved,
+            whatStillNeedsWork: item.review_link.what_still_needs_work,
+            relationSummary: item.review_link.relation_summary,
+          }
+        : null,
+    })),
+    scorecard: response.scorecard,
+  }
+}
+
 export default function CodeProblemPage({
   id,
   role = "student",
@@ -248,6 +303,7 @@ export default function CodeProblemPage({
     { skip: hasMockBundle }
   )
   const [judgeExecution] = useJudgeExecutionMutation()
+  const [reviewCode] = useReviewCodeMutation()
   const [createSubmission] = useCreateSubmissionMutation()
   const cachedProblem = useMemo(() => getCachedAssignmentProblem(id), [id])
   const assignment = useMemo(
@@ -365,17 +421,52 @@ export default function CodeProblemPage({
 
     setRunningAction("review")
 
-    const [reviewResult, recommendations] = await Promise.all([
-      getAssignmentReview(assignment.id, baseScore, activeCode),
-      getRecommendedProblems(assignment.id, baseScore),
-    ])
+    try {
+      const [reviewResult, recommendations] = await Promise.all([
+        hasMockBundle
+          ? getAssignmentReview(assignment.id, baseScore, activeCode)
+          : !assignmentProblem?.id
+            ? Promise.resolve(null)
+            : reviewCode({
+              problemId: assignmentProblem.id,
+              code: activeCode,
+              language,
+            }).unwrap(),
+        getRecommendedProblems(assignment.id, baseScore),
+      ])
 
-    setReview(reviewResult)
-    setRecommendedProblems(recommendations)
-    handleTabChange("review")
-    setRunningAction(null)
+      let nextReview: CodeReviewFeedback
+
+      if (hasMockBundle) {
+        nextReview = reviewResult as CodeReviewFeedback
+      } else if (reviewResult) {
+        nextReview = mapCodeReviewResponseToFeedback(
+          assignment.id,
+          reviewResult as CodeReviewResponse
+        )
+      } else {
+        nextReview = {
+          assignmentId: assignment.id,
+          strengths: ["Backend review chưa khả dụng cho bài demo."],
+          weaknesses: [],
+          improvements: ["Dùng assignment thật để xem AI review từ backend."],
+        }
+      }
+
+      setReview(nextReview)
+      setRecommendedProblems(recommendations)
+      handleTabChange("review")
+    } catch (error) {
+      setActionFeedback(
+        error instanceof Error ? error.message : "Không thể lấy AI review từ backend."
+      )
+      handleTabChange("result")
+    } finally {
+      setRunningAction(null)
+    }
   }, [
     assignment,
+    assignmentProblem?.id,
     displayedExecution?.eligibleForReview,
     displayedExecution?.score,
     handleTabChange,
@@ -383,6 +474,8 @@ export default function CodeProblemPage({
     latestSubmission?.score,
     latestBackendSubmission?.score,
     activeCode,
+    language,
+    reviewCode,
   ])
 
   const handleExecute = useCallback(

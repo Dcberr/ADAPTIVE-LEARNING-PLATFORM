@@ -56,6 +56,40 @@ export interface CodeReviewFeedback {
   strengths: string[]
   weaknesses: string[]
   improvements: string[]
+  summary?: string
+  detail?: string
+  reviewId?: string
+  reviewItems?: Array<{
+    line: {
+      start: number
+      end: number
+    }
+    column: {
+      start: number
+      end: number
+    }
+    type: string
+    issue: string
+    codeSnippet: string
+    fixSuggestion: string
+    reviewLink?: {
+      currentIssue: string
+      currentCodeSnippet: string
+      previousSubmissionIndexes: number[]
+      previousCodeSnippet: string
+      whatImproved: string
+      whatStillNeedsWork: string
+      relationSummary: string
+    } | null
+  }>
+  scorecard?: Record<
+    string,
+    {
+      score: number
+      label: string
+      explanation: string
+    }
+  >
 }
 
 export interface ProblemBankEntry {
