@@ -1,30 +1,118 @@
 "use client"
 
-import Link from "next/link"
-import Editor from "@monaco-editor/react"
-import { ChevronLeft, Lock } from "lucide-react"
+import { useMemo } from "react"
 
 import type { UserRole } from "@/data/lms/extendedMockData"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/AssignmentAttemptHeader"
+import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
+import ProblemWorkspaceTabs from "@/components/lms/pages/code-problem/ProblemWorkspaceTabs"
+import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { Assignment, CodingProblem } from "@/data/lms/mockData"
+import type { ExecutionSummary } from "@/services/lms/mockLmsService"
 import {
+  type AssignmentContext,
+  type AssignmentProblemResponse,
+  type AssignmentSubmissionResponse,
+  type AssignmentTestcaseResponse,
+  type SubmissionDetailResponse,
   useGetAssignmentContextQuery,
+  useGetAssignmentProblemQuery,
   useGetAssignmentSubmissionsQuery,
+  useGetAssignmentTestcasesQuery,
   useGetSubmissionByIdQuery,
 } from "@/store/redux/api/lmsApi"
 
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return "Chưa có dữ liệu"
-  }
+type ActiveTab = "description" | "testcases" | "result" | "review"
 
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
+function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
+  if (value === "HARD") return "Hard"
+  if (value === "MEDIUM") return "Medium"
+  return "Easy"
+}
 
-  return parsed.toLocaleString("vi-VN")
+function buildReviewAssignment(context: AssignmentContext): Assignment {
+  return {
+    id: context.id,
+    courseId: context.classId,
+    courseName: context.className,
+    courseColor: "bg-[#030391]",
+    title: context.title,
+    dueDate: context.deadline,
+    status: "submitted",
+    points: context.maxScore ?? 100,
+    difficulty: toDifficultyLabel(context.difficulty),
+    type: "code",
+  }
+}
+
+function buildReviewProblem(
+  context: AssignmentContext,
+  assignmentProblem?: AssignmentProblemResponse,
+  assignmentTestcases: AssignmentTestcaseResponse[] = []
+): CodingProblem {
+  const visibleExamples = assignmentTestcases
+    .filter((item) => !item.hidden)
+    .slice(0, 2)
+    .map((item) => ({
+      input: item.input,
+      output: item.expectedOutput,
+      explanation: item.explanation,
+    }))
+
+  return {
+    id: assignmentProblem?.id ?? `problem-${context.id}`,
+    assignmentId: context.id,
+    title: context.title,
+    difficulty: toDifficultyLabel(context.difficulty),
+    description: assignmentProblem?.description || "Đề bài đang được đồng bộ từ assignment này.",
+    examples: visibleExamples,
+    constraints: assignmentProblem?.problemConstraint
+      ? assignmentProblem.problemConstraint
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [],
+    functionSkeleton: {
+      python: assignmentProblem?.functionSkeletons?.python ?? "",
+      javascript: assignmentProblem?.functionSkeletons?.javascript ?? "",
+      java: assignmentProblem?.functionSkeletons?.java ?? "",
+      cpp: assignmentProblem?.functionSkeletons?.cpp ?? "",
+    },
+    testCases: assignmentTestcases.map((item) => ({
+      input: item.input,
+      expectedOutput: item.expectedOutput,
+      hidden: item.hidden,
+    })),
+    hints: [],
+    topics: context.tags ?? [],
+  }
+}
+
+function mapSubmissionDetailToExecution(
+  submission: AssignmentSubmissionResponse,
+  detail: SubmissionDetailResponse
+): ExecutionSummary {
+  const total = detail.testcaseResults.length
+  const passed = detail.testcaseResults.filter((item) => item.status === "ACCEPTED").length
+  const percentage = total > 0 ? Math.round((passed / total) * 100) : 0
+  const numericScore = Number(submission.score)
+
+  return {
+    passed,
+    total,
+    percentage,
+    score: Number.isFinite(numericScore) ? numericScore : 0,
+    eligibleForReview: false,
+    results: detail.testcaseResults.map((item) => ({
+      idx: item.index,
+      input: item.input,
+      expected: item.expectedOutput,
+      actual: item.output || item.error || "",
+      passed: item.status === "ACCEPTED",
+      hidden: false,
+    })),
+  }
 }
 
 export default function SubmissionReviewPage({
@@ -36,7 +124,8 @@ export default function SubmissionReviewPage({
   submissionId: string
   role: UserRole
 }) {
-  const { data: assignment, isLoading: isLoadingAssignment, error: assignmentError } =
+  const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
+  const { data: assignmentContext, isLoading: isLoadingAssignment, error: assignmentError } =
     useGetAssignmentContextQuery(assignmentId)
   const {
     data: submissions = [],
@@ -45,13 +134,46 @@ export default function SubmissionReviewPage({
     assignmentId,
     scope: role === "student" ? "me" : "all",
   })
+  const {
+    data: assignmentProblem,
+    isLoading: isLoadingProblem,
+  } = useGetAssignmentProblemQuery(assignmentId)
+  const {
+    data: assignmentTestcases = [],
+    isLoading: isLoadingTestcases,
+  } = useGetAssignmentTestcasesQuery(assignmentId)
   const { data: submissionDetail, isLoading: isLoadingDetail, error: detailError } =
     useGetSubmissionByIdQuery(submissionId)
 
   const submission = submissions.find((item) => item.submissionId === submissionId)
+  const assignment = useMemo(
+    () => (assignmentContext ? buildReviewAssignment(assignmentContext) : null),
+    [assignmentContext]
+  )
+  const problem = useMemo(
+    () =>
+      assignmentContext
+        ? buildReviewProblem(assignmentContext, assignmentProblem, assignmentTestcases)
+        : null,
+    [assignmentContext, assignmentProblem, assignmentTestcases]
+  )
+  const execution = useMemo(
+    () =>
+      submission && submissionDetail ? mapSubmissionDetailToExecution(submission, submissionDetail) : null,
+    [submission, submissionDetail]
+  )
+  const code = submissionDetail?.code ?? ""
+  const language = submissionDetail?.language ?? "cpp"
   const backHref = `/${role}/assignments/${assignmentId}`
+  const startedAtMs = submission?.startedAt ? new Date(submission.startedAt).getTime() : 0
 
-  if (isLoadingAssignment || isLoadingSubmissions || isLoadingDetail) {
+  if (
+    isLoadingAssignment ||
+    isLoadingSubmissions ||
+    isLoadingProblem ||
+    isLoadingTestcases ||
+    isLoadingDetail
+  ) {
     return (
       <Card>
         <CardHeader>
@@ -61,145 +183,76 @@ export default function SubmissionReviewPage({
     )
   }
 
-  if (assignmentError || detailError || !assignment || !submission || !submissionDetail) {
+  if (
+    assignmentError ||
+    detailError ||
+    !assignmentContext ||
+    !assignment ||
+    !problem ||
+    !submission ||
+    !submissionDetail ||
+    !execution
+  ) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Không tìm thấy bài làm để xem lại</CardTitle>
         </CardHeader>
-        <CardContent className="flex gap-3">
-          <Button asChild variant="outline">
-            <Link href={backHref}>Quay lại assignment</Link>
-          </Button>
+        <CardContent>
+          Quay lại assignment và chọn một submission hợp lệ từ lịch sử làm bài.
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button asChild variant="ghost" size="sm">
-          <Link href={backHref}>
-            <ChevronLeft className="size-4" />
-            Quay lại lịch sử làm bài
-          </Link>
-        </Button>
-        <Badge className="bg-slate-200 text-slate-700 hover:bg-slate-200">
-          <Lock className="mr-1 size-3" />
-          Chế độ xem lại, không thể chỉnh sửa
-        </Badge>
+    <div className="space-y-4">
+      <AssignmentAttemptHeader
+        assignment={assignment}
+        problem={problem}
+        backHref={backHref}
+        startedAtMs={Number.isNaN(startedAtMs) ? 0 : startedAtMs}
+        timeLimitMinutes={assignmentContext.timeLimit ?? 0}
+        language={language}
+        languages={[language]}
+        readOnly
+        onLanguageChange={() => {}}
+      />
+
+      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <ProblemWorkspaceTabs
+          problem={problem}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          hasMounted={hasMounted}
+          displayedExecution={execution}
+          review={null}
+          recommendedProblems={[]}
+          runningAction={null}
+          canRequestReview={false}
+          onLoadReview={() => {}}
+        />
+
+        <EditorWorkspaceCard
+          language={language}
+          code={code}
+          runningAction={null}
+          canRequestReview={false}
+          readOnly
+          hideActions
+          helperTitle="Review snapshot"
+          helperLines={[
+            `Submission ID: ${submission.submissionId}`,
+            `Started at: ${submission.startedAt}`,
+            `Submitted at: ${submission.submittedAt}`,
+            "Đây là bản xem lại của lần nộp đã chốt, không thể chỉnh sửa hoặc gửi lại từ màn này.",
+          ]}
+          onCodeChange={() => {}}
+          onRun={() => {}}
+          onSubmit={() => {}}
+          onReview={() => {}}
+        />
       </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-slate-100 p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge className="bg-[#030391] text-white">{assignment.className}</Badge>
-          <Badge variant="outline">{assignment.topicTitle}</Badge>
-          <Badge className="bg-slate-300 text-slate-700 hover:bg-slate-300">
-            {submissionDetail.language}
-          </Badge>
-          <Badge className="bg-slate-300 text-slate-700 hover:bg-slate-300">
-            {submission.status}
-          </Badge>
-        </div>
-        <h1 className="mt-4 text-3xl font-bold text-slate-900">{assignment.title}</h1>
-      </div>
-
-      <Card className="border-slate-200 bg-white">
-        <CardHeader>
-          <CardTitle className="text-xl text-slate-900">Tóm tắt lần nộp</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-6 lg:grid-cols-[1fr_280px]">
-          <div className="grid gap-3 text-sm">
-            {role === "lecturer" ? (
-              <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-200 pb-3">
-                <p className="font-semibold text-slate-600">Sinh viên</p>
-                <p className="text-slate-900">{submission.studentName}</p>
-              </div>
-            ) : null}
-            <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-200 pb-3">
-              <p className="font-semibold text-slate-600">Thời điểm bắt đầu</p>
-              <p className="text-slate-900">{formatDateTime(submission.startedAt)}</p>
-            </div>
-            <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-200 pb-3">
-              <p className="font-semibold text-slate-600">Thời điểm nộp</p>
-              <p className="text-slate-900">{formatDateTime(submission.submittedAt)}</p>
-            </div>
-            <div className="grid grid-cols-[220px_1fr] gap-3 border-b border-slate-200 pb-3">
-              <p className="font-semibold text-slate-600">Trạng thái</p>
-              <p className="text-slate-900">{submission.status}</p>
-            </div>
-            <div className="grid grid-cols-[220px_1fr] gap-3">
-              <p className="font-semibold text-slate-600">Điểm</p>
-              <p className="text-slate-900">{submission.score}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-slate-200 bg-slate-100">
-        <CardHeader>
-          <CardTitle className="text-xl text-slate-900">Mã nguồn đã nộp</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-hidden rounded-2xl border border-slate-300 bg-slate-200">
-            <Editor
-              height="480px"
-              language={submissionDetail.language === "cpp" ? "cpp" : submissionDetail.language}
-              value={submissionDetail.code}
-              options={{
-                readOnly: true,
-                domReadOnly: true,
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbersMinChars: 3,
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-                contextmenu: false,
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-slate-200 bg-white">
-        <CardHeader>
-          <CardTitle className="text-xl text-slate-900">Kết quả test của lần nộp</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {submissionDetail.testcaseResults.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-              Submission này chưa có chi tiết testcase.
-            </div>
-          ) : (
-            submissionDetail.testcaseResults.map((result) => (
-              <div
-                key={`${result.testcaseId}-${result.index}`}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-900">Test {result.index}</p>
-                  <Badge
-                    className={
-                      result.status === "ACCEPTED"
-                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-                        : "bg-rose-100 text-rose-700 hover:bg-rose-100"
-                    }
-                  >
-                    {result.status}
-                  </Badge>
-                </div>
-                <div className="mt-3 grid gap-2 text-sm text-slate-600">
-                  <p>Input: {result.input}</p>
-                  <p>Expected: {result.expectedOutput}</p>
-                  <p>Output: {result.output || "-"}</p>
-                  {result.error ? <p>Error: {result.error}</p> : null}
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }

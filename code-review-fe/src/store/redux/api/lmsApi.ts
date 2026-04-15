@@ -217,6 +217,49 @@ export type JudgeExecutionResponse = {
   totalTestcases: number
   runtime: number
 }
+export type CodeReviewRequest = {
+  problemId: string
+  code: string
+  language: string
+}
+export type CodeReviewLineRangeResponse = {
+  start: number
+  end: number
+}
+export type CodeReviewColumnRangeResponse = {
+  start: number
+  end: number
+}
+export type CodeReviewLinkResponse = {
+  current_issue: string
+  current_code_snippet: string
+  previous_submission_indexes: number[]
+  previous_code_snippet: string
+  what_improved: string
+  what_still_needs_work: string
+  relation_summary: string
+}
+export type CodeReviewItemResponse = {
+  line: CodeReviewLineRangeResponse
+  column: CodeReviewColumnRangeResponse
+  type: string
+  issue: string
+  code_snippet: string
+  fix_suggestion: string
+  review_link?: CodeReviewLinkResponse | null
+}
+export type CodeReviewScorecardMetricResponse = {
+  score: number
+  label: string
+  explanation: string
+}
+export type CodeReviewResponse = {
+  summary: string
+  detail: string
+  review_id: string
+  review_items: CodeReviewItemResponse[]
+  scorecard: Record<string, CodeReviewScorecardMetricResponse>
+}
 export type CreateSubmissionRequest = {
   problemId: string
   language: string
@@ -444,6 +487,16 @@ export const lmsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ApiResponse<JudgeExecutionResponse>) => response.data,
     }),
+    reviewCode: builder.mutation<CodeReviewResponse, CodeReviewRequest>({
+      // Browser clients cannot safely send a request body with GET. This uses POST to the same
+      // endpoint path and expects the backend/spec to align accordingly.
+      query: (body) => ({
+        url: "/reviews/code",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+    }),
     createClass: builder.mutation<CreatedClass, CreateClassRequest>({
       query: ({ name, description, image, schedule }) => {
         const formData = new FormData()
@@ -659,6 +712,7 @@ export const {
   useGetAssignmentProblemQuery,
   useGetAssignmentTestcasesQuery,
   useJudgeExecutionMutation,
+  useReviewCodeMutation,
   useCreateClassMutation,
   useAddStudentToClassMutation,
   useRemoveStudentFromClassMutation,
