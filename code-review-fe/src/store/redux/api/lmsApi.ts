@@ -74,15 +74,17 @@ type CreateAssignmentRequest = {
   maxSubmission: number
   difficulty: "EASY" | "MEDIUM" | "HARD"
   tags: string[]
-  description: string
-  problemConstraint: string
-  functionSkeletons: Record<string, string>
-  testcases: Array<{
-    input: string
-    expectedOutput: string
-    explanation: string
-    hidden: boolean
-  }>
+  problem: {
+    description: string
+    problemConstraint: string
+    starterCodes: Record<string, string>
+    testcases: Array<{
+      input: string
+      expectedOutput: string
+      explanation: string
+      hidden: boolean
+    }>
+  }
 }
 type UpdateTopicRequest = {
   id: string
@@ -611,10 +613,7 @@ export const lmsApi = baseApi.injectEndpoints({
         maxSubmission,
         difficulty,
         tags,
-        description,
-        problemConstraint,
-        functionSkeletons,
-        testcases,
+        problem,
       }) => ({
         url: "/assignments",
         method: "POST",
@@ -628,12 +627,7 @@ export const lmsApi = baseApi.injectEndpoints({
           maxSubmission,
           difficulty,
           tags,
-          problem: {
-            description,
-            problemConstraint,
-            functionSkeletons,
-            testcases,
-          },
+          problem,
         },
       }),
       transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,

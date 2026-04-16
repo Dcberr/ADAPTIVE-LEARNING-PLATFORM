@@ -311,17 +311,19 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
-      description: assignmentDraft.description.trim(),
-      problemConstraint: assignmentDraft.constraints.trim(),
-      functionSkeletons: assignmentDraft.functionSkeleton.cpp.trim()
-        ? { cpp: assignmentDraft.functionSkeleton.cpp }
-        : {},
-      testcases: assignmentDraft.testCases.map((item) => ({
-        input: item.input,
-        expectedOutput: item.expectedOutput,
-        explanation: item.explanation.trim(),
-        hidden: item.hidden,
-      })),
+      problem: {
+        description: assignmentDraft.description.trim(),
+        problemConstraint: assignmentDraft.constraints.trim(),
+        starterCodes: assignmentDraft.functionSkeleton.cpp.trim()
+          ? { cpp: assignmentDraft.functionSkeleton.cpp }
+          : {},
+        testcases: assignmentDraft.testCases.map((item) => ({
+          input: item.input,
+          expectedOutput: item.expectedOutput,
+          explanation: item.explanation.trim(),
+          hidden: item.hidden,
+        })),
+      },
     })
       .unwrap()
       .then((createdAssignment) => {
