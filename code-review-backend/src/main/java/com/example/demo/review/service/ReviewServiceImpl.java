@@ -220,6 +220,33 @@ public class ReviewServiceImpl implements ReviewService {
                                 .build())
                         .toList();
 
+        // Build history from previous submissions and direct reviews
+        List<Map<String, Object>> history = submissionRepository
+                .findByProblemId(problemId)
+                .stream()
+                .filter(s -> s.getUserId().equals(userId))
+                .sorted((a, b) -> b.getSubmittedAt().compareTo(a.getSubmittedAt()))
+                .map(prevSubmission -> {
+                    List<TestcaseResult> prevTestcases = executionService.runByTestcase(
+                            RunTestcaseRequest.builder()
+                                    .problemId(problemId)
+                                    .language(prevSubmission.getLanguage())
+                                    .code(prevSubmission.getCode())
+                                    .build()
+                    ).getTestcases();
+                    
+                    List<UUID> failedTestcaseIds = prevTestcases.stream()
+                            .filter(tc -> tc.getStatus() != JudgeStatus.ACCEPTED)
+                            .map(TestcaseResult::getTestcaseId)
+                            .toList();
+                    
+                    return Map.of(
+                            "code", prevSubmission.getCode(),
+                            "failed_test_case_ids", failedTestcaseIds
+                    );
+                })
+                .toList();
+
         Map<String, Object> body = Map.of(
                 "assignment", Map.of(
                         "content", problem.getDescription(),
@@ -235,7 +262,7 @@ public class ReviewServiceImpl implements ReviewService {
                                 "actual", normalize(tc.getActualOutput())
                         ))
                         .toList(),
-                "history", List.of()
+                "history", history
         );
 
         log.info("Review request body for direct code review: {}", body);
