@@ -16,6 +16,17 @@ class RecommendationExercise(ExerciseRecord):
     directive: str
 
 
+class ExplanationRef(BaseModel):
+    ref_id: str
+    content: str
+    ref_category: Literal["code", "review", "exercise"]
+
+
+class ExplanationBlock(BaseModel):
+    content: str
+    refs: list[ExplanationRef]
+
+
 class RecommendationRoadmapStep(BaseModel):
     step: int
     exercise: RecommendationExercise
@@ -40,6 +51,6 @@ class RecommendationResponse(BaseModel):
     critical_errors: int
     framework: RecommendationScoringFramework
     graph_summary: RecommendationGraphSummary
-    reasoning: str
-    roadmap_summary: str
+    reasoning: ExplanationBlock
+    roadmap_summary: ExplanationBlock
     roadmap: list[RecommendationRoadmapStep]

@@ -4,6 +4,7 @@ from typing import Dict
 from openai import OpenAI
 
 from app.models.review_state import LogicIssue, ReviewState
+from app.prompts.review.fix_hint import build_fix_hint_messages
 from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
@@ -32,53 +33,12 @@ class FixHintAgent:
         current_code: str,
         testcase_context: str,
     ) -> list[Dict[str, str]]:
-        """Generate structured messages (system + user) for the model."""
-        system_message = {
-            "role": "system",
-            "content": (
-                "You are a helpful CS1 tutoring assistant. "
-                "Your goal is to help students understand and fix their code issues "
-                "by focusing on conceptual understanding. "
-                "Do not reveal the full code solution — instead, guide the student with reasoning and hints."
-            ),
-        }
-
-        user_message = {
-            "role": "user",
-            "content": f"""
-                ASSIGNMENT DESCRIPTION:
-                {assignment}
-
-                CURRENT STUDENT CODE:
-                {current_code}
-
-                CODE SNIPPET (from student's submission):
-                {issue.get('code_snippet', '')}
-
-                PROBLEM SUMMARY:
-                {issue.get('issue', '')}
-
-                FAILING TESTCASE DETAILS:
-                {testcase_context}
-
-                EVIDENCE: Test case ID {issue.get('evidence')}
-
-                HISTORY STATUS:
-                {issue.get('history_status', 'unknown')}
-
-                TASK:
-                Based on the above information, generate a JSON object with a clear fix hint
-                that explains what might be wrong conceptually and what steps the student
-                should take to fix it.
-
-                Output must be valid JSON:
-                {{
-                    "fix_suggestion": "your suggestion here"
-                }}
-                            """,
-        }
-
-        return [system_message, user_message]
+        return build_fix_hint_messages(
+            issue=issue,
+            assignment=assignment,
+            current_code=current_code,
+            testcase_context=testcase_context,
+        )
 
     def get_testcase_context(self, state: ReviewState, testcase_id: str) -> str:
         """Return the failing testcase details for a given evidence id."""

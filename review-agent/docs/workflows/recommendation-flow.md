@@ -2,37 +2,129 @@
 
 ## Overview
 
-The recommendation flow is graph-backed and starts from a minimal request:
+The recommendation flow starts from a minimal request:
 
 - `student_id`
 - `exercise_id`
 
-The client does not send the full review payload. The service loads the needed context from Neo4j.
+The client does not send review or submission payloads. The service loads graph-backed context from Neo4j, lets the LLM decide what extra context is worth loading, lets the LLM decide the recommendation path, queries weighted exercise candidates from the graph, then lets the LLM choose the roadmap and build structured explanations with evidence refs.
+
+The runtime graph is now organized as a set of subgraphs with explicit fallback nodes. This keeps the main workflow short while making each LLM-heavy phase resilient when parsing fails or the model returns weak output.
+
+Model selection for these stages is also centralized by feature and stage in `app/config/model_config.py`, with environment-backed overrides resolved by `app/config/env_config.py`.
+Prompt generation for recommendation stages is centralized under `app/prompts/recommendation/`.
 
 ## High-Level Flow
 
 1. The client calls `POST /api/v1/recommendation`.
-2. `RecommendationContextLoader` loads the latest stored review for `(student_id, exercise_id)`.
-3. The same step loads recent review history through `NEXT_REVIEW_OF` and recent submission trend through `NEXT_ATTEMPT`.
-4. `QueryPlanner` uses an LLM to choose a fixed query plan, start entity, target-concept hint, and path preference.
-5. `PathSelector` combines planner preference with graph-backed rules to assign `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
-6. `TargetConceptSelector` chooses the target concept from the anchor concept, planner hint, and prerequisite graph.
-7. `ExerciseCandidateRetriever` loads weighted exercise candidates from Neo4j.
-8. `RoadmapBuilder` ranks candidates deterministically, with a small query-plan bias, and selects the roadmap.
-9. `RecommendationExplainer` uses the LLM only to explain the already selected roadmap and stores assignment relations back into Neo4j.
+2. `context_subgraph` loads the minimum stable context and expands it conditionally.
+3. `path_subgraph` decides `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+4. `roadmap_subgraph` queries weighted graph candidates and selects the final roadmap.
+5. `explanation_subgraph` generates explanation blocks with structured refs.
+6. The service stores `ASSIGNED` and `RECOMMENDS` relations for the final roadmap.
+
+## Subgraph Layout
+
+### Main Graph
+
+The top-level `StateGraph(RecommendationState)` is intentionally small:
+
+1. `context_subgraph`
+2. `path_subgraph`
+3. `roadmap_subgraph`
+4. `explanation_subgraph`
+
+Each subgraph owns one logical phase and can route to a fallback node without making the main graph hard to follow.
+
+### `context_subgraph`
+
+Nodes:
+
+- `BaseContextLoader`
+- `ContextPlanner`
+- `ContextPlannerFallback`
+- `ConditionalContextLoader`
+
+Flow:
+
+1. always load base context
+2. ask the LLM which extra blocks are needed
+3. if the planner output is valid, load those blocks
+4. if the planner returns malformed non-JSON output, run one JSON-repair pass with the same stage model
+5. if the repaired output is still invalid, route to `ContextPlannerFallback`
+6. load a safe default block set
+
+Stage model key:
+
+- `recommendation.context_planner`
+
+### `path_subgraph`
+
+Nodes:
+
+- `PathDecider`
+- `PathDeciderFallback`
+
+Flow:
+
+1. ask the LLM for the assigned path and focus concept
+2. if the result is valid, end the subgraph
+3. otherwise route to the deterministic fallback path selector
+
+Stage model key:
+
+- `recommendation.path_decider`
+
+### `roadmap_subgraph`
+
+Nodes:
+
+- `ExerciseCandidateRetriever`
+- `RoadmapBuilder`
+- `RoadmapBuilderFallback`
+
+Flow:
+
+1. query graph candidates deterministically
+2. ask the LLM to choose the most important exercises
+3. if the chosen ids map back to valid candidates, end the subgraph
+4. otherwise route to the fallback that keeps the top graph candidates
+
+Stage model key:
+
+- `recommendation.roadmap_builder`
+
+### `explanation_subgraph`
+
+Nodes:
+
+- `ExplanationBuilder`
+- `ExplanationBuilderFallback`
+
+Flow:
+
+1. build an evidence catalog
+2. ask the LLM for `reasoning` and `roadmap_summary`
+3. if the explanation blocks are valid, end the subgraph
+4. otherwise route to a templated evidence-backed fallback explanation
+
+Stage model key:
+
+- `recommendation.explanation_builder`
 
 ## Detailed Flow
 
-### 1. RecommendationContextLoader
+### 1. BaseContextLoader
 
-Loads:
+Always loads:
 
-- latest stored `Review`
-- recent `NEXT_REVIEW_OF` history
-- latest `NEXT_ATTEMPT` trend
+- current `Exercise`
+- strongest `TESTS` concepts for that exercise
+- current exercise `RECOMMENDED_FOR` links
+- latest stored `Review` for `(student_id, exercise_id)`
+- latest stored `Submission` for `(student_id, exercise_id)`
 - stored `StudentProfileScoring`
-- current concept and current concept weight
-- mastered concepts
+- mastered concept ids
 - attempted exercise ids
 
 Derived state:
@@ -40,83 +132,80 @@ Derived state:
 - `anchor_concept`
 - `anchor_concept_weight`
 - `critical_errors`
-- `latest_review_improvement_signal`
-- `latest_review_severity_change`
-- `latest_submission_improvement_ratio`
-- `latest_submission_regression_ratio`
+- initial `focus_concept_id`
 
-### 2. QueryPlanner
+### 2. ContextPlanner
 
-The planner does not generate raw Cypher.
+The planner does not generate Cypher.
 
-It chooses one fixed `query_plan_id` from:
+It chooses which extra context blocks to fetch next from this fixed set:
 
-- `review_reinforce_plan`
-- `review_improve_plan`
-- `concept_next_concept_plan`
-- `submission_progress_plan`
-- `exercise_related_plan`
-- `full_progression_plan`
+- `review_trend`
+- `submission_trend`
+- `exercise_graph`
+- `concept_progression`
+- `student_history`
 
 It also returns:
 
-- `start_entity`
+- `provisional_focus_concept_id`
+- `priority_signal`
+- `reason`
+
+If the planner does not return a usable block list, the graph routes to `ContextPlannerFallback`, which loads a default mix of:
+
+- `exercise_graph`
+- `review_trend`
+- `student_history`
+- optionally `submission_trend`
+- optionally `concept_progression`
+
+Before that fallback happens, the service now makes one bounded JSON-repair attempt to recover malformed planner output into a single valid JSON object.
+
+### 3. ConditionalContextLoader
+
+Loads only the selected extra blocks.
+
+Possible graph reads:
+
+- `NEXT_REVIEW_OF` history and transition scores
+- `NEXT_ATTEMPT` transition scores
+- current exercise `RELATED_TO` neighborhood
+- next-concept candidates from `PREREQUISITE_OF`
+- attempted and assigned exercise history
+
+This stage also loads previous review and previous submission payloads when available so the explanation step can cite them later.
+
+### 4. PathDecider
+
+The LLM reads the assembled context and returns:
+
 - `assigned_path`
-- `target_concept_hint`
+- `focus_concept_id`
 - `confidence`
-- `rationale`
+- `risk_level`
+- `readiness_level`
+- `reason`
 
-If planner output is weak or invalid, the flow falls back to a deterministic plan.
+The decision is constrained to:
 
-### 3. PathSelector
+- `REINFORCE`
+- `IMPROVE`
+- `NEXT_CONCEPT`
 
-Inputs:
-
-- latest review quality
-- review trend
-- submission trend
-- student profile
-- planner path suggestion
-
-Process:
-
-- compute `reinforce_score`
-- compute `improve_score`
-- compute `next_concept_score`
-- choose the best path by score
-- optionally keep the planner path when planner confidence is high and the planner choice is close enough to the best deterministic score
-
-Outputs:
-
-- `assigned_path`
-- `framework.risk_level`
-- `framework.readiness_level`
-
-### 4. TargetConceptSelector
-
-Default behavior:
-
-- use `anchor_concept` as the target concept
-
-For `NEXT_CONCEPT`:
-
-- query next concepts from `PREREQUISITE_OF`
-- score them with prerequisite strength, best next-path support, and learner readiness
-- choose the highest scoring concept
-
-If planner gives a concept hint for non-`NEXT_CONCEPT` paths:
-
-- use the planner hint as the focus concept
+If the LLM output is invalid, `PathDeciderFallback` uses current errors, attempt regression, review improvement, and available next concepts to choose a safe default path.
 
 ### 5. ExerciseCandidateRetriever
 
-Loads candidate exercises from Neo4j for:
+The service queries weighted exercise candidates from Neo4j using:
 
-- current exercise
-- focus concept
-- assigned path
+- current exercise id
+- anchor concept
+- chosen focus concept
+- chosen path
+- attempted exercise ids
 
-Signals loaded per candidate:
+Graph signals returned per candidate include:
 
 - `path_weight`
 - `tests_weight`
@@ -128,45 +217,59 @@ Signals loaded per candidate:
 
 ### 6. RoadmapBuilder
 
-For each candidate:
+The LLM receives the candidate list and chooses the most important exercises for the roadmap.
 
-- compute graph score from weighted graph relations
-- compute student profile adjustment
-- apply a small planner-based query-plan bias
-- combine them into final score
+It returns:
 
-Then:
+- ordered `exercise_ids`
+- step directives
 
-- sort candidates by `final_score`
-- keep top unique exercises
-- choose up to 3 roadmap steps
-- compute `graph_summary` from the best candidate and recent trend signals
+The service resolves those ids back to the graph candidates. If the returned ids do not map to usable candidate exercises, `RoadmapBuilderFallback` keeps the top graph-ranked exercises and fills directives with deterministic defaults.
 
-### 7. RecommendationExplainer
+### 7. ExplanationBuilder
 
-The LLM is used only after the roadmap is already selected.
+The explanation stage is evidence-backed.
 
-It generates:
+It builds a ref catalog from:
 
-- `reasoning`
-- `roadmap_summary`
-- per-step `directive`
+- current review
+- previous review
+- current submission code snippet
+- previous submission code snippet
+- current exercise
+- selected roadmap exercises
 
-If the LLM response is weak or invalid, fallback text is used.
+The LLM then returns:
+
+- `reasoning.content`
+- `reasoning.refs`
+- `roadmap_summary.content`
+- `roadmap_summary.refs`
+
+Each explanation block uses placeholders like `{ref_review_current}` in the content, and each referenced item is returned separately with:
+
+- `ref_id`
+- `content`
+- `ref_category`
+
+Allowed `ref_category` values:
+
+- `code`
+- `review`
+- `exercise`
+
+If the LLM output is empty or structurally invalid, `ExplanationBuilderFallback` returns a shorter but still evidence-backed explanation using the same ref catalog.
 
 ## Main Inputs
 
 - latest review
-- recent review history
-- recent submission trend
+- latest submission
 - student profile
-- planner decision over fixed query plans
-- exercise-to-concept graph links
-- exercise-to-exercise related links
-- concept prerequisite graph
-- recommendation path graph links
-- related-exercise metadata such as relation type, difficulty gap, progression score, and similarity score
-- review-history metadata such as `same_concept`, `improvement_signal`, and `severity_change`
+- current exercise concept links
+- LLM context-plan decision
+- LLM path decision
+- weighted exercise candidates from Neo4j
+- previous review and submission evidence for explanation
 
 ## Main Outputs
 
@@ -175,6 +278,7 @@ If the LLM response is weak or invalid, fallback text is used.
 - focus concept id
 - graph summary metrics
 - ordered exercise roadmap
+- explanation blocks with structured refs
 - stored `ASSIGNED` relations for the student
 
 Roadmap item shape:
@@ -193,5 +297,5 @@ Roadmap item shape:
 
 - [../architecture.md](/Users/thaibao/projects/review-code-app/review-agent/docs/architecture.md)
 - [../domain/knowledge-graph.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/knowledge-graph.md)
-- [../domain/recommendation-formulas.md](/Users/thaibao/projects/review-code-app/review-agent/docs/domain/recommendation-formulas.md)
+- [../api/recommendation-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/recommendation-api.md)
 - [../api/review-import-api.md](/Users/thaibao/projects/review-code-app/review-agent/docs/api/review-import-api.md)

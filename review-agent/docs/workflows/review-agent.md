@@ -11,6 +11,8 @@ The review system is a LangGraph-based multi-agent workflow for CS1 code review.
 - per-error history links to earlier attempts when the same testcase failed before
 - a scorecard with ten learning signals
 
+Prompt generation for the review flow is centralized under `app/prompts/review/`. Each prompt file matches one review function, such as `logic.py`, `fix_hint.py`, `review_link.py`, `overview.py`, and `scoring.py`.
+
 ## Endpoint
 
 - Route: `POST /api/v1/review_code`
@@ -135,26 +137,48 @@ The review system is a LangGraph-based multi-agent workflow for CS1 code review.
 
 ## Runtime Model Configuration
 
-Model wiring lives in `app/api/review_code_deps.py`.
+Model wiring is now centralized in:
 
-- Fireworks client source: `get_fireworks_client()`
-- General Fireworks model env var: `FIREWORKS_MODEL`
-- Review-specific Fireworks model env var: `REVIEW_FIREWORKS_MODEL`
-- General default model: `fireworks/deepseek-v3p2`
-- Current review default model: `fireworks/kimi-k2p5`
+- `app/config/model_config.py`
+- `app/config/env_config.py`
+- `app/api/review_code_deps.py`
 
-All review agents currently use `get_review_fireworks_model_name()`, so by default the review flow runs on:
+The highest-level grouping is the feature name:
 
-- `fireworks/kimi-k2p5`
+- `review`
+- `recommendation`
+- `knowledge_graph`
 
-The following agents use the review model:
+Within `review`, each agent stage has its own config entry:
 
-- `LogicAgent`
-- `FixHintAgent`
-- `ReviewLinkAgent`
-- `ImprovementAgent`
-- `OverviewAgent`
-- `ScoringAgent`
+- `logic`
+- `fix_hint`
+- `review_link`
+- `improvement`
+- `overview`
+- `scoring`
+
+Each stage config includes:
+
+- `model_name`
+- `temperature`
+- `max_tokens`
+
+The shared default map lives in `app/config/model_config.py`, and environment overrides are loaded through `EnvConfig.get_stage_config(feature, stage)`.
+
+Example review env vars:
+
+- `REVIEW_MODEL`
+- `REVIEW_LOGIC_MODEL`
+- `REVIEW_LOGIC_TEMPERATURE`
+- `REVIEW_LOGIC_MAX_TOKENS`
+- `REVIEW_FIX_HINT_MODEL`
+- `REVIEW_SCORING_MODEL`
+
+If a stage-specific env var is not set, the loader falls back in this order:
+
+1. stage default from `app/config/model_config.py`
+2. feature-level `REVIEW_MODEL`
 
 ## Workflow Graph
 

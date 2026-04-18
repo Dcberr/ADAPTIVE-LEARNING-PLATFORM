@@ -7,7 +7,7 @@ This system now has three connected capabilities:
 - review student code and produce structured educational feedback
 - store curriculum knowledge and exercise content in Neo4j
 - store student learning state in Neo4j
-- generate a roadmap of multiple mandatory exercises through a LangGraph recommendation workflow using Neo4j GraphRAG
+- generate a roadmap of multiple mandatory exercises through an LLM-led recommendation workflow over Neo4j graph context
 
 The recommendation input is no longer required to carry the full review payload. It is built from:
 
@@ -16,7 +16,9 @@ The recommendation input is no longer required to carry the full review payload.
 
 The latest review context, student profile, and exercise concept are loaded from Neo4j during the recommendation flow.
 
-The recommendation path is decided internally through a planner-plus-graph flow. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+The recommendation path is decided internally through LLM path selection over graph-backed context. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+
+The recommendation runtime is now split into subgraphs with explicit fallback nodes. Each LLM-heavy phase first tries the model-driven branch and then routes to a deterministic fallback when parsing or validation fails. The context planner also performs one bounded JSON-repair retry before it gives up and routes to fallback.
 
 ## High-Level Flows
 
@@ -57,13 +59,21 @@ Client
 Client
   -> POST /api/v1/recommendation
   -> Recommendation LangGraph
-     1. RecommendationContextLoader
-     2. QueryPlanner
-     3. PathSelector
-     4. TargetConceptSelector
-     5. ExerciseCandidateRetriever
-     6. RoadmapBuilder
-     7. RecommendationExplainer
+     1. context_subgraph
+        - BaseContextLoader
+        - ContextPlanner
+        - ContextPlannerFallback
+        - ConditionalContextLoader
+     2. path_subgraph
+        - PathDecider
+        - PathDeciderFallback
+     3. roadmap_subgraph
+        - ExerciseCandidateRetriever
+        - RoadmapBuilder
+        - RoadmapBuilderFallback
+     4. explanation_subgraph
+        - ExplanationBuilder
+        - ExplanationBuilderFallback
   -> RecommendationResponse with roadmap
 ```
 
@@ -75,6 +85,9 @@ File: [app/app.py](/Users/thaibao/projects/review-code-app/review-agent/app/app.
 
 Startup responsibilities:
 
+- load application settings from environment through `app/config/env_config.py`
+- load feature/stage model defaults from `app/config/model_config.py`
+- load prompt builders from `app/prompts/`
 - initialize the Fireworks-compatible `OpenAI` client
 - initialize the Neo4j driver
 - register review, recommendation, and knowledge graph routers
@@ -89,7 +102,33 @@ LLM environment variables:
 
 - `FIREWORKS_API_KEY`
 - `FIREWORKS_BASE_URL`
-- `FIREWORKS_MODEL`
+
+Model runtime configuration is now organized by feature and stage.
+
+Main features:
+
+- `review`
+- `recommendation`
+- `knowledge_graph`
+
+Example stage-level env vars:
+
+- `REVIEW_LOGIC_MODEL`
+- `RECOMMENDATION_CONTEXT_PLANNER_MODEL`
+- `RECOMMENDATION_ROADMAP_BUILDER_MAX_TOKENS`
+- `KNOWLEDGE_GRAPH_EXERCISE_WEIGHT_MODEL`
+
+Each stage can override:
+
+- model name
+- temperature
+- max tokens
+
+Resolution order is:
+
+1. stage-specific env var
+2. feature-level env var such as `REVIEW_MODEL`
+3. default value in `app/config/model_config.py`
 
 ### API Surface
 
@@ -109,6 +148,10 @@ Current endpoints:
 ### Review Workflow
 
 File: [app/services/review_code_service.py](/Users/thaibao/projects/review-code-app/review-agent/app/services/review_code_service.py)
+
+Prompt builders for review agents now live under:
+
+- `app/prompts/review/`
 
 The review pipeline uses `StateGraph(ReviewState)` with these nodes:
 
@@ -169,7 +212,7 @@ Important design change:
 
 ### Repository Layer
 
-File: [app/services/knowledge_graph_repository.py](/Users/thaibao/projects/review-code-app/review-agent/app/services/knowledge_graph_repository.py)
+File: [app/repositories/knowledge_graph_repository.py](/Users/thaibao/projects/review-code-app/review-agent/app/repositories/knowledge_graph_repository.py)
 
 Responsibilities:
 
@@ -192,6 +235,10 @@ Responsibilities:
 - exclude previously attempted or assigned exercises for the same student
 - persist assigned roadmap links after recommendation
 - return a graph snapshot for inspection
+
+Prompt builders for knowledge-graph weighting now live under:
+
+- `app/prompts/knowledge_graph/`
 
 ### Knowledge Graph APIs
 
@@ -297,14 +344,11 @@ The recommendation request now accepts:
 
 This means recommendation depends on stored graph context in Neo4j rather than requiring the client to pass `ReviewResponse`, student profile scoring, or current concept again.
 
-The recommendation response now returns a roadmap rather than a single exercise recommendation.
+The recommendation response returns a roadmap plus structured explanation blocks.
 Recommendation loads:
 
-- the latest review for `(student_id, exercise_id)`
-- the linked review history from `NEXT_REVIEW_OF`
-- the latest submission trend from `NEXT_ATTEMPT`
-- the stored student profile for that student
-- the current concept from the exercise's graph links
+- base context first from the latest review, latest submission, student profile, and current exercise
+- additional context blocks only when the context-planning LLM requests them
 - weighted candidate exercises from `TESTS`, `RECOMMENDED_FOR`, `RELATED_TO`, and `PREREQUISITE_OF`
 
 ### Student Profile Scoring
@@ -327,7 +371,7 @@ Each metric is currently normalized from `0.0` to `1.0`.
 
 File: [app/models/recommendation_framework.py](/Users/thaibao/projects/review-code-app/review-agent/app/models/recommendation_framework.py)
 
-The recommendation workflow computes a framework specifically for roadmap assignment:
+The recommendation workflow still returns a framework object for roadmap assignment:
 
 - `risk_level`
 - `readiness_level`
@@ -338,7 +382,7 @@ Framework intent:
 - `risk_level`: how cautious the roadmap should be before the student advances
 - `readiness_level`: whether the student should reinforce, improve, or move to a next concept
 
-This framework is computed from graph-backed rules before the LLM explanation step.
+This framework is now decided during the LLM path-decision step and returned with the roadmap.
 
 ## Recommendation LangGraph
 
@@ -348,81 +392,80 @@ File: [app/services/recommendation_service.py](/Users/thaibao/projects/review-co
 
 The recommendation workflow uses `StateGraph(RecommendationState)` with these nodes:
 
-- `review_context_loader`
-- `query_planner`
-- `path_selector`
-- `target_concept_selector`
+- `base_context_loader`
+- `context_planner`
+- `conditional_context_loader`
+- `path_decider`
 - `candidate_retriever`
 - `roadmap_builder`
 - `explanation_builder`
 
 ### Node Responsibilities
 
-`ReviewContextLoader`
+`BaseContextLoader`
 
-- loads the latest stored review for the student from Neo4j
-- filters by current concept when available
-- loads recent linked review history for trend-aware reasoning
+- loads the minimum stable graph context from Neo4j
+- includes current exercise, latest review, latest submission, student profile, and tested concepts
 
-`QueryPlanner`
+`ContextPlanner`
 
-- uses the LLM to choose one fixed query plan from an allowed set
-- proposes:
-  - `start_entity`
-  - `query_plan_id`
-  - `assigned_path`
-  - `target_concept_hint`
+- uses the LLM to decide which extra context blocks are needed
+- can request:
+  - `review_trend`
+  - `submission_trend`
+  - `exercise_graph`
+  - `concept_progression`
+  - `student_history`
 - does not generate raw Cypher
-- falls back to a deterministic plan when needed
 
-`PathSelector`
+`ConditionalContextLoader`
 
-- reads latest review quality, review trend, submission trend, and student profile
-- combines deterministic scores with planner preference
-- assigns one path from:
+- fetches only the extra context blocks chosen by the LLM
+- loads previous review and previous submission payloads when available so explanation can cite them later
+
+`PathDecider`
+
+- uses the LLM to choose one path from:
   - `REINFORCE`
   - `IMPROVE`
   - `NEXT_CONCEPT`
-- computes `risk_level` and `readiness_level`
-
-`TargetConceptSelector`
-
-- uses `review.current_concept` or max `TESTS.weight` as the anchor concept
-- considers the planner target-concept hint
-- for `NEXT_CONCEPT`, selects the next concept with the strongest prerequisite and exercise support
+- also chooses the focus concept and returns `risk_level`, `readiness_level`, and an explanation
 
 `CandidateRetriever`
 
-- queries Neo4j for weighted candidates for the selected path and target concept
+- queries Neo4j for weighted candidates for the selected path and focus concept
 - returns `path_weight`, `tests_weight`, `related_weight`, `progression_score`, and `similarity_score`
 - filters out exercises already linked to the student through `ATTEMPTED` or `ASSIGNED`
 
 `RoadmapBuilder`
 
-- ranks candidates deterministically
-- combines graph weights with student-profile adjustment
-- adds a small query-plan bias based on the selected fixed plan
-- selects the ordered roadmap and computes graph summary metrics
+- lets the LLM choose the most important exercises from the graph candidate list
+- stores step directives
+- computes graph summary metrics from the selected roadmap
 
 `ExplanationBuilder`
 
 - uses the LLM only after the roadmap is already selected
 - generates:
-  - `reasoning`
-  - `roadmap_summary`
-  - step-level directives
+  - `reasoning.content`
+  - `reasoning.refs`
+  - `roadmap_summary.content`
+  - `roadmap_summary.refs`
+- explanation refs are structured and separated from the prose
 
 ### GraphRAG Strategy
 
 The current recommendation pattern is:
 
-1. retrieve graph-structured context and weighted candidates from Neo4j using Cypher
-2. let an internal planner LLM choose one fixed query plan and start entity
-3. combine planner preference with deterministic graph-backed rules for path and target concept
-4. rank candidates with graph weights, student-profile adjustment, and a small query-plan bias
-5. use the LLM only to explain the selected roadmap
+1. retrieve base graph context from Neo4j
+2. let an LLM decide which extra context blocks to load
+3. load only those extra context blocks from Neo4j
+4. let an LLM choose the path and focus concept from the assembled context
+5. query weighted graph candidates from Neo4j
+6. let an LLM filter the most important exercises into the roadmap
+7. let an LLM build explanation blocks with structured refs
 
-This is a planner-plus-graph ranking design, not a free-form LLM reasoner.
+This is an LLM-led orchestration design over constrained graph queries, not a free-form query generator.
 
 ## Data Models
 
@@ -501,13 +544,14 @@ Important models:
 1. Client submits:
    - `student_id`
    - `exercise_id`
-2. The recommendation service loads the latest stored student profile and review context from Neo4j.
-3. `ReviewContextLoader` loads the latest review and recent linked review history from Neo4j.
-4. `ProfileScorer` computes recommendation-specific learner signals.
-5. `GraphRAGRetriever` retrieves candidate exercises from Neo4j using student-aware filtering.
-6. `RecommendationReasoner` selects the best pedagogical path and a small exercise roadmap.
-7. `DirectiveBuilder` returns multiple mandatory exercises as an ordered roadmap.
-8. The assigned roadmap is stored back into Neo4j and linked to the review that produced it.
+2. The recommendation service loads base context from Neo4j.
+3. The context-planning LLM decides which additional context blocks are needed.
+4. The service loads only those selected graph context blocks.
+5. The path-decision LLM chooses the pedagogical path and focus concept.
+6. Neo4j returns weighted candidate exercises for that path and concept.
+7. The roadmap-building LLM filters the most important exercises and writes directives.
+8. The explanation LLM returns structured explanation blocks with refs.
+9. The assigned roadmap is stored back into Neo4j and linked to the review that produced it.
 
 ## Directory Map
 
@@ -527,10 +571,11 @@ main.py
 
 - review remains LLM-powered
 - recommendation is now both LangGraph-powered and Neo4j-backed
-- path assignment is reasoner-driven
+- path assignment is LLM-decided from assembled graph context
 - roadmap generation is graph-grounded
 - roadmap responses expose graph-backed `focus_concept_id`
 - roadmap exercises expose `concept_ids` and `directive` without per-step `focus`, `path`, or `target_concept`
+- explanation responses expose separate structured refs with `code`, `review`, and `exercise` categories
 - student profile scoring is a first-class input
 - student state is persisted and reused across recommendations
 - review history is linked and reused across recommendations

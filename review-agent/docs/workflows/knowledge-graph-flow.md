@@ -1,5 +1,7 @@
 # Knowledge Graph Flow
 
+Prompt generation for knowledge-graph weighting and relation evaluation is centralized under `app/prompts/knowledge_graph/`.
+
 ## Overview
 
 The knowledge-graph flow is split into small APIs so graph state can be written and validated incrementally.

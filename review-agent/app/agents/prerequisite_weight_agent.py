@@ -4,6 +4,9 @@ from typing import Any
 from openai import OpenAI
 
 from app.models.knowledge_graph import ConceptRecord
+from app.prompts.knowledge_graph.prerequisite_weight import (
+    build_prerequisite_weight_messages,
+)
 from app.utils.parse_json_response import safe_parse_json_response
 
 logger = logging.getLogger(__name__)
@@ -48,58 +51,7 @@ class PrerequisiteWeightAgent:
         if not prerequisites:
             return {}
 
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are labeling prerequisite strength for CS1 programming concepts. "
-                    "For each prerequisite candidate, choose exactly one strength from 1.0, 0.6, or 0.3. "
-                    "1.0 means hard prerequisite, 0.6 means strong supporting prerequisite, "
-                    "0.3 means soft prerequisite. Return valid JSON only."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"""
-Target concept:
-{{
-  "concept_id": "{main_concept.concept_id}",
-  "name": "{main_concept.name}",
-  "description": "{main_concept.description}",
-  "difficulty": {main_concept.difficulty}
-}}
-
-Prerequisite candidates:
-{[
-    {
-        "concept_id": concept.concept_id,
-        "name": concept.name,
-        "description": concept.description,
-        "difficulty": concept.difficulty,
-    }
-    for concept in prerequisites
-]}
-
-Return JSON in exactly this shape:
-{{
-  "prerequisites": [
-    {{
-      "concept_id": "string",
-      "strength": 1.0,
-      "reason": "short explanation"
-    }}
-  ]
-}}
-
-Rules:
-- Only use concept_ids from the provided prerequisite candidates.
-- Use 1.0 when the target concept usually depends directly on the prerequisite.
-- Use 0.6 when the prerequisite is strongly helpful but not strictly required.
-- Use 0.3 when the prerequisite is useful background only.
-- Return one item for every provided prerequisite candidate.
-                """,
-            },
-        ]
+        messages = build_prerequisite_weight_messages(main_concept, prerequisites)
 
         try:
             response = self.client.chat.completions.create(
