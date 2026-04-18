@@ -1,6 +1,7 @@
 package com.example.demo.problem.service;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -11,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.entity.AssignmentProblem;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
+import com.example.demo.problem.client.LeetCodeClient;
 import com.example.demo.problem.dto.CreateProblemRequest;
+import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.entity.Problem;
@@ -19,6 +22,7 @@ import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.utils.CodeExtractor;
+import com.example.demo.problem.utils.LeetCodeStarterCodeGenerator;
 
 @Service
 @RequiredArgsConstructor
@@ -27,15 +31,18 @@ public class ProblemServiceImpl implements ProblemService {
     private final ProblemRepository problemRepository;
     private final TestcaseRepository testcaseRepository;    
     private final AssignmentProblemRepository assignmentProblemRepository;
+    private final LeetCodeClient leetCodeClient;
+    private final LeetCodeStarterCodeGenerator leetCodeStarterCodeGenerator;
 
     @Override
     public ProblemResponse createProblem(CreateProblemRequest request) {
+        Map<String, String> starterCodes = resolveStarterCodes(request);
 
         Problem problem = Problem.builder()
                 // .title(request.getTitle())
                 .description(request.getDescription())
                 .problemConstraint(request.getProblemConstraint())
-                .starterCodes(request.getStarterCodes())
+                .starterCodes(starterCodes)
                 // .difficulty(request.getDifficulty())
                 // .source(request.getSource())
                 .createdAt(Instant.now())
@@ -60,6 +67,21 @@ public class ProblemServiceImpl implements ProblemService {
         return map(problem);
     }
 
+    private Map<String, String> resolveStarterCodes(CreateProblemRequest request) {
+        if (request.getStarterCodes() != null && !request.getStarterCodes().isEmpty()) {
+            return request.getStarterCodes();
+        }
+
+        if (request.getLeetCodeCodeSnippet() == null || request.getLeetCodeCodeSnippet().isBlank()) {
+            return Collections.emptyMap();
+        }
+
+        return leetCodeStarterCodeGenerator.generateStarterCodes(
+                request.getLeetCodeLanguage(),
+                request.getLeetCodeCodeSnippet()
+        );
+    }
+
     @Override
     public ProblemResponse getProblem(UUID problemId) {
 
@@ -76,6 +98,11 @@ public class ProblemServiceImpl implements ProblemService {
 
         return map(problemRepository.findById(problem.getProblemId())
                 .orElseThrow());
+    }
+
+    @Override
+    public LeetCodeProblemPageResponse getLeetCodeProblems(int page, int limit) {
+        return leetCodeClient.getProblems(page, limit);
     }
 
     @Override
@@ -112,4 +139,6 @@ public class ProblemServiceImpl implements ProblemService {
                 // .source(problem.getSource())
                 .build();
     }
+
+    
 }

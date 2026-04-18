@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.problem.dto.CreateProblemRequest;
+import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
@@ -42,6 +43,17 @@ public class ProblemController {
     ) {
         return ApiResponse.success(
                 problemService.getProblem(problemId)
+        );
+    }
+
+    @Operation(summary = "Get problems from LeetCode crawler service")
+    @GetMapping("/leetcode")
+    public ApiResponse<LeetCodeProblemPageResponse> getLeetCodeProblems(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ApiResponse.success(
+                problemService.getLeetCodeProblems(page, limit)
         );
     }
 
