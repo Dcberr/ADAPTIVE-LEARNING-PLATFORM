@@ -47,6 +47,33 @@ services:
     networks:
       - app-network
 
+  leetcode-crawler:
+    build:
+      context: ./leetcode-crawler
+      dockerfile: Dockerfile
+    container_name: leetcode-crawler
+    ports:
+      - "8001:8001"
+    environment:
+      # Database configuration - có thể override từ .env
+      LEETCODE_DB_HOST: ${LEETCODE_DB_HOST:-ep-snowy-tooth-a1bvkkds-pooler.ap-southeast-1.aws.neon.tech}
+      LEETCODE_DB_PORT: ${LEETCODE_DB_PORT:-5432}
+      LEETCODE_DB_NAME: ${LEETCODE_DB_NAME:-leetcode_data}
+      LEETCODE_DB_USER: ${LEETCODE_DB_USER:-neondb_owner}
+      LEETCODE_DB_PASSWORD: ${LEETCODE_DB_PASSWORD:-npg_UorC6bIXy4AD}
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./leetcode-crawler:/app
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   review-agent:
     build: review-agent/
     container_name: review-agent
@@ -85,6 +112,7 @@ services:
 
       - JOBE_URL=http://jobe-server/jobe/index.php/restapi
       - REVIEW_AGENT_URL=http://review-agent:8000/api/v1/review_code
+      - LEETCODE_API_URL=http://localhost:8001/api/problems
 
       - MINIO_URL=${MINIO_URL}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}

@@ -11,6 +11,9 @@ server:
 application:
   url: ${APPLICATION_URL}
 
+leetcode:
+  api-url: ${LEETCODE_API_URL:http://localhost:8001/api/problems}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

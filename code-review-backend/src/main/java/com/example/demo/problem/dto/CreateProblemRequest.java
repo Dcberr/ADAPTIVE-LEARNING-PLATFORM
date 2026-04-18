@@ -15,6 +15,8 @@ public class CreateProblemRequest {
     private UUID assignmentId;
     private String problemConstraint;
     private Map<String, String> starterCodes;
+    private String leetCodeCodeSnippet;
+    private String leetCodeLanguage;
 
     private List<TestcaseRequest> testcases;
 

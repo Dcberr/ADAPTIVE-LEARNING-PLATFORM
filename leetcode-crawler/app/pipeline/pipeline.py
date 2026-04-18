@@ -23,23 +23,22 @@ def run_pipeline(limit=50):
                 continue
 
             detail = retry(lambda: client.get_problem_detail(slug))
-
-            parsed = parse_problem(detail.Body)
+            parsed = parse_problem(detail["content"])
 
             data = {
-                "question_id": detail.QID,
-                "title": detail.title,
-                "title_slug": detail.titleSlug,
-                "difficulty": detail.difficulty,
+                "question_id": detail["QID"],
+                "title": detail["title"],
+                "title_slug": detail["titleSlug"],
+                "difficulty": detail["difficulty"],
                 "content": parsed["content"],
-                "html": detail.Body,
+                "html": detail["content"],
                 "constraints": parsed["constraints"],
                 "examples": parsed["examples"],
-                "hints": detail.Hints,
-                "topics": detail.topics,
-                "similar": detail.SimilarQuestions,
-                "is_paid": detail.isPaidOnly,
-                "code": detail.Code
+                "hints": detail["hints"],
+                "topics": detail["topics"],
+                "similar": detail["similar"],
+                "is_paid": detail["is_paid"],
+                "code": detail["code"]
             }
 
             insert_problem(cur, data)
@@ -47,9 +46,10 @@ def run_pipeline(limit=50):
             if i % BATCH_SIZE == 0:
                 conn.commit()
 
-            print("Saved:", detail.title)
+            print("Saved:", detail["title"])
 
         except Exception as e:
+            conn.rollback()
             print("Error:", slug, e)
 
     conn.commit()

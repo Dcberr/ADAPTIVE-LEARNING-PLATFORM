@@ -3,3 +3,6 @@ psycopg2-binary
 beautifulsoup4
 pandas==1.5.3
 numpy==1.24.4
+fastapi
+uvicorn
+pydantic
