@@ -19,6 +19,26 @@ from app.models.knowledge_graph import AssignedPath
 from app.models.recommendation_framework import RecommendationScoringFramework
 from app.models.recommendation_state import RecommendationState
 from app.config import FireworksStageConfig
+from app.prompts.recommendation.context_planner import (
+    build_context_planner_prompt,
+    build_context_planner_system_prompt,
+)
+from app.prompts.recommendation.explanation_builder import (
+    build_explanation_builder_prompt,
+    build_explanation_builder_system_prompt,
+)
+from app.prompts.recommendation.path_decider import (
+    build_path_decider_prompt,
+    build_path_decider_system_prompt,
+)
+from app.prompts.recommendation.json_repair import (
+    build_json_repair_prompt,
+    build_json_repair_system_prompt,
+)
+from app.prompts.recommendation.roadmap_builder import (
+    build_roadmap_builder_prompt,
+    build_roadmap_builder_system_prompt,
+)
 from app.repositories.knowledge_graph_repository import KnowledgeGraphRepository
 from app.utils.parse_json_response import safe_parse_json_response
 
@@ -272,18 +292,21 @@ class RecommendationService:
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are a context-loading planner for a CS1 exercise recommendation flow. "
-                            "Choose only from these extra context blocks: review_trend, submission_trend, "
-                            "exercise_graph, concept_progression, student_history. Return valid JSON only."
-                        ),
+                        "content": build_context_planner_system_prompt(),
                     },
-                    {"role": "user", "content": self._build_context_planner_prompt(state)},
+                    {
+                        "role": "user",
+                        "content": self._build_context_planner_prompt(state),
+                    },
                 ],
                 temperature=self.stage_configs["context_planner"].temperature,
                 max_tokens=self.stage_configs["context_planner"].max_tokens,
             )
-            parsed = safe_parse_json_response(response.choices[0].message.content)
+            model_text = response.choices[0].message.content or ""
+            parsed = self._parse_json_with_repair(
+                raw_response=model_text,
+                stage_key="context_planner",
+            )
             blocks = []
             for block_name in self.EXTRA_CONTEXT_BLOCKS:
                 if bool(parsed.get(f"need_{block_name}", False)):
@@ -308,6 +331,41 @@ class RecommendationService:
         new_state["context_plan"] = plan
         new_state["context_plan_valid"] = is_valid
         return cast(RecommendationState, new_state)
+
+    def _parse_json_with_repair(
+        self,
+        *,
+        raw_response: str,
+        stage_key: str,
+    ) -> dict[str, Any]:
+        parsed = safe_parse_json_response(raw_response)
+        if "raw" not in parsed:
+            return parsed
+
+        try:
+            repair_response = self.client.chat.completions.create(
+                model=self.stage_configs[stage_key].model_name,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": build_json_repair_system_prompt(),
+                    },
+                    {
+                        "role": "user",
+                        "content": build_json_repair_prompt(raw_response),
+                    },
+                ],
+                temperature=0.0,
+                max_tokens=min(self.stage_configs[stage_key].max_tokens, 400),
+            )
+            repaired_text = repair_response.choices[0].message.content or ""
+            repaired = safe_parse_json_response(repaired_text)
+            if "raw" not in repaired:
+                return repaired
+        except Exception:
+            pass
+
+        return parsed
 
     def _context_planner_fallback(self, state: RecommendationState) -> RecommendationState:
         new_state = dict(state)
@@ -428,11 +486,7 @@ class RecommendationService:
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are a CS1 recommendation path decider. "
-                            "Choose one assigned_path from REINFORCE, IMPROVE, NEXT_CONCEPT. "
-                            "Return valid JSON only."
-                        ),
+                        "content": build_path_decider_system_prompt(),
                     },
                     {"role": "user", "content": self._build_path_decider_prompt(state)},
                 ],
@@ -525,10 +579,7 @@ class RecommendationService:
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are a CS1 roadmap selector. Choose the most important exercises "
-                            "from the provided candidate list. Return valid JSON only."
-                        ),
+                        "content": build_roadmap_builder_system_prompt(),
                     },
                     {"role": "user", "content": self._build_roadmap_prompt(state)},
                 ],
@@ -598,11 +649,7 @@ class RecommendationService:
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are a CS1 recommendation explainer. Use only the provided refs. "
-                            "Write reasoning_content and roadmap_summary_content with placeholders like {ref_id}. "
-                            "Return valid JSON only."
-                        ),
+                        "content": build_explanation_builder_system_prompt(),
                     },
                     {"role": "user", "content": self._build_explanation_prompt(state, ref_catalog)},
                 ],
@@ -752,61 +799,44 @@ class RecommendationService:
         review = cast(Any, base["review"])
         profile = cast(Any, base["student_profile"])
         latest_submission = base.get("latest_submission")
-        return (
-            "Decide which extra context blocks are needed before path selection.\n"
-            f"Student: {state['student_id']}\n"
-            f"Current exercise: {state['exercise_id']}\n"
-            f"Anchor concept: {base['current_concept']}\n"
-            f"Critical errors: {base['critical_errors']}\n"
-            f"Review summary: {review.summary}\n"
-            f"Review detail: {review.detail}\n"
-            f"Tested concepts: {base['tested_concepts']}\n"
-            f"Recommended paths on current exercise: {base['recommended_paths']}\n"
-            f"Has latest submission: {latest_submission is not None}\n"
-            f"Student profile: concept_mastery={profile.concept_mastery}, "
-            f"debugging_independence={profile.debugging_independence}, "
-            f"concept_transfer={profile.concept_transfer}, "
-            f"learning_velocity={profile.learning_velocity}\n"
-            "Return JSON with:\n"
-            "{\n"
-            '  "need_review_trend": true|false,\n'
-            '  "need_submission_trend": true|false,\n'
-            '  "need_exercise_graph": true|false,\n'
-            '  "need_concept_progression": true|false,\n'
-            '  "need_student_history": true|false,\n'
-            '  "provisional_focus_concept_id": "string",\n'
-            '  "priority_signal": "string",\n'
-            '  "reason": "string"\n'
-            "}"
+        return build_context_planner_prompt(
+            student_id=state["student_id"],
+            exercise_id=state["exercise_id"],
+            current_concept=base["current_concept"],
+            critical_errors=base["critical_errors"],
+            review_summary=review.summary,
+            review_detail=review.detail,
+            tested_concepts=base["tested_concepts"],
+            recommended_paths=base["recommended_paths"],
+            has_latest_submission=latest_submission is not None,
+            concept_mastery=profile.concept_mastery,
+            debugging_independence=profile.debugging_independence,
+            concept_transfer=profile.concept_transfer,
+            learning_velocity=profile.learning_velocity,
         )
 
     def _build_path_decider_prompt(self, state: RecommendationState) -> str:
         review = state["review"]
         profile = state["student_profile"]
-        next_concepts = [item["concept_id"] for item in state["concept_progression"]]
-        return (
-            "Choose the most appropriate next recommendation path.\n"
-            f"Anchor concept: {state['anchor_concept']}\n"
-            f"Suggested focus concept: {state['context_plan'].get('provisional_focus_concept_id', state['anchor_concept'])}\n"
-            f"Critical errors: {state['critical_errors']}\n"
-            f"Latest review summary: {review.summary if review else ''}\n"
-            f"Latest review improvement signal: {state['latest_review_improvement_signal']}\n"
-            f"Latest review severity change: {state['latest_review_severity_change']}\n"
-            f"Latest submission improvement ratio: {state['latest_submission_improvement_ratio']}\n"
-            f"Latest submission regression ratio: {state['latest_submission_regression_ratio']}\n"
-            f"Exercise graph summary: {state['exercise_graph']}\n"
-            f"Next concept candidates: {state['concept_progression']}\n"
-            f"Student profile: {profile.model_dump() if profile else {}}\n"
-            f"Valid focus concepts: {self._valid_focus_concept_ids(state)}\n"
-            "Return JSON with:\n"
-            "{\n"
-            '  "assigned_path": "REINFORCE|IMPROVE|NEXT_CONCEPT",\n'
-            '  "focus_concept_id": "string",\n'
-            '  "confidence": 0.0,\n'
-            '  "risk_level": "high|medium|low",\n'
-            '  "readiness_level": "emerging|developing|ready",\n'
-            '  "reason": "string"\n'
-            "}"
+        return build_path_decider_prompt(
+            anchor_concept=state["anchor_concept"],
+            suggested_focus_concept=state["context_plan"].get(
+                "provisional_focus_concept_id", state["anchor_concept"]
+            ),
+            critical_errors=state["critical_errors"],
+            latest_review_summary=review.summary if review else "",
+            latest_review_improvement_signal=state["latest_review_improvement_signal"],
+            latest_review_severity_change=state["latest_review_severity_change"],
+            latest_submission_improvement_ratio=state[
+                "latest_submission_improvement_ratio"
+            ],
+            latest_submission_regression_ratio=state[
+                "latest_submission_regression_ratio"
+            ],
+            exercise_graph=state["exercise_graph"],
+            concept_progression=state["concept_progression"],
+            student_profile=profile.model_dump() if profile else {},
+            valid_focus_concepts=self._valid_focus_concept_ids(state),
         )
 
     def _build_roadmap_prompt(self, state: RecommendationState) -> str:
@@ -829,17 +859,11 @@ class RecommendationService:
                     "difficulty_gap": candidate["difficulty_gap"],
                 }
             )
-        return (
-            "Select up to 3 exercises for the roadmap in order.\n"
-            f"Assigned path: {state['assigned_path']}\n"
-            f"Focus concept: {state['focus_concept_id']}\n"
-            f"Path reason: {state['path_decision_reason']}\n"
-            f"Candidates: {candidates}\n"
-            "Return JSON with:\n"
-            "{\n"
-            '  "exercise_ids": ["id1", "id2"],\n'
-            '  "directives": ["step 1 directive", "step 2 directive"]\n'
-            "}"
+        return build_roadmap_builder_prompt(
+            assigned_path=state["assigned_path"],
+            focus_concept_id=state["focus_concept_id"],
+            path_reason=state["path_decision_reason"],
+            candidates=candidates,
         )
 
     def _build_explanation_prompt(
@@ -857,21 +881,13 @@ class RecommendationService:
                 state["selected_exercises"], state["roadmap_directives"]
             )
         ]
-        return (
-            "Explain the roadmap using only the provided refs.\n"
-            f"Assigned path: {state['assigned_path']}\n"
-            f"Anchor concept: {state['anchor_concept']}\n"
-            f"Focus concept: {state['focus_concept_id']}\n"
-            f"Path reason: {state['path_decision_reason']}\n"
-            f"Selected exercises: {selected_exercises}\n"
-            f"Available refs: {refs}\n"
-            "Return JSON with:\n"
-            "{\n"
-            '  "reasoning_content": "text with {ref_id}",\n'
-            '  "reasoning_ref_ids": ["ref_1"],\n'
-            '  "roadmap_summary_content": "text with {ref_id}",\n'
-            '  "roadmap_summary_ref_ids": ["ref_2"]\n'
-            "}"
+        return build_explanation_builder_prompt(
+            assigned_path=state["assigned_path"],
+            anchor_concept=state["anchor_concept"],
+            focus_concept_id=state["focus_concept_id"],
+            path_reason=state["path_decision_reason"],
+            selected_exercises=selected_exercises,
+            refs=refs,
         )
 
     def _fallback_context_plan(self, state: RecommendationState) -> dict[str, Any]:

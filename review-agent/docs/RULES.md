@@ -12,6 +12,8 @@ When code is updated, the related docs must be updated in the same change whenev
 
 Do not treat documentation as optional follow-up work.
 
+When requirements change, tests must be considered part of the same change.
+
 Before modifying code, always look for the most relevant existing documentation first.
 
 This means:
@@ -20,6 +22,7 @@ This means:
 - find the closest matching domain doc if you are changing graph, scoring, or model meaning
 - find the closest matching workflow doc if you are changing execution flow
 - find the closest matching architecture doc if you are changing top-level structure
+- find the closest matching test files before changing logic, validation, prompt behavior, or orchestration
 
 Do not make code changes first and only later try to guess which docs matter.
 Start by locating the related docs, then keep them aligned with the implementation.
@@ -124,6 +127,29 @@ Then you must update:
 - `docs/examples/README.md` if the examples folder structure changes
 - any future example JSON files under `docs/examples/`
 
+### 6. Test Changes
+
+If you change:
+
+- requirements
+- business rules
+- function behavior
+- routing logic
+- prompt logic
+- validation behavior
+- scoring or ranking behavior
+
+Then you must:
+
+- find the most relevant existing test files first
+- update the matching tests in the same change when current expectations are no longer correct
+- add new tests when the changed behavior is not already covered
+- run the most relevant tests for the modified function, module, or workflow after making the change
+- if those relevant tests fail, iterate on the code and re-run the relevant tests
+- limit that fix-and-retest loop to at most 5 attempts before reporting the remaining failure clearly
+
+If tests cannot be run, say so clearly in the final update.
+
 ## Required Mapping
 
 Use this mapping when deciding what must be updated:
@@ -133,6 +159,7 @@ Use this mapping when deciding what must be updated:
 - Execution flow change -> update `docs/workflows`
 - System-level structure change -> update `docs/architecture.md`
 - Payload/example change -> update examples too
+- Requirement or behavior change -> update related tests too
 
 ## Minimum Review Checklist
 
@@ -143,6 +170,8 @@ Before finishing a code change, check:
 3. Did any agent or workflow step change?
 4. Did any example payload become outdated?
 5. Does `docs/README.md` still point to the right files?
+6. Did any requirement or function behavior change that should update or add tests?
+7. Did I run the most relevant tests for the changed code?
 
 If the answer is yes to any of these, update the related docs before closing the task.
 
@@ -151,8 +180,13 @@ If the answer is yes to any of these, update the related docs before closing the
 When modifying code:
 
 - first find the most relevant existing documentation
+- first find the most relevant existing tests for the affected code path
 - always identify whether the change affects `api`, `domain`, `workflows`, `architecture`, or `examples`
 - update the matching docs in the same task
+- update or add matching tests in the same task when behavior changed
+- after modifying code, run the most relevant tests for the changed function, module, or workflow
+- if relevant tests fail, modify the code and re-run the relevant tests before closing the task
+- retry that code-fix and test cycle at most 5 times
 - if a new doc category is introduced, update the relevant `README.md` index file too
 
 If multiple docs are related, prefer updating all directly affected docs rather than only the closest one.
@@ -167,8 +201,18 @@ Priority for finding related docs:
 4. `docs/architecture.md`
 5. `docs/README.md` and folder `README.md` index files when navigation changes
 
+Priority for finding related tests:
+
+1. exact test file for the changed function or module
+2. exact workflow or API test for the affected behavior
+3. broader integration tests that cover the changed path
+
 ## Practical Principle
 
 Code and docs should describe the same system version.
 
 If one changes, the other should change in the same commit or patch whenever possible.
+
+Code, docs, and tests should describe the same system version.
+
+If requirements change, update all three whenever possible.

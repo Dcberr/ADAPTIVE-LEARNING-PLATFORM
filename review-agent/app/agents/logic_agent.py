@@ -8,6 +8,7 @@ from app.models.review_state import (
     ReviewState,
     SandBoxResult,
 )
+from app.prompts.review.logic import build_logic_messages
 from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
@@ -47,92 +48,13 @@ class LogicAgent:
             case.get("actual")
         )
 
-    def format_history(self, history: list[dict[str, Any]]) -> str:
-        """Format prior submission attempts for the model prompt."""
-        if not history:
-            return "None"
-
-        return "\n".join(
-            [
-                (
-                    f"Submission {index}: "
-                    f"failed_test_case_ids={submission.get('failed_test_case_ids', [])}\n"
-                    f"Code:\n{submission.get('code', '')}"
-                )
-                for index, submission in enumerate(history, start=1)
-            ]
-        )
-
     def generate_messages(
         self,
         code: str,
         failed_tests: list[SandBoxResult],
         history: list[dict[str, Any]],
     ) -> list:
-        """
-        Generate messages to instruct the model to detect errors from failing test cases
-        and link each failure to the code snippet causing it.
-        """
-
-        system_msg = {
-            "role": "system",
-            "content": (
-                "You are a CS1-level programming tutor. "
-                "Your job is to analyze student code and failing test cases, "
-                "optionally using prior submission history as context, "
-                "and identify the specific code snippets causing each failure. "
-                "You must respond in valid JSON only."
-            ),
-        }
-
-        # Format the failing tests
-        tests_str = "\n".join(
-            [
-                f"ID: {tc['id']} | Input: {tc['input']} | Expected: {tc['expected']} | Actual: {tc['actual']}"
-                for tc in failed_tests
-            ]
-        )
-        history_str = self.format_history(history)
-
-        user_msg = {
-            "role": "user",
-            "content": f"""
-                Student code:
-                {code}
-
-                Submission history:
-                {history_str}
-
-                Failing test cases:
-                {tests_str}
-
-                Instructions:
-                1) For each failing test case, produce a JSON object containing:
-                - "issue": a short explanation of why the test failed
-                - "evidence": the 'id' of the failing test case
-                - "code_snippet": the part of the student's code that likely caused this failure
-                - "location": line/column start and end of the code snippet if known (otherwise null)
-                2) Respond only in JSON format, matching this schema:
-                {{
-                    "logic_issues": [
-                        {{
-                            "issue": "short explanation",
-                            "evidence": "test case id",
-                            "code_snippet": "relevant code snippet",
-                            "location": {{
-                                "start_line": line_number,
-                                "end_line": line_number,
-                                "start_col": column_number (optional),
-                                "end_col": column_number (optional)
-                            }}  # optional
-                        }}
-                    ],
-                }}
-                Make your explanations concise and beginner-friendly.
-                """,
-        }
-
-        return [system_msg, user_msg]
+        return build_logic_messages(code=code, failed_tests=failed_tests, history=history)
 
     def classify_history_status(self, state: ReviewState, testcase_id: str) -> str:
         """Classify a failing testcase relative to the first history entry."""

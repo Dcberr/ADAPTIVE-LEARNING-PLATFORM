@@ -18,7 +18,7 @@ The latest review context, student profile, and exercise concept are loaded from
 
 The recommendation path is decided internally through LLM path selection over graph-backed context. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
 
-The recommendation runtime is now split into subgraphs with explicit fallback nodes. Each LLM-heavy phase first tries the model-driven branch and then routes to a deterministic fallback when parsing or validation fails.
+The recommendation runtime is now split into subgraphs with explicit fallback nodes. Each LLM-heavy phase first tries the model-driven branch and then routes to a deterministic fallback when parsing or validation fails. The context planner also performs one bounded JSON-repair retry before it gives up and routes to fallback.
 
 ## High-Level Flows
 
@@ -87,6 +87,7 @@ Startup responsibilities:
 
 - load application settings from environment through `app/config/env_config.py`
 - load feature/stage model defaults from `app/config/model_config.py`
+- load prompt builders from `app/prompts/`
 - initialize the Fireworks-compatible `OpenAI` client
 - initialize the Neo4j driver
 - register review, recommendation, and knowledge graph routers
@@ -147,6 +148,10 @@ Current endpoints:
 ### Review Workflow
 
 File: [app/services/review_code_service.py](/Users/thaibao/projects/review-code-app/review-agent/app/services/review_code_service.py)
+
+Prompt builders for review agents now live under:
+
+- `app/prompts/review/`
 
 The review pipeline uses `StateGraph(ReviewState)` with these nodes:
 
@@ -230,6 +235,10 @@ Responsibilities:
 - exclude previously attempted or assigned exercises for the same student
 - persist assigned roadmap links after recommendation
 - return a graph snapshot for inspection
+
+Prompt builders for knowledge-graph weighting now live under:
+
+- `app/prompts/knowledge_graph/`
 
 ### Knowledge Graph APIs
 

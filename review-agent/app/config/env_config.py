@@ -49,23 +49,33 @@ def get_env_config() -> EnvConfig:
         **_read_dotenv(".env"),
         **os.environ,
     }
+    return build_env_config(env_values)
+
+
+def build_env_config(env_values: dict[str, object] | None = None) -> EnvConfig:
+    resolved_values = env_values or {}
     return EnvConfig(
-        host=str(env_values.get("HOST", "0.0.0.0")),
-        port=int(env_values.get("PORT", 8000)),
-        uvicorn_reload=str(env_values.get("UVICORN_RELOAD", "false")).lower() == "true",
-        fireworks_api_key=str(env_values.get("FIREWORKS_API_KEY", "")),
+        host=str(resolved_values.get("HOST", "0.0.0.0")),
+        port=int(resolved_values.get("PORT", 8000)),
+        uvicorn_reload=str(resolved_values.get("UVICORN_RELOAD", "false")).lower()
+        == "true",
+        fireworks_api_key=str(resolved_values.get("FIREWORKS_API_KEY", "")),
         fireworks_base_url=str(
-            env_values.get("FIREWORKS_BASE_URL", DEFAULT_FIREWORKS_BASE_URL)
+            resolved_values.get("FIREWORKS_BASE_URL", DEFAULT_FIREWORKS_BASE_URL)
         ),
-        neo4j_uri=_optional_env(env_values, "NEO4J_URI"),
-        neo4j_username=_optional_env(env_values, "NEO4J_USERNAME"),
-        neo4j_password=_optional_env(env_values, "NEO4J_PASSWORD"),
-        fireworks_stage_configs=_build_stage_configs(env_values),
+        neo4j_uri=_optional_env(resolved_values, "NEO4J_URI"),
+        neo4j_username=_optional_env(resolved_values, "NEO4J_USERNAME"),
+        neo4j_password=_optional_env(resolved_values, "NEO4J_PASSWORD"),
+        fireworks_stage_configs=_build_stage_configs(resolved_values),
     )
 
 
 def get_settings() -> EnvConfig:
     return get_env_config()
+
+
+def clear_env_config_cache() -> None:
+    get_env_config.cache_clear()
 
 
 def _build_stage_configs(

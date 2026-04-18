@@ -11,6 +11,8 @@ The review system is a LangGraph-based multi-agent workflow for CS1 code review.
 - per-error history links to earlier attempts when the same testcase failed before
 - a scorecard with ten learning signals
 
+Prompt generation for the review flow is centralized under `app/prompts/review/`. Each prompt file matches one review function, such as `logic.py`, `fix_hint.py`, `review_link.py`, `overview.py`, and `scoring.py`.
+
 ## Endpoint
 
 - Route: `POST /api/v1/review_code`

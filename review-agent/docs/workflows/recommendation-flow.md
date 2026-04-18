@@ -12,6 +12,7 @@ The client does not send review or submission payloads. The service loads graph-
 The runtime graph is now organized as a set of subgraphs with explicit fallback nodes. This keeps the main workflow short while making each LLM-heavy phase resilient when parsing fails or the model returns weak output.
 
 Model selection for these stages is also centralized by feature and stage in `app/config/model_config.py`, with environment-backed overrides resolved by `app/config/env_config.py`.
+Prompt generation for recommendation stages is centralized under `app/prompts/recommendation/`.
 
 ## High-Level Flow
 
@@ -49,8 +50,9 @@ Flow:
 1. always load base context
 2. ask the LLM which extra blocks are needed
 3. if the planner output is valid, load those blocks
-4. otherwise route to `ContextPlannerFallback`
-5. load a safe default block set
+4. if the planner returns malformed non-JSON output, run one JSON-repair pass with the same stage model
+5. if the repaired output is still invalid, route to `ContextPlannerFallback`
+6. load a safe default block set
 
 Stage model key:
 
@@ -157,6 +159,8 @@ If the planner does not return a usable block list, the graph routes to `Context
 - `student_history`
 - optionally `submission_trend`
 - optionally `concept_progression`
+
+Before that fallback happens, the service now makes one bounded JSON-repair attempt to recover malformed planner output into a single valid JSON object.
 
 ### 3. ConditionalContextLoader
 
