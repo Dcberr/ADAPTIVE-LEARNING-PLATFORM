@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from langgraph.graph import StateGraph
+from langgraph.graph import END, StateGraph
 from openai import OpenAI
 
 from app.api.recommendation_schema import (
@@ -18,6 +18,7 @@ from app.models.exercise_record import ExerciseRecord
 from app.models.knowledge_graph import AssignedPath
 from app.models.recommendation_framework import RecommendationScoringFramework
 from app.models.recommendation_state import RecommendationState
+from app.config import FireworksStageConfig
 from app.repositories.knowledge_graph_repository import KnowledgeGraphRepository
 from app.utils.parse_json_response import safe_parse_json_response
 
@@ -37,15 +38,15 @@ class RecommendationService:
         self,
         knowledge_graph_repository: KnowledgeGraphRepository,
         client: OpenAI,
-        model_name: str,
-        temperature: float = 0.2,
-        max_tokens: int = 1400,
+        stage_configs: dict[str, FireworksStageConfig],
     ):
         self.knowledge_graph_repository = knowledge_graph_repository
         self.client = client
-        self.model_name = model_name
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.stage_configs = stage_configs
+        self.context_subgraph = self._build_context_subgraph()
+        self.path_subgraph = self._build_path_subgraph()
+        self.roadmap_subgraph = self._build_roadmap_subgraph()
+        self.explanation_subgraph = self._build_explanation_subgraph()
         self.workflow = self._build_workflow()
 
     def generate_recommendation(
@@ -56,6 +57,7 @@ class RecommendationService:
             "exercise_id": request.exercise_id,
             "base_context": {},
             "context_plan": {},
+            "context_plan_valid": False,
             "loaded_blocks": [],
             "anchor_concept": "",
             "anchor_concept_weight": 0.0,
@@ -77,10 +79,12 @@ class RecommendationService:
             "exercise_graph": {},
             "concept_progression": [],
             "assigned_path": "IMPROVE",
+            "path_decision_valid": False,
             "path_decision_confidence": 0.0,
             "path_decision_reason": "",
             "focus_concept_id": "",
             "reasoning": {"content": "", "refs": []},
+            "explanation_valid": False,
             "framework": RecommendationScoringFramework(
                 risk_level="medium",
                 readiness_level="developing",
@@ -88,6 +92,7 @@ class RecommendationService:
             ),
             "graph_summary": {},
             "retrieved_candidates": [],
+            "roadmap_selection_valid": False,
             "selected_candidates": [],
             "selected_exercises": [],
             "roadmap_directives": [],
@@ -143,22 +148,100 @@ class RecommendationService:
 
     def _build_workflow(self):
         workflow = StateGraph(RecommendationState)
+        workflow.add_node("context_subgraph", self._run_context_subgraph)
+        workflow.add_node("path_subgraph", self._run_path_subgraph)
+        workflow.add_node("roadmap_subgraph", self._run_roadmap_subgraph)
+        workflow.add_node("explanation_subgraph", self._run_explanation_subgraph)
+        workflow.set_entry_point("context_subgraph")
+        workflow.add_edge("context_subgraph", "path_subgraph")
+        workflow.add_edge("path_subgraph", "roadmap_subgraph")
+        workflow.add_edge("roadmap_subgraph", "explanation_subgraph")
+        workflow.set_finish_point("explanation_subgraph")
+        return workflow.compile()
+
+    def _build_context_subgraph(self):
+        workflow = StateGraph(RecommendationState)
         workflow.add_node("base_context_loader", self._base_context_loader)
         workflow.add_node("context_planner", self._context_planner)
+        workflow.add_node("context_planner_fallback", self._context_planner_fallback)
         workflow.add_node("conditional_context_loader", self._conditional_context_loader)
-        workflow.add_node("path_decider", self._path_decider)
-        workflow.add_node("candidate_retriever", self._candidate_retriever)
-        workflow.add_node("roadmap_builder", self._roadmap_builder)
-        workflow.add_node("explanation_builder", self._explanation_builder)
         workflow.set_entry_point("base_context_loader")
         workflow.add_edge("base_context_loader", "context_planner")
-        workflow.add_edge("context_planner", "conditional_context_loader")
-        workflow.add_edge("conditional_context_loader", "path_decider")
-        workflow.add_edge("path_decider", "candidate_retriever")
-        workflow.add_edge("candidate_retriever", "roadmap_builder")
-        workflow.add_edge("roadmap_builder", "explanation_builder")
-        workflow.set_finish_point("explanation_builder")
+        workflow.add_conditional_edges(
+            "context_planner",
+            self._route_context_plan,
+            {
+                "load": "conditional_context_loader",
+                "fallback": "context_planner_fallback",
+            },
+        )
+        workflow.add_edge("context_planner_fallback", "conditional_context_loader")
+        workflow.set_finish_point("conditional_context_loader")
         return workflow.compile()
+
+    def _build_path_subgraph(self):
+        workflow = StateGraph(RecommendationState)
+        workflow.add_node("path_decider", self._path_decider)
+        workflow.add_node("path_decider_fallback", self._path_decider_fallback)
+        workflow.set_entry_point("path_decider")
+        workflow.add_conditional_edges(
+            "path_decider",
+            self._route_path_decision,
+            {
+                "done": END,
+                "fallback": "path_decider_fallback",
+            },
+        )
+        workflow.set_finish_point("path_decider_fallback")
+        return workflow.compile()
+
+    def _build_roadmap_subgraph(self):
+        workflow = StateGraph(RecommendationState)
+        workflow.add_node("candidate_retriever", self._candidate_retriever)
+        workflow.add_node("roadmap_builder", self._roadmap_builder)
+        workflow.add_node("roadmap_builder_fallback", self._roadmap_builder_fallback)
+        workflow.set_entry_point("candidate_retriever")
+        workflow.add_edge("candidate_retriever", "roadmap_builder")
+        workflow.add_conditional_edges(
+            "roadmap_builder",
+            self._route_roadmap_selection,
+            {
+                "done": END,
+                "fallback": "roadmap_builder_fallback",
+            },
+        )
+        workflow.set_finish_point("roadmap_builder_fallback")
+        return workflow.compile()
+
+    def _build_explanation_subgraph(self):
+        workflow = StateGraph(RecommendationState)
+        workflow.add_node("explanation_builder", self._explanation_builder)
+        workflow.add_node(
+            "explanation_builder_fallback", self._explanation_builder_fallback
+        )
+        workflow.set_entry_point("explanation_builder")
+        workflow.add_conditional_edges(
+            "explanation_builder",
+            self._route_explanation,
+            {
+                "done": END,
+                "fallback": "explanation_builder_fallback",
+            },
+        )
+        workflow.set_finish_point("explanation_builder_fallback")
+        return workflow.compile()
+
+    def _run_context_subgraph(self, state: RecommendationState) -> RecommendationState:
+        return cast(RecommendationState, self.context_subgraph.invoke(state))
+
+    def _run_path_subgraph(self, state: RecommendationState) -> RecommendationState:
+        return cast(RecommendationState, self.path_subgraph.invoke(state))
+
+    def _run_roadmap_subgraph(self, state: RecommendationState) -> RecommendationState:
+        return cast(RecommendationState, self.roadmap_subgraph.invoke(state))
+
+    def _run_explanation_subgraph(self, state: RecommendationState) -> RecommendationState:
+        return cast(RecommendationState, self.explanation_subgraph.invoke(state))
 
     def _base_context_loader(self, state: RecommendationState) -> RecommendationState:
         context = self.knowledge_graph_repository.fetch_recommendation_base_context(
@@ -181,10 +264,11 @@ class RecommendationService:
         return cast(RecommendationState, new_state)
 
     def _context_planner(self, state: RecommendationState) -> RecommendationState:
-        plan = self._fallback_context_plan(state)
+        plan: dict[str, Any] = {}
+        is_valid = False
         try:
             response = self.client.chat.completions.create(
-                model=self.model_name,
+                model=self.stage_configs["context_planner"].model_name,
                 messages=[
                     {
                         "role": "system",
@@ -196,8 +280,8 @@ class RecommendationService:
                     },
                     {"role": "user", "content": self._build_context_planner_prompt(state)},
                 ],
-                temperature=0.1,
-                max_tokens=min(self.max_tokens, 900),
+                temperature=self.stage_configs["context_planner"].temperature,
+                max_tokens=self.stage_configs["context_planner"].max_tokens,
             )
             parsed = safe_parse_json_response(response.choices[0].message.content)
             blocks = []
@@ -213,14 +297,22 @@ class RecommendationService:
                 plan = {
                     "blocks": blocks,
                     "provisional_focus_concept_id": provisional_focus,
-                    "priority_signal": priority_signal or plan["priority_signal"],
-                    "reason": reason or plan["reason"],
+                    "priority_signal": priority_signal or "current_review_issue",
+                    "reason": reason or "LLM selected focused context blocks for the current case.",
                 }
+                is_valid = True
         except Exception:
             pass
 
         new_state = dict(state)
         new_state["context_plan"] = plan
+        new_state["context_plan_valid"] = is_valid
+        return cast(RecommendationState, new_state)
+
+    def _context_planner_fallback(self, state: RecommendationState) -> RecommendationState:
+        new_state = dict(state)
+        new_state["context_plan"] = self._fallback_context_plan(state)
+        new_state["context_plan_valid"] = True
         return cast(RecommendationState, new_state)
 
     def _conditional_context_loader(
@@ -327,10 +419,12 @@ class RecommendationService:
         return cast(RecommendationState, new_state)
 
     def _path_decider(self, state: RecommendationState) -> RecommendationState:
-        decision = self._fallback_path_decision(state)
+        decision: dict[str, Any] = {}
+        is_valid = False
+        fallback_decision = self._fallback_path_decision(state)
         try:
             response = self.client.chat.completions.create(
-                model=self.model_name,
+                model=self.stage_configs["path_decider"].model_name,
                 messages=[
                     {
                         "role": "system",
@@ -342,47 +436,47 @@ class RecommendationService:
                     },
                     {"role": "user", "content": self._build_path_decider_prompt(state)},
                 ],
-                temperature=0.1,
-                max_tokens=min(self.max_tokens, 900),
+                temperature=self.stage_configs["path_decider"].temperature,
+                max_tokens=self.stage_configs["path_decider"].max_tokens,
             )
             parsed = safe_parse_json_response(response.choices[0].message.content)
             assigned_path = self._parse_assigned_path(parsed.get("assigned_path"))
             focus_concept_id = str(
-                parsed.get("focus_concept_id", decision["focus_concept_id"])
-            ).strip() or decision["focus_concept_id"]
+                parsed.get("focus_concept_id", fallback_decision["focus_concept_id"])
+            ).strip() or fallback_decision["focus_concept_id"]
             valid_focus_ids = self._valid_focus_concept_ids(state)
             if focus_concept_id not in valid_focus_ids:
-                focus_concept_id = decision["focus_concept_id"]
-            confidence = self._clamp_float(parsed.get("confidence"), decision["confidence"])
-            risk_level = self._parse_risk_level(
-                parsed.get("risk_level"), decision["risk_level"]
+                focus_concept_id = fallback_decision["focus_concept_id"]
+            confidence = self._clamp_float(
+                parsed.get("confidence"), fallback_decision["confidence"]
             )
+            risk_level = self._parse_risk_level(parsed.get("risk_level"), "medium")
             readiness_level = self._parse_readiness_level(
-                parsed.get("readiness_level"), decision["readiness_level"]
+                parsed.get("readiness_level"), "developing"
             )
-            reason = str(parsed.get("reason", "")).strip() or decision["reason"]
+            reason = str(parsed.get("reason", "")).strip()
             decision = {
                 "assigned_path": assigned_path,
                 "focus_concept_id": focus_concept_id,
                 "confidence": confidence,
                 "risk_level": risk_level,
                 "readiness_level": readiness_level,
-                "reason": reason,
+                "reason": reason or "LLM selected the most suitable next learning path.",
             }
+            is_valid = True
         except Exception:
             pass
 
-        new_state = dict(state)
-        new_state["assigned_path"] = decision["assigned_path"]
-        new_state["focus_concept_id"] = decision["focus_concept_id"]
-        new_state["path_decision_confidence"] = decision["confidence"]
-        new_state["path_decision_reason"] = decision["reason"]
-        new_state["framework"] = RecommendationScoringFramework(
-            risk_level=cast(Any, decision["risk_level"]),
-            readiness_level=cast(Any, decision["readiness_level"]),
-            explanation=decision["reason"],
-        )
-        return cast(RecommendationState, new_state)
+        if not is_valid:
+            new_state = dict(state)
+            new_state["path_decision_valid"] = False
+            return cast(RecommendationState, new_state)
+
+        return self._apply_path_decision(state, decision, valid=True)
+
+    def _path_decider_fallback(self, state: RecommendationState) -> RecommendationState:
+        decision = self._fallback_path_decision(state)
+        return self._apply_path_decision(state, decision, valid=True)
 
     def _candidate_retriever(self, state: RecommendationState) -> RecommendationState:
         focus_concept_id = state["focus_concept_id"] or state["anchor_concept"]
@@ -427,7 +521,7 @@ class RecommendationService:
         directives: list[str] = []
         try:
             response = self.client.chat.completions.create(
-                model=self.model_name,
+                model=self.stage_configs["roadmap_builder"].model_name,
                 messages=[
                     {
                         "role": "system",
@@ -438,8 +532,8 @@ class RecommendationService:
                     },
                     {"role": "user", "content": self._build_roadmap_prompt(state)},
                 ],
-                temperature=0.2,
-                max_tokens=min(self.max_tokens, 1200),
+                temperature=self.stage_configs["roadmap_builder"].temperature,
+                max_tokens=self.stage_configs["roadmap_builder"].max_tokens,
             )
             parsed = safe_parse_json_response(response.choices[0].message.content)
             raw_ids = parsed.get("exercise_ids") or []
@@ -461,35 +555,31 @@ class RecommendationService:
 
         selected_candidates = self._select_candidates_by_ids(candidates, selected_ids)
         if not selected_candidates:
-            selected_candidates = candidates[:3]
+            new_state = dict(state)
+            new_state["roadmap_selection_valid"] = False
+            return cast(RecommendationState, new_state)
 
-        selected_exercises = [candidate["exercise"] for candidate in selected_candidates]
-        if len(directives) < len(selected_exercises):
-            directives = self._fallback_directives(state, selected_exercises)
-        else:
-            directives = directives[: len(selected_exercises)]
+        return self._apply_roadmap_selection(
+            state,
+            selected_candidates=selected_candidates,
+            directives=directives,
+            valid=True,
+        )
 
-        best_candidate = selected_candidates[0]
-        graph_summary = {
-            "current_concept_weight": state["anchor_concept_weight"],
-            "best_path_weight": float(best_candidate["path_weight"] or 0.0),
-            "best_related_exercise_weight": float(best_candidate["related_weight"] or 0.0),
-            "latest_review_improvement_signal": state["latest_review_improvement_signal"],
-            "latest_review_severity_change": state["latest_review_severity_change"],
-            "latest_submission_improvement_ratio": state[
-                "latest_submission_improvement_ratio"
-            ],
-            "latest_submission_regression_ratio": state[
-                "latest_submission_regression_ratio"
-            ],
-        }
-
-        new_state = dict(state)
-        new_state["selected_candidates"] = selected_candidates
-        new_state["selected_exercises"] = selected_exercises
-        new_state["roadmap_directives"] = directives
-        new_state["graph_summary"] = graph_summary
-        return cast(RecommendationState, new_state)
+    def _roadmap_builder_fallback(self, state: RecommendationState) -> RecommendationState:
+        candidates = state["retrieved_candidates"]
+        if not candidates:
+            raise ValueError("Neo4j did not return any recommendation roadmap candidates.")
+        selected_candidates = candidates[:3]
+        directives = self._fallback_directives(
+            state, [candidate["exercise"] for candidate in selected_candidates]
+        )
+        return self._apply_roadmap_selection(
+            state,
+            selected_candidates=selected_candidates,
+            directives=directives,
+            valid=True,
+        )
 
     def _explanation_builder(self, state: RecommendationState) -> RecommendationState:
         selected_exercises = state["selected_exercises"]
@@ -500,11 +590,11 @@ class RecommendationService:
         fallback_reasoning = self._fallback_reasoning_block(state, ref_catalog)
         fallback_summary = self._fallback_roadmap_summary_block(state, ref_catalog)
 
-        reasoning = fallback_reasoning
-        roadmap_summary = fallback_summary
+        reasoning: dict[str, Any] | None = None
+        roadmap_summary: dict[str, Any] | None = None
         try:
             response = self.client.chat.completions.create(
-                model=self.model_name,
+                model=self.stage_configs["explanation_builder"].model_name,
                 messages=[
                     {
                         "role": "system",
@@ -516,29 +606,146 @@ class RecommendationService:
                     },
                     {"role": "user", "content": self._build_explanation_prompt(state, ref_catalog)},
                 ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+                temperature=self.stage_configs["explanation_builder"].temperature,
+                max_tokens=self.stage_configs["explanation_builder"].max_tokens,
             )
             parsed = safe_parse_json_response(response.choices[0].message.content)
             reasoning = self._make_explanation_block(
                 content=str(parsed.get("reasoning_content", "")).strip(),
                 ref_ids=parsed.get("reasoning_ref_ids") or [],
                 ref_catalog=ref_catalog,
-                fallback=fallback_reasoning,
             )
             roadmap_summary = self._make_explanation_block(
                 content=str(parsed.get("roadmap_summary_content", "")).strip(),
                 ref_ids=parsed.get("roadmap_summary_ref_ids") or [],
                 ref_catalog=ref_catalog,
-                fallback=fallback_summary,
             )
         except Exception:
             pass
 
+        if not self._is_explanation_block_valid(reasoning) or not self._is_explanation_block_valid(
+            roadmap_summary
+        ):
+            new_state = dict(state)
+            new_state["explanation_valid"] = False
+            return cast(RecommendationState, new_state)
+
         new_state = dict(state)
         new_state["reasoning"] = reasoning
         new_state["roadmap_summary"] = roadmap_summary
+        new_state["explanation_valid"] = True
         return cast(RecommendationState, new_state)
+
+    def _explanation_builder_fallback(
+        self, state: RecommendationState
+    ) -> RecommendationState:
+        ref_catalog = self._build_reference_catalog(state)
+        new_state = dict(state)
+        new_state["reasoning"] = self._fallback_reasoning_block(state, ref_catalog)
+        new_state["roadmap_summary"] = self._fallback_roadmap_summary_block(
+            state, ref_catalog
+        )
+        new_state["explanation_valid"] = True
+        return cast(RecommendationState, new_state)
+
+    @staticmethod
+    def _route_context_plan(state: RecommendationState) -> str:
+        return "load" if state["context_plan_valid"] else "fallback"
+
+    @staticmethod
+    def _route_path_decision(state: RecommendationState) -> str:
+        return "done" if state["path_decision_valid"] else "fallback"
+
+    @staticmethod
+    def _route_roadmap_selection(state: RecommendationState) -> str:
+        return "done" if state["roadmap_selection_valid"] else "fallback"
+
+    @staticmethod
+    def _route_explanation(state: RecommendationState) -> str:
+        return "done" if state["explanation_valid"] else "fallback"
+
+    def _apply_path_decision(
+        self, state: RecommendationState, decision: dict[str, Any], valid: bool
+    ) -> RecommendationState:
+        assigned_path = cast(
+            AssignedPath,
+            decision.get("assigned_path", self._fallback_path_decision(state)["assigned_path"]),
+        )
+        focus_concept_id = str(
+            decision.get("focus_concept_id", state["anchor_concept"])
+        ).strip() or state["anchor_concept"]
+        new_state = dict(state)
+        new_state["assigned_path"] = assigned_path
+        new_state["focus_concept_id"] = focus_concept_id
+        new_state["path_decision_valid"] = valid
+        new_state["path_decision_confidence"] = self._clamp_float(
+            decision.get("confidence"), state["path_decision_confidence"]
+        )
+        reason = str(decision.get("reason", "")).strip()
+        new_state["path_decision_reason"] = reason or state["path_decision_reason"]
+        new_state["framework"] = RecommendationScoringFramework(
+            risk_level=self._parse_risk_level(
+                decision.get("risk_level"), state["framework"].risk_level
+            ),
+            readiness_level=self._parse_readiness_level(
+                decision.get("readiness_level"), state["framework"].readiness_level
+            ),
+            explanation=reason or state["framework"].explanation,
+        )
+        new_state["graph_summary"] = {
+            **state["graph_summary"],
+            "current_concept_weight": state["anchor_concept_weight"],
+            "best_related_exercise_weight": state["exercise_graph"].get(
+                "best_related_exercise_weight", 0.0
+            ),
+            "best_path_weight": state["exercise_graph"].get("best_path_weight", 0.0),
+            "latest_review_improvement_signal": state[
+                "latest_review_improvement_signal"
+            ],
+            "latest_review_severity_change": state["latest_review_severity_change"],
+            "latest_submission_improvement_ratio": state[
+                "latest_submission_improvement_ratio"
+            ],
+            "latest_submission_regression_ratio": state[
+                "latest_submission_regression_ratio"
+            ],
+        }
+        return cast(RecommendationState, new_state)
+
+    def _apply_roadmap_selection(
+        self,
+        state: RecommendationState,
+        selected_candidates: list[dict[str, Any]],
+        directives: list[str],
+        valid: bool,
+    ) -> RecommendationState:
+        selected_exercises = [
+            cast(ExerciseRecord, candidate["exercise"]) for candidate in selected_candidates
+        ]
+        normalized_directives = [
+            str(item).strip() for item in directives if str(item).strip()
+        ]
+        if len(normalized_directives) < len(selected_exercises):
+            normalized_directives.extend(
+                self._fallback_directives(
+                    state, selected_exercises[len(normalized_directives) :]
+                )
+            )
+        normalized_directives = normalized_directives[: len(selected_exercises)]
+        new_state = dict(state)
+        new_state["selected_candidates"] = selected_candidates
+        new_state["selected_exercises"] = selected_exercises
+        new_state["roadmap_directives"] = normalized_directives
+        new_state["roadmap_selection_valid"] = valid
+        return cast(RecommendationState, new_state)
+
+    @staticmethod
+    def _is_explanation_block_valid(block: dict[str, Any] | None) -> bool:
+        if not isinstance(block, dict):
+            return False
+        content = str(block.get("content", "")).strip()
+        refs = block.get("refs")
+        return bool(content) and isinstance(refs, list)
 
     def _build_context_planner_prompt(self, state: RecommendationState) -> str:
         base = state["base_context"]

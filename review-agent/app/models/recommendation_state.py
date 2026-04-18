@@ -14,6 +14,7 @@ class RecommendationState(TypedDict):
     exercise_id: str
     base_context: dict
     context_plan: dict
+    context_plan_valid: bool
     loaded_blocks: list[str]
     anchor_concept: str
     anchor_concept_weight: float
@@ -35,13 +36,16 @@ class RecommendationState(TypedDict):
     exercise_graph: dict
     concept_progression: list[dict]
     assigned_path: AssignedPath
+    path_decision_valid: bool
     path_decision_confidence: float
     path_decision_reason: str
     focus_concept_id: str
     reasoning: dict
+    explanation_valid: bool
     framework: RecommendationScoringFramework
     graph_summary: dict
     retrieved_candidates: list[dict]
+    roadmap_selection_valid: bool
     selected_candidates: list[dict]
     selected_exercises: list[ExerciseRecord]
     roadmap_directives: list[str]

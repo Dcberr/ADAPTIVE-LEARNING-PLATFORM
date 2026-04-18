@@ -9,17 +9,106 @@ The recommendation flow starts from a minimal request:
 
 The client does not send review or submission payloads. The service loads graph-backed context from Neo4j, lets the LLM decide what extra context is worth loading, lets the LLM decide the recommendation path, queries weighted exercise candidates from the graph, then lets the LLM choose the roadmap and build structured explanations with evidence refs.
 
+The runtime graph is now organized as a set of subgraphs with explicit fallback nodes. This keeps the main workflow short while making each LLM-heavy phase resilient when parsing fails or the model returns weak output.
+
+Model selection for these stages is also centralized by feature and stage in `app/config/model_config.py`, with environment-backed overrides resolved by `app/config/env_config.py`.
+
 ## High-Level Flow
 
 1. The client calls `POST /api/v1/recommendation`.
-2. `BaseContextLoader` loads the minimum stable context from Neo4j.
-3. `ContextPlanner` uses the LLM to decide which extra context blocks are needed.
-4. `ConditionalContextLoader` fetches only those selected context blocks.
-5. `PathDecider` uses the LLM to choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
-6. `ExerciseCandidateRetriever` queries weighted graph candidates for the selected path.
-7. `RoadmapBuilder` uses the LLM to filter the most important exercises and build the roadmap.
-8. `ExplanationBuilder` uses the LLM to generate explanation blocks with structured refs.
-9. The service stores `ASSIGNED` and `RECOMMENDS` relations for the final roadmap.
+2. `context_subgraph` loads the minimum stable context and expands it conditionally.
+3. `path_subgraph` decides `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+4. `roadmap_subgraph` queries weighted graph candidates and selects the final roadmap.
+5. `explanation_subgraph` generates explanation blocks with structured refs.
+6. The service stores `ASSIGNED` and `RECOMMENDS` relations for the final roadmap.
+
+## Subgraph Layout
+
+### Main Graph
+
+The top-level `StateGraph(RecommendationState)` is intentionally small:
+
+1. `context_subgraph`
+2. `path_subgraph`
+3. `roadmap_subgraph`
+4. `explanation_subgraph`
+
+Each subgraph owns one logical phase and can route to a fallback node without making the main graph hard to follow.
+
+### `context_subgraph`
+
+Nodes:
+
+- `BaseContextLoader`
+- `ContextPlanner`
+- `ContextPlannerFallback`
+- `ConditionalContextLoader`
+
+Flow:
+
+1. always load base context
+2. ask the LLM which extra blocks are needed
+3. if the planner output is valid, load those blocks
+4. otherwise route to `ContextPlannerFallback`
+5. load a safe default block set
+
+Stage model key:
+
+- `recommendation.context_planner`
+
+### `path_subgraph`
+
+Nodes:
+
+- `PathDecider`
+- `PathDeciderFallback`
+
+Flow:
+
+1. ask the LLM for the assigned path and focus concept
+2. if the result is valid, end the subgraph
+3. otherwise route to the deterministic fallback path selector
+
+Stage model key:
+
+- `recommendation.path_decider`
+
+### `roadmap_subgraph`
+
+Nodes:
+
+- `ExerciseCandidateRetriever`
+- `RoadmapBuilder`
+- `RoadmapBuilderFallback`
+
+Flow:
+
+1. query graph candidates deterministically
+2. ask the LLM to choose the most important exercises
+3. if the chosen ids map back to valid candidates, end the subgraph
+4. otherwise route to the fallback that keeps the top graph candidates
+
+Stage model key:
+
+- `recommendation.roadmap_builder`
+
+### `explanation_subgraph`
+
+Nodes:
+
+- `ExplanationBuilder`
+- `ExplanationBuilderFallback`
+
+Flow:
+
+1. build an evidence catalog
+2. ask the LLM for `reasoning` and `roadmap_summary`
+3. if the explanation blocks are valid, end the subgraph
+4. otherwise route to a templated evidence-backed fallback explanation
+
+Stage model key:
+
+- `recommendation.explanation_builder`
 
 ## Detailed Flow
 
@@ -61,6 +150,14 @@ It also returns:
 - `priority_signal`
 - `reason`
 
+If the planner does not return a usable block list, the graph routes to `ContextPlannerFallback`, which loads a default mix of:
+
+- `exercise_graph`
+- `review_trend`
+- `student_history`
+- optionally `submission_trend`
+- optionally `concept_progression`
+
 ### 3. ConditionalContextLoader
 
 Loads only the selected extra blocks.
@@ -92,6 +189,8 @@ The decision is constrained to:
 - `IMPROVE`
 - `NEXT_CONCEPT`
 
+If the LLM output is invalid, `PathDeciderFallback` uses current errors, attempt regression, review improvement, and available next concepts to choose a safe default path.
+
 ### 5. ExerciseCandidateRetriever
 
 The service queries weighted exercise candidates from Neo4j using:
@@ -121,7 +220,7 @@ It returns:
 - ordered `exercise_ids`
 - step directives
 
-The service resolves those ids back to the graph candidates and falls back to the top graph candidates if the LLM selection is weak or invalid.
+The service resolves those ids back to the graph candidates. If the returned ids do not map to usable candidate exercises, `RoadmapBuilderFallback` keeps the top graph-ranked exercises and fills directives with deterministic defaults.
 
 ### 7. ExplanationBuilder
 
@@ -154,6 +253,8 @@ Allowed `ref_category` values:
 - `code`
 - `review`
 - `exercise`
+
+If the LLM output is empty or structurally invalid, `ExplanationBuilderFallback` returns a shorter but still evidence-backed explanation using the same ref catalog.
 
 ## Main Inputs
 

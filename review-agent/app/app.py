@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from neo4j import GraphDatabase
 from openai import OpenAI
 
-from .config import get_settings
+from .config import get_env_config
 from .api.knowledge_graph_route import router as knowledge_graph_router
 from .api.recommendation_route import router as recommendation_router
 from .api.review_code_route import router as review_router
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
+    settings = get_env_config()
     base_url = settings.fireworks_base_url
     app.state.settings = settings
     app.state.fireworks_client = OpenAI(

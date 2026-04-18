@@ -18,6 +18,8 @@ The latest review context, student profile, and exercise concept are loaded from
 
 The recommendation path is decided internally through LLM path selection over graph-backed context. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
 
+The recommendation runtime is now split into subgraphs with explicit fallback nodes. Each LLM-heavy phase first tries the model-driven branch and then routes to a deterministic fallback when parsing or validation fails.
+
 ## High-Level Flows
 
 ```text
@@ -57,13 +59,21 @@ Client
 Client
   -> POST /api/v1/recommendation
   -> Recommendation LangGraph
-     1. BaseContextLoader
-     2. ContextPlanner
-     3. ConditionalContextLoader
-     4. PathDecider
-     5. ExerciseCandidateRetriever
-     6. RoadmapBuilder
-     7. ExplanationBuilder
+     1. context_subgraph
+        - BaseContextLoader
+        - ContextPlanner
+        - ContextPlannerFallback
+        - ConditionalContextLoader
+     2. path_subgraph
+        - PathDecider
+        - PathDeciderFallback
+     3. roadmap_subgraph
+        - ExerciseCandidateRetriever
+        - RoadmapBuilder
+        - RoadmapBuilderFallback
+     4. explanation_subgraph
+        - ExplanationBuilder
+        - ExplanationBuilderFallback
   -> RecommendationResponse with roadmap
 ```
 
@@ -75,7 +85,8 @@ File: [app/app.py](/Users/thaibao/projects/review-code-app/review-agent/app/app.
 
 Startup responsibilities:
 
-- load application settings from environment through `app/config.py`
+- load application settings from environment through `app/config/env_config.py`
+- load feature/stage model defaults from `app/config/model_config.py`
 - initialize the Fireworks-compatible `OpenAI` client
 - initialize the Neo4j driver
 - register review, recommendation, and knowledge graph routers
@@ -90,7 +101,33 @@ LLM environment variables:
 
 - `FIREWORKS_API_KEY`
 - `FIREWORKS_BASE_URL`
-- `FIREWORKS_MODEL`
+
+Model runtime configuration is now organized by feature and stage.
+
+Main features:
+
+- `review`
+- `recommendation`
+- `knowledge_graph`
+
+Example stage-level env vars:
+
+- `REVIEW_LOGIC_MODEL`
+- `RECOMMENDATION_CONTEXT_PLANNER_MODEL`
+- `RECOMMENDATION_ROADMAP_BUILDER_MAX_TOKENS`
+- `KNOWLEDGE_GRAPH_EXERCISE_WEIGHT_MODEL`
+
+Each stage can override:
+
+- model name
+- temperature
+- max tokens
+
+Resolution order is:
+
+1. stage-specific env var
+2. feature-level env var such as `REVIEW_MODEL`
+3. default value in `app/config/model_config.py`
 
 ### API Surface
 

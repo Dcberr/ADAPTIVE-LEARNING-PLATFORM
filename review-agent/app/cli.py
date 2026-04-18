@@ -1,14 +1,14 @@
 import uvicorn
 
 from app.app import create_app
-from app.config import get_settings
+from app.config import get_env_config
 
 
 app = create_app()
 
 
 def main() -> None:
-    settings = get_settings()
+    settings = get_env_config()
     uvicorn.run(
         app,
         host=settings.host,

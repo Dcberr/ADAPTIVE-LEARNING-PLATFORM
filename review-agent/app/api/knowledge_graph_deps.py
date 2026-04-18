@@ -6,8 +6,10 @@ from app.agents.exercise_weight_agent import ExerciseWeightAgent
 from app.agents.prerequisite_weight_agent import PrerequisiteWeightAgent
 from app.api.review_code_deps import (
     get_fireworks_client,
-    get_fireworks_request_config,
+    get_settings_dependency,
+    get_stage_model_config,
 )
+from app.config import EnvConfig
 from app.repositories.knowledge_graph_repository import KnowledgeGraphRepository
 
 
@@ -24,8 +26,11 @@ def get_knowledge_graph_repository(request: Request) -> KnowledgeGraphRepository
 
 def get_prerequisite_weight_agent(
     client: OpenAI = Depends(get_fireworks_client),
+    settings: EnvConfig = Depends(get_settings_dependency),
 ) -> PrerequisiteWeightAgent:
-    config = get_fireworks_request_config("knowledge_graph", "prerequisite_weight")
+    config = get_stage_model_config(
+        "knowledge_graph", "prerequisite_weight", settings=settings
+    )
     return PrerequisiteWeightAgent(
         client=client,
         model_name=config.model_name,
@@ -36,8 +41,11 @@ def get_prerequisite_weight_agent(
 
 def get_exercise_weight_agent(
     client: OpenAI = Depends(get_fireworks_client),
+    settings: EnvConfig = Depends(get_settings_dependency),
 ) -> ExerciseWeightAgent:
-    config = get_fireworks_request_config("knowledge_graph", "exercise_weight")
+    config = get_stage_model_config(
+        "knowledge_graph", "exercise_weight", settings=settings
+    )
     return ExerciseWeightAgent(
         client=client,
         model_name=config.model_name,
