@@ -8,8 +8,8 @@ from app.models.review_state import ReviewState
 def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
     progress_summary = (
         f"Persistent failed testcase IDs: {state.get('persistent_failed_test_case_ids', [])}\n"
-        f"Fixed testcase IDs since first history entry: {state.get('fixed_test_case_ids', [])}\n"
-        f"Newly failing testcase IDs since first history entry: {state.get('regressed_test_case_ids', [])}"
+        f"Fixed testcase IDs since previous submission: {state.get('fixed_test_case_ids', [])}\n"
+        f"Newly failing testcase IDs since previous submission: {state.get('regressed_test_case_ids', [])}"
     )
     return [
         {
@@ -19,7 +19,7 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 You are an educational assessment agent for CS1 submissions.
 
                 Score learning signals based on the student's current code,
-                submission history, and review findings.
+                recent sorted submission history, and review findings.
 
                 Return valid JSON only.
                 """
@@ -62,7 +62,7 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 For each index:
                 - assign a score from 1 to 5
                 - provide a short label
-                - provide a concise explanation grounded in the code/history/review
+                - provide a concise explanation grounded in the code/previous submission/review
 
                 Return JSON in exactly this shape:
                 {{
@@ -124,8 +124,8 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 - 1 means very weak evidence
                 - 3 means mixed or moderate evidence
                 - 5 means strong evidence
-                - Ground every score in observable signals from the code or history.
-                - For Self-Correction Path, use history heavily.
+                - Ground every score in observable signals from the code or the history.
+                - For Self-Correction Path, use the newest-first history heavily when available.
                 - For beginner-focused indices, favor concrete evidence about variables, control flow, input/output handling, edge cases, and how the student responds to failed attempts.
                 - Return JSON only.
                 """
@@ -142,8 +142,9 @@ def _format_history(state: ReviewState) -> str:
     return "\n\n".join(
         [
             (
-                f"Previous submission {index}:\n"
+                f"Previous submission {index} (newest first order):\n"
                 f"Failed testcase IDs: {submission.get('failed_test_case_ids', [])}\n"
+                f"Passed testcase IDs: {submission.get('passed_test_case_ids', [])}\n"
                 f"Code:\n{submission.get('code', '')}"
             )
             for index, submission in enumerate(history, start=1)

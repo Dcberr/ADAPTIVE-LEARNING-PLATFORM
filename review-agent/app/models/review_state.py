@@ -10,6 +10,7 @@ from app.models.sandbox_result import SandBoxResult
 class SubmissionHistory(TypedDict):
     code: str
     failed_test_case_ids: List[str]
+    passed_test_case_ids: List[str]
 
 
 class ReviewState(TypedDict):
@@ -39,8 +40,11 @@ def create_initial_state(
 ) -> ReviewState:
     """Helper function to create a properly initialized ReviewState"""
     current_failed_test_case_ids = [result["id"] for result in sandbox_results]
+    latest_previous_submission = history[0] if history else None
     previous_failed_test_case_ids = (
-        history[0].get("failed_test_case_ids", []) if history else []
+        latest_previous_submission.get("failed_test_case_ids", [])
+        if latest_previous_submission
+        else []
     )
     persistent_failed_test_case_ids = [
         testcase_id

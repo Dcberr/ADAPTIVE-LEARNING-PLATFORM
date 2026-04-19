@@ -57,20 +57,50 @@ class FixHintAgent:
         testcase_context: str,
     ) -> str:
         """Create a specific fallback hint when the model returns no structured JSON."""
-        suggestion_parts = [
+        cause_type = issue.get("cause_type", "").strip()
+        diagnosis_parts = [
             f"Focus on testcase `{issue.get('evidence', '')}`.",
             testcase_context,
+            f"The current issue is: {issue.get('issue', '')}",
             (
-                f"The current issue is: {issue.get('issue', '')} "
-                "Trace the program line by line for this exact input and write down how each important variable changes."
+                f"Why this testcase fails: {issue.get('why_test_failed', '')}"
+                if issue.get("why_test_failed", "")
+                else ""
             ),
             (
-                "Compare the moment your code produces the current output with the expected behavior, "
-                "then replace any special-case handling with logic that works for the general case."
+                f"Nearest related code: {issue.get('anchor_snippet', '')}"
+                if issue.get("anchor_snippet", "")
+                else ""
+            ),
+            (
+                f"Missing behavior to add: {issue.get('missing_behavior', '')}"
+                if issue.get("missing_behavior", "")
+                else ""
             ),
         ]
 
-        return "\n".join(suggestion_parts)
+        if cause_type == "incorrect_code":
+            action = (
+                "Start by tracing the current code snippet for this exact input and write down the key values before the program prints or returns the result. "
+                "Then compare that moment with the expected behavior and adjust only the calculation or branch that produces the wrong output."
+            )
+        elif cause_type in {"missing_logic", "missing_branch"}:
+            action = (
+                "Start by checking which case is not handled yet for this input. "
+                "Add one small branch or rule near the anchor snippet so this missing case is handled before the final output."
+            )
+        elif cause_type == "missing_validation":
+            action = (
+                "Start by checking what condition should be validated before the current logic continues. "
+                "Add that validation first, then trace the testcase again to confirm the rest of the logic runs on valid input."
+            )
+        else:
+            action = (
+                "Trace the program line by line for this exact input, compare the current output with the expected behavior, "
+                "and change the smallest part of the logic that causes the mismatch."
+            )
+
+        return "\n".join([part for part in diagnosis_parts if part] + [action])
 
     def analyze(self, state: ReviewState) -> ReviewState:
         """Generate fix suggestions for all relevant logic issues."""

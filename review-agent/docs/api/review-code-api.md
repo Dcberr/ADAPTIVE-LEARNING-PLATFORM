@@ -17,7 +17,7 @@ Use this API when:
 
 ## Flow
 
-1. The client submits assignment context, current code, failed testcase results, and optional history.
+1. The client submits assignment context, current code, failed testcase results, and an optional `history` array sorted by time descending.
 2. The API converts the payload into `ReviewState` for the LangGraph workflow.
 3. The review service runs the review agents in sequence:
    - `logic`
@@ -51,7 +51,8 @@ Use this API when:
   "history": [
     {
       "code": "string",
-      "failed_test_case_ids": ["uuid"]
+      "failed_test_case_ids": ["uuid"],
+      "passed_test_case_ids": ["uuid"]
     }
   ]
 }
@@ -63,7 +64,10 @@ Use this API when:
 - `assignment.language`: language label such as `Python`, `C`, or `C++`.
 - `code`: current submission code to review.
 - `test_results`: sandbox/testcase outputs for this submission.
-- `history`: previous submissions used for progress-aware review linking.
+- `history`: prior submissions sorted newest first.
+- `history[].failed_test_case_ids`: testcase ids that failed in that past attempt.
+- `history[].passed_test_case_ids`: testcase ids that passed in that past attempt.
+- review-link uses all matching history entries for one testcase, but treats the newest matching entry as the main comparison anchor.
 
 ## Example Request
 
@@ -97,6 +101,9 @@ Use this API when:
       "code": "#include <iostream>\nusing namespace std;\n\nint main() {\n    int a;\n    string b;\n    cin >> a >> b;\n    cout << a + b;\n    return 0;\n}",
       "failed_test_case_ids": [
         "11111111-1111-1111-1111-111111111111"
+      ],
+      "passed_test_case_ids": [
+        "22222222-2222-2222-2222-222222222222"
       ]
     }
   ]
@@ -127,7 +134,8 @@ Use this API when:
       "review_link": {
         "current_issue": "string",
         "current_code_snippet": "string",
-        "previous_submission_indexes": [0],
+        "previous_submission_indexes": [1, 2],
+        "comparison_mode": "persistent",
         "previous_code_snippet": "string",
         "what_improved": "string",
         "what_still_needs_work": "string",
@@ -193,5 +201,6 @@ Use this API when:
 ## Notes
 
 - `scorecard` remains on a `1..5` review scale.
-- `review_link` is only present on items where history comparison found a meaningful relation.
+- `review_link` is only present on items where at least one history entry contains the same testcase id in either `failed_test_case_ids` or `passed_test_case_ids`.
+- `comparison_mode` is typically `persistent`, `regression`, or `current_only`.
 - This API returns review output only. Graph persistence is handled by the separate knowledge-graph APIs.

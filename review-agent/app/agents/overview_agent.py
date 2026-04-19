@@ -34,13 +34,16 @@ class OverviewAgent:
 
         # Merge logic issues as Errors
         for issue in new_state.get("logic_issues", {}).values():
+            display_snippet = issue.get("code_snippet", "") or issue.get(
+                "anchor_snippet", ""
+            )
             matched_review_link = next(
                 (
                     link
                     for link in review_links
                     if link.get("current_issue") == issue.get("issue", "")
                     and link.get("current_code_snippet")
-                    == issue.get("code_snippet", "")
+                    == display_snippet
                 ),
                 None,
             )
@@ -48,7 +51,7 @@ class OverviewAgent:
                 {
                     "type": "Error",
                     "location": issue["location"],
-                    "code_snippet": issue.get("code_snippet", ""),
+                    "code_snippet": display_snippet,
                     "fix_suggestion": issue.get("fix_suggestion", ""),
                     "issue": issue.get("issue", ""),
                     "review_link": matched_review_link,

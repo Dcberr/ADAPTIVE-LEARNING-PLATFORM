@@ -23,6 +23,10 @@ class SubmissionHistoryItem(BaseModel):
         default_factory=list,
         description="UUIDs of the failed testcases for that submission attempt",
     )
+    passed_test_case_ids: List[UUID] = Field(
+        default_factory=list,
+        description="UUIDs of the passed testcases for that submission attempt",
+    )
 
 
 class ReviewRequest(BaseModel):
@@ -62,6 +66,7 @@ class ReviewLink(BaseModel):
     current_code_snippet: str
     previous_submission_indexes: List[int] = Field(default_factory=list)
     previous_code_snippet: str
+    comparison_mode: Optional[str] = None
     what_improved: str
     what_still_needs_work: str
     relation_summary: str
