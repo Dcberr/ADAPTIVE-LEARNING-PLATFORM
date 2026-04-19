@@ -18,10 +18,11 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 """
                 You are an educational assessment agent for CS1 submissions.
 
-                Score learning signals based on the student's current code,
-                recent sorted submission history, and review findings.
+                Your job is to score learning signals, not to punish the student for every failing testcase.
+                Judge each dimension independently using concrete evidence from the current submission first,
+                then use recent history only as a supporting signal.
 
-                Return valid JSON only.
+                Return exactly one valid JSON object and nothing else.
                 """
             ).strip(),
         },
@@ -29,22 +30,22 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
             "role": "user",
             "content": dedent(
                 f"""
-                Current student code:
+                CURRENT STUDENT CODE:
                 {state.get('code', '')}
 
-                Submission history:
+                SUBMISSION HISTORY:
                 {_format_history(state)}
 
-                Review overview:
+                REVIEW OVERVIEW:
                 {state.get('overview', '')}
 
-                Logic issues:
+                LOGIC ISSUES:
                 {list(state.get('logic_issues', {}).values())}
 
-                Improvement notes:
+                IMPROVEMENT NOTES:
                 {state.get('improvement_notes', [])}
 
-                History-based progress summary:
+                HISTORY-BASED PROGRESS SUMMARY:
                 {progress_summary}
 
                 Score these ten indices:
@@ -59,10 +60,42 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 9. Edge Case Awareness
                 10. Debugging Readiness
 
-                For each index:
-                - assign a score from 1 to 5
-                - provide a short label
-                - provide a concise explanation grounded in the code/previous submission/review
+                Core scoring rules:
+                - Score from observable evidence, not from vague impressions.
+                - Use the current submission as the primary evidence source.
+                - Use history as a secondary signal, especially for Self-Correction Path.
+                - Do not let one major bug drag every dimension down.
+                - A failing submission can still show partial understanding in variables, control flow, or debugging behavior.
+                - Since this is CS1, avoid over-penalizing beginner code for style alone.
+                - Use extreme scores only when evidence is strong.
+
+                Score scale:
+                - 1 = very weak evidence of the skill
+                - 2 = limited and inconsistent evidence
+                - 3 = mixed or moderate evidence
+                - 4 = clear but not fully consistent evidence
+                - 5 = strong and consistent evidence
+
+                Evidence mapping by index:
+                - Problem-Solving Creativity: look for whether the student is attempting a real solution strategy or only shallow hard-coded behavior.
+                - Logic Traceability: use how understandable and traceable the reasoning path is through the code and logic issues.
+                - Generalization Score: use evidence about whether the code handles more than the easiest cases.
+                - Construct Appropriateness: use whether the chosen conditions, loops, variables, and basic constructs fit the task.
+                - Self-Correction Path: use newest-first history, fixed testcases, persistent failures, and regressions.
+                - Variable Understanding: use how values are stored, updated, and interpreted in the code and logic issues.
+                - Control Flow Understanding: use conditions, branching, loop behavior, and missing-branch errors.
+                - Input/Output Awareness: use parsing, formatting, exact-output mismatches, and expected-vs-actual behavior.
+                - Edge Case Awareness: use zero/negative/boundary/special-case handling and related failures.
+                - Debugging Readiness: use whether the student's current attempt and recent changes suggest systematic correction or random changes.
+
+                Output rules:
+                - For each index, return:
+                  - score: integer 1 to 5
+                  - label: short phrase
+                  - explanation: concise evidence-based explanation
+                - Keep explanations short and specific.
+                - Do not mention hidden test cases.
+                - Do not return markdown or extra prose.
 
                 Return JSON in exactly this shape:
                 {{
@@ -120,14 +153,7 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                   }}
                 }}
 
-                Scoring guidance:
-                - 1 means very weak evidence
-                - 3 means mixed or moderate evidence
-                - 5 means strong evidence
-                - Ground every score in observable signals from the code or the history.
-                - For Self-Correction Path, use the newest-first history heavily when available.
-                - For beginner-focused indices, favor concrete evidence about variables, control flow, input/output handling, edge cases, and how the student responds to failed attempts.
-                - Return JSON only.
+                Return JSON only.
                 """
             ).strip(),
         },

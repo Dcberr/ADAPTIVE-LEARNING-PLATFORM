@@ -41,6 +41,7 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
   ],
   "history": [
     {
+      "submission_id": "uuid",
       "code": "string",
       "failed_test_case_ids": ["uuid"],
       "passed_test_case_ids": ["uuid"]
@@ -71,11 +72,9 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
       "issue": "string",
       "fix_suggestion": "string",
       "review_link": {
-        "current_issue": "string",
-        "current_code_snippet": "string",
-        "previous_submission_indexes": [1, 2],
+        "previous_submission_id": "string",
+        "previous_code_snippets": ["string"],
         "comparison_mode": "persistent",
-        "previous_code_snippet": "string",
         "what_improved": "string",
         "what_still_needs_work": "string",
         "relation_summary": "string"
@@ -294,7 +293,8 @@ Outputs:
 
 Core logic:
 
-- loops through logic issues one by one
+- builds one prompt per logic issue
+- runs those per-issue LLM calls asynchronously with bounded concurrency inside the node
 - prompts using assignment, current code, current issue summary, testcase details, `cause_type`, `why_test_failed`, `missing_behavior`, and `anchor_snippet`
 - chooses a different hint strategy depending on whether the issue is `incorrect_code`, `missing_logic`, `missing_branch`, or `missing_validation`
 - asks for one small, actionable next step instead of a full rewrite
@@ -319,23 +319,21 @@ Outputs:
 Core logic:
 
 - checks each logic issue by testcase id
-- collects all history entries containing the same testcase id in either `failed_test_case_ids` or `passed_test_case_ids`
-- skips review-link generation when `history` is empty or when no history entry mentions the testcase
+- scans history newest first and picks the first earlier submission whose `failed_test_case_ids` contains the testcase id
+- skips review-link generation when `history` is empty or when no earlier failed submission mentions the testcase
 - batches link-analysis candidates with `batch_size = 5`
 - prompts the model with:
   - current issue summary
   - current logic-agent code snippet or anchor snippet
-  - all matching testcase history entries sorted newest first
+  - the first earlier failed submission for that testcase
 - returns a `ReviewLink` structure for each matched issue
 - uses fallback link generation if parsing or the model call fails
 
 ReviewLink meaning:
 
-- `current_issue`: current issue summary
-- `current_code_snippet`: current code snippet from LogicAgent
-- `previous_submission_indexes`: all matching history positions, sorted newest first
-- `comparison_mode`: `persistent`, `regression`, or `current_only`
-- `previous_code_snippet`: best-matching previous snippet selected by the model
+- `previous_submission_id`: id of the first earlier submission where the same testcase failed
+- `previous_code_snippets`: short related snippet list from that earlier failed submission
+- `comparison_mode`: usually `persistent` or `historical_match`
 - `what_improved`: what changed positively
 - `what_still_needs_work`: what remains unresolved
 - `relation_summary`: compact relationship summary
@@ -431,6 +429,8 @@ Core logic:
 
 - one model call for the final scorecard
 - heavily uses sorted history for `self_correction_path`
+- uses rubric-anchored scoring rules with explicit evidence mapping per scorecard dimension
+- tells the model to score each dimension independently instead of letting one large bug lower every score
 - normalizes the returned structure against a fixed template
 - falls back to a default score template on failure
 
@@ -468,10 +468,13 @@ Current batching:
 
 Not currently batched:
 
-- `FixHintAgent`: one model call per logic issue
 - `ImprovementAgent`: one model call for the whole submission
 - `OverviewAgent`: one model call for the whole submission
 - `ScoringAgent`: one model call for the whole submission
+
+Async per-issue work:
+
+- `FixHintAgent`: one async model call per logic issue, with bounded concurrency inside the node
 
 ## Performance Notes
 

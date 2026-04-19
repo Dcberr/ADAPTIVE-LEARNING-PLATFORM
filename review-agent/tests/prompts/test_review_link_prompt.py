@@ -4,26 +4,20 @@ from app.prompts.review.review_link import build_review_link_messages
 
 
 class ReviewLinkPromptTests(unittest.TestCase):
-    def test_review_link_prompt_uses_sorted_history_contract(self):
+    def test_review_link_prompt_uses_first_failed_submission_contract(self):
         messages = build_review_link_messages(
             current_code="int main() { return 0; }",
             batch_candidates=[
                 {
-                    "current_issue": "The negative case is still not handled.",
+                    "issue": {
+                        "issue": "The negative case is still not handled.",
+                    },
                     "current_code_snippet": "if (x > 0) { cout << \"positive\"; }",
                     "comparison_mode": "persistent",
-                    "history_matches": [
-                        {
-                            "submission_index": 1,
-                            "testcase_status": "failed",
-                            "code": "if (x > 0) { cout << \"positive\"; }",
-                        },
-                        {
-                            "submission_index": 2,
-                            "testcase_status": "passed",
-                            "code": "if (x >= 0) { cout << \"non-negative\"; }",
-                        },
-                    ],
+                    "previous_submission": {
+                        "submission_id": "11111111-1111-1111-1111-111111111111",
+                        "code": "if (x > 0) { cout << \"positive\"; }",
+                    },
                 }
             ],
         )
@@ -31,10 +25,13 @@ class ReviewLinkPromptTests(unittest.TestCase):
         system_prompt = messages[0]["content"]
         user_prompt = messages[1]["content"]
 
-        self.assertIn("sorted testcase history", system_prompt)
-        self.assertIn("Matching history entries for this testcase", user_prompt)
+        self.assertIn("first earlier submission where", system_prompt)
+        self.assertIn("the same testcase also failed", system_prompt)
+        self.assertIn("First earlier failed submission for this testcase", user_prompt)
         self.assertIn("Comparison mode: persistent", user_prompt)
-        self.assertIn("Use the newest matching history entry as the main comparison anchor", user_prompt)
+        self.assertIn("Use only the first earlier submission where the testcase failed.", user_prompt)
+        self.assertIn("previous_submission_id", user_prompt)
+        self.assertIn("previous_code_snippets", user_prompt)
 
 
 if __name__ == "__main__":

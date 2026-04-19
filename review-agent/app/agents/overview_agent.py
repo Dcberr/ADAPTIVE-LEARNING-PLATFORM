@@ -41,9 +41,7 @@ class OverviewAgent:
                 (
                     link
                     for link in review_links
-                    if link.get("current_issue") == issue.get("issue", "")
-                    and link.get("current_code_snippet")
-                    == display_snippet
+                    if link.get("issue_evidence") == issue.get("evidence", "")
                 ),
                 None,
             )

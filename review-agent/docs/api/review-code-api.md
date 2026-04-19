@@ -50,6 +50,7 @@ Use this API when:
   ],
   "history": [
     {
+      "submission_id": "uuid",
       "code": "string",
       "failed_test_case_ids": ["uuid"],
       "passed_test_case_ids": ["uuid"]
@@ -132,11 +133,9 @@ Use this API when:
       "issue": "string",
       "fix_suggestion": "string",
       "review_link": {
-        "current_issue": "string",
-        "current_code_snippet": "string",
-        "previous_submission_indexes": [1, 2],
+        "previous_submission_id": "string",
+        "previous_code_snippets": ["string"],
         "comparison_mode": "persistent",
-        "previous_code_snippet": "string",
         "what_improved": "string",
         "what_still_needs_work": "string",
         "relation_summary": "string"
@@ -201,6 +200,7 @@ Use this API when:
 ## Notes
 
 - `scorecard` remains on a `1..5` review scale.
-- `review_link` is only present on items where at least one history entry contains the same testcase id in either `failed_test_case_ids` or `passed_test_case_ids`.
-- `comparison_mode` is typically `persistent`, `regression`, or `current_only`.
+- each `history` item must include `submission_id`.
+- `review_link` is only present when the service finds the first earlier submission whose `failed_test_case_ids` contains the same testcase id.
+- `comparison_mode` is typically `persistent` or `historical_match`.
 - This API returns review output only. Graph persistence is handled by the separate knowledge-graph APIs.

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Dict
 
@@ -20,11 +21,13 @@ class FixHintAgent:
         model_name: str,
         temperature: float = 0.4,
         max_tokens: int = 512,
+        max_concurrency: int = 4,
     ):
         self.client = client
         self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.max_concurrency = max(1, max_concurrency)
 
     def generate_messages(
         self,
@@ -102,7 +105,60 @@ class FixHintAgent:
 
         return "\n".join([part for part in diagnosis_parts if part] + [action])
 
-    def analyze(self, state: ReviewState) -> ReviewState:
+    async def _process_issue(
+        self,
+        state: ReviewState,
+        issue_id: str,
+        issue: LogicIssue,
+        assignment: str,
+        current_code: str,
+        semaphore: asyncio.Semaphore,
+    ) -> tuple[str, LogicIssue]:
+        testcase_context = self.get_testcase_context(
+            state, issue.get("evidence", "")
+        )
+        messages = self.generate_messages(
+            issue,
+            assignment,
+            current_code,
+            testcase_context,
+        )
+
+        try:
+            async with semaphore:
+                response = await asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.model_name,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                )
+
+            model_text = response.choices[0].message.content
+            logger.debug(
+                "FixHintAgent raw response preview for issue %s: %s",
+                issue_id,
+                truncate_text(model_text),
+            )
+            parsed = safe_parse_json_response(model_text)
+
+            issue["fix_suggestion"] = (
+                parsed.get("fix_suggestion", "").strip()
+                or self.build_fallback_fix_suggestion(issue, testcase_context)
+            )
+            logger.debug(
+                "FixHintAgent stored fix suggestion for issue %s",
+                issue_id,
+            )
+        except Exception:
+            logger.exception("FixHintAgent failed for issue %s", issue_id)
+            issue["fix_suggestion"] = self.build_fallback_fix_suggestion(
+                issue, testcase_context
+            )
+
+        return issue_id, issue
+
+    async def analyze(self, state: ReviewState) -> ReviewState:
         """Generate fix suggestions for all relevant logic issues."""
         logger.debug(
             "Starting FixHintAgent with state summary: %s",
@@ -115,54 +171,32 @@ class FixHintAgent:
             "assignment_requirements", "No assignment description provided."
         )
         current_code = new_state.get("code", "")
+        semaphore = asyncio.Semaphore(self.max_concurrency)
+
+        if not logic_issues:
+            logger.debug("FixHintAgent skipped because there are no logic issues")
+            return new_state
+
+        tasks = []
 
         for issue_id, issue in logic_issues.items():
             logger.debug(
                 "FixHintAgent generating hint for issue %s",
                 issue_id,
             )
-            testcase_context = self.get_testcase_context(
-                new_state, issue.get("evidence", "")
-            )
-            messages = self.generate_messages(
-                issue,
-                assignment,
-                current_code,
-                testcase_context,
-            )
-
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                )
-
-                model_text = response.choices[0].message.content
-                logger.debug(
-                    "FixHintAgent raw response preview for issue %s: %s",
+            tasks.append(
+                self._process_issue(
+                    new_state,
                     issue_id,
-                    truncate_text(model_text),
+                    issue,
+                    assignment,
+                    current_code,
+                    semaphore,
                 )
-                parsed = safe_parse_json_response(model_text)
+            )
 
-                issue["fix_suggestion"] = (
-                    parsed.get("fix_suggestion", "").strip()
-                    or self.build_fallback_fix_suggestion(issue, testcase_context)
-                )
-                logger.debug(
-                    "FixHintAgent stored fix suggestion for issue %s",
-                    issue_id,
-                )
-                logic_issues[issue_id] = issue
-
-            except Exception as e:
-                logger.exception("FixHintAgent failed for issue %s", issue_id)
-                issue["fix_suggestion"] = self.build_fallback_fix_suggestion(
-                    issue, testcase_context
-                )
-                logic_issues[issue_id] = issue
+        for issue_id, issue in await asyncio.gather(*tasks):
+            logic_issues[issue_id] = issue
 
         new_state["logic_issues"] = logic_issues
         logger.debug(

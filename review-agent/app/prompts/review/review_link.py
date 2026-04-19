@@ -10,14 +10,14 @@ def build_review_link_messages(
     issues_text = "\n\n".join(
         [
             f"""Issue ref: {index}
-Current issue summary: {candidate['current_issue']}
+Current issue summary: {candidate['issue'].get('issue', '')}
 Current code snippet identified by the logic agent:
 {candidate['current_code_snippet']}
 
 Comparison mode: {candidate['comparison_mode']}
 
-Matching history entries for this testcase (sorted newest first):
-{_format_history_matches(candidate['history_matches'])}
+First earlier failed submission for this testcase:
+{_format_previous_submission(candidate['previous_submission'])}
 """
             for index, candidate in enumerate(batch_candidates)
         ]
@@ -29,10 +29,10 @@ Matching history entries for this testcase (sorted newest first):
                 """
                 You are a CS1 progress-analysis agent.
 
-                Compare each current issue with the sorted testcase history for that
-                same testcase. Use the current issue description and code snippet as
-                anchors, then inspect the history entries to identify what improved,
-                what regressed, and what still needs work.
+                Compare each current issue with the first earlier submission where
+                the same testcase also failed. Use the current issue description and
+                code snippet as anchors, then inspect that earlier failed submission
+                to identify what improved and what still needs work.
 
                 Return valid JSON only.
                 """
@@ -49,10 +49,10 @@ Matching history entries for this testcase (sorted newest first):
                 {issues_text}
 
                 Task:
-                Compare each current issue with the testcase history shown above. Focus on:
+                Compare each current issue with the earlier failed submission shown above. Focus on:
                 - what changed around the relevant logic
-                - whether the newest matching history entry shows a persistent failure, a regression from pass to fail, or a current-only issue
-                - whether there is meaningful improvement, minimal change, or regression
+                - whether the issue is still persistent or is only linked to an older failed attempt
+                - whether there is meaningful improvement or minimal change
                 - what the student should still focus on next
 
                 Return JSON in exactly this shape:
@@ -60,8 +60,9 @@ Matching history entries for this testcase (sorted newest first):
                   "review_links": [
                     {{
                       "issue_ref": 0,
+                      "previous_submission_id": "submission uuid",
+                      "previous_code_snippets": ["snippet from the earlier failed submission that relates to the current issue"],
                       "comparison_mode": "persistent",
-                      "previous_code_snippet": "snippet from a previous submission that best matches the current issue",
                       "what_improved": "brief statement of what improved compared with the past attempt(s)",
                       "what_still_needs_work": "brief statement of what still needs to be fixed",
                       "relation_summary": "one concise sentence explaining the link between past and current attempts"
@@ -70,12 +71,12 @@ Matching history entries for this testcase (sorted newest first):
                 }}
 
                 Guidelines:
-                - Ground the comparison in the current issue and current code snippet.
+                - Ground the comparison in the current issue, current code snippet, and the earlier failed submission.
                 - It is okay to say that improvement is minimal or unclear.
-                - Use the newest matching history entry as the main comparison anchor, but use older matching entries to judge trend if helpful.
-                - If the newest matching history entry passed the testcase and the current one fails, treat it as a regression.
-                - If the newest matching history entry failed the testcase and the current one still fails, treat it as a persistent issue.
-                - If there is no meaningful earlier match, say the issue appears only in the current attempt.
+                - Use only the first earlier submission where the testcase failed.
+                - `previous_code_snippets` should contain only short snippets from that earlier failed submission that relate to the current issue.
+                - If the latest previous submission also failed this testcase, `comparison_mode` should usually be `persistent`.
+                - If the match comes from an older earlier failed submission but not the latest previous submission, `comparison_mode` can be `historical_match`.
                 - Keep the language student-friendly.
                 - Return JSON only.
                 """
@@ -84,14 +85,8 @@ Matching history entries for this testcase (sorted newest first):
     ]
 
 
-def _format_history_matches(history_matches: list[dict[str, str | int]]) -> str:
-    return "\n\n".join(
-        [
-            (
-                f"History submission index: {match['submission_index']}\n"
-                f"Testcase status: {match['testcase_status']}\n"
-                f"Code:\n{match['code']}"
-            )
-            for match in history_matches
-        ]
+def _format_previous_submission(previous_submission: dict[str, str]) -> str:
+    return (
+        f"Submission id: {previous_submission.get('submission_id', '')}\n"
+        f"Code:\n{previous_submission.get('code', '')}"
     )

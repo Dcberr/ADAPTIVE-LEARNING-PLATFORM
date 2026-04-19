@@ -52,6 +52,7 @@ async def review_code(
             assignment_requirements=request.assignment.content,
             history=[
                 {
+                    "submission_id": str(submission.submission_id),
                     "code": submission.code,
                     "failed_test_case_ids": [
                         str(testcase_id)

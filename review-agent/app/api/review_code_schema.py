@@ -18,6 +18,7 @@ class AssignmentContext(BaseModel):
 
 
 class SubmissionHistoryItem(BaseModel):
+    submission_id: UUID
     code: str
     failed_test_case_ids: List[UUID] = Field(
         default_factory=list,
@@ -62,10 +63,8 @@ class ReviewItem(BaseModel):
 
 
 class ReviewLink(BaseModel):
-    current_issue: str
-    current_code_snippet: str
-    previous_submission_indexes: List[int] = Field(default_factory=list)
-    previous_code_snippet: str
+    previous_submission_id: str
+    previous_code_snippets: List[str] = Field(default_factory=list)
     comparison_mode: Optional[str] = None
     what_improved: str
     what_still_needs_work: str
