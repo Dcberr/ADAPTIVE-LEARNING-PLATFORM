@@ -5,6 +5,7 @@ from openai import OpenAI
 
 from app.prompts.review.improvement import build_improvement_messages
 from app.models.review_state import ReviewState
+from app.utils.code_context import build_improvement_code_context
 from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
@@ -27,7 +28,9 @@ class ImprovementAgent:
         self.max_tokens = max_tokens
 
     def generate_messages(self, code: str) -> List[Dict[str, str]]:
-        return build_improvement_messages(code)
+        return build_improvement_messages(
+            build_improvement_code_context(code=code)
+        )
 
     def analyze(self, state: ReviewState) -> Dict[str, Any]:
         """Run style/quality analysis and update the review state."""

@@ -57,6 +57,10 @@ async def review_code(
                         str(testcase_id)
                         for testcase_id in submission.failed_test_case_ids
                     ],
+                    "passed_test_case_ids": [
+                        str(testcase_id)
+                        for testcase_id in submission.passed_test_case_ids
+                    ],
                 }
                 for submission in request.history
             ],

@@ -15,48 +15,48 @@ class ReviewModelConfig:
     logic: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
             model_name="fireworks/kimi-k2p5",
-            temperature=0.2,
-            max_tokens=1800,
+            temperature=0.1,
+            max_tokens=2200,
         )
     )
     fix_hint: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
-            temperature=0.3,
-            max_tokens=700,
+            model_name="fireworks/deepseek-v3p2",
+            temperature=0.25,
+            max_tokens=900,
         )
     )
     improvement: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
             model_name="fireworks/kimi-k2p5",
-            temperature=0.2,
+            temperature=0.15,
             max_tokens=1200,
         )
     )
     review_link: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
-            temperature=0.15,
-            max_tokens=900,
+            model_name="fireworks/deepseek-v3p2",
+            temperature=0.1,
+            max_tokens=1000,
         )
     )
     overview: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
-            temperature=0.35,
-            max_tokens=700,
+            model_name="fireworks/deepseek-v3p2",
+            temperature=0.3,
+            max_tokens=950,
         )
     )
     scoring: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
-            temperature=0.1,
-            max_tokens=1600,
+            model_name="fireworks/deepseek-v3p2",
+            temperature=0.05,
+            max_tokens=1800,
         )
     )
     default: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
+            model_name="fireworks/deepseek-v3p2",
             temperature=0.2,
             max_tokens=1200,
         )

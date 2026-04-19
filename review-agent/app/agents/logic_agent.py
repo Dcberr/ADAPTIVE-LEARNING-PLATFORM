@@ -9,6 +9,7 @@ from app.models.review_state import (
     SandBoxResult,
 )
 from app.prompts.review.logic import build_logic_messages
+from app.utils.code_context import build_logic_code_context
 from app.utils.debug_logging import summarize_state, truncate_text
 from app.utils.parse_json_response import safe_parse_json_response
 
@@ -52,12 +53,17 @@ class LogicAgent:
         self,
         code: str,
         failed_tests: list[SandBoxResult],
-        history: list[dict[str, Any]],
     ) -> list:
-        return build_logic_messages(code=code, failed_tests=failed_tests, history=history)
+        return build_logic_messages(
+            code_context=build_logic_code_context(
+                code=code,
+                failed_tests=failed_tests,
+            ),
+            failed_tests=failed_tests,
+        )
 
     def classify_history_status(self, state: ReviewState, testcase_id: str) -> str:
-        """Classify a failing testcase relative to the first history entry."""
+        """Classify a failing testcase relative to the latest previous submission."""
         if testcase_id in state.get("persistent_failed_test_case_ids", []):
             return "persistent"
         if testcase_id in state.get("regressed_test_case_ids", []):
@@ -77,7 +83,13 @@ class LogicAgent:
                 f"For input '{input_value}', it returned '{actual_output}' but expected '{expected_output}'."
             ),
             evidence=failed_test["id"],
-            code_snippet=state.get("code", ""),
+            code_snippet="",
+            anchor_snippet="",
+            cause_type="incorrect_code",
+            why_test_failed=(
+                f"For input '{input_value}', the program produced '{actual_output}' instead of '{expected_output}'."
+            ),
+            missing_behavior="",
             location=None,
         )
         issue["history_status"] = self.classify_history_status(
@@ -97,7 +109,6 @@ class LogicAgent:
         new_state: ReviewState = dict(state)
         raw_cases = state.get("sandbox_results", [])
         cases = [case for case in raw_cases if self._is_meaningfully_failed(case)]
-        history = state.get("history", [])
         all_issues: Dict[str, LogicIssue] = {}
 
         if len(cases) != len(raw_cases):
@@ -112,7 +123,10 @@ class LogicAgent:
                 batch_index,
                 [case["id"] for case in batch],
             )
-            messages = self.generate_messages(state.get("code", ""), batch, history)
+            messages = self.generate_messages(
+                state.get("code", ""),
+                batch,
+            )
 
             try:
                 response = self.client.chat.completions.create(
@@ -139,10 +153,26 @@ class LogicAgent:
                     evidence = str(issue_data.get("evidence", "")).strip()
                     if not evidence:
                         continue
+                    code_snippet = issue_data.get("code_snippet")
+                    if code_snippet is None:
+                        code_snippet = ""
+                    anchor_snippet = issue_data.get("anchor_snippet")
+                    if anchor_snippet is None:
+                        anchor_snippet = ""
+                    missing_behavior = issue_data.get("missing_behavior")
+                    if missing_behavior is None:
+                        missing_behavior = ""
+
                     issue = create_logic_issue(
                         issue=issue_data.get("issue", ""),
                         evidence=evidence,
-                        code_snippet=issue_data.get("code_snippet", ""),
+                        code_snippet=str(code_snippet),
+                        anchor_snippet=str(anchor_snippet),
+                        cause_type=str(issue_data.get("cause_type", "")).strip(),
+                        why_test_failed=str(
+                            issue_data.get("why_test_failed", "")
+                        ).strip(),
+                        missing_behavior=str(missing_behavior).strip(),
                         location=issue_data.get("location"),
                     )
                     issue["history_status"] = self.classify_history_status(

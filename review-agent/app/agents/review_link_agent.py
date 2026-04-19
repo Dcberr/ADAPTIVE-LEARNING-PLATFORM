@@ -38,13 +38,20 @@ class ReviewLinkAgent:
     ) -> list[dict[str, str | int]]:
         matches: list[dict[str, str | int]] = []
         for index, submission in enumerate(state.get("history", []), start=1):
+            testcase_status = ""
             if testcase_id in submission.get("failed_test_case_ids", []):
-                matches.append(
-                    {
-                        "submission_index": index,
-                        "code": submission.get("code", ""),
-                    }
-                )
+                testcase_status = "failed"
+            elif testcase_id in submission.get("passed_test_case_ids", []):
+                testcase_status = "passed"
+            if not testcase_status:
+                continue
+            matches.append(
+                {
+                    "submission_index": index,
+                    "testcase_status": testcase_status,
+                    "code": submission.get("code", ""),
+                }
+            )
         return matches
 
     def generate_messages(
@@ -62,21 +69,46 @@ class ReviewLinkAgent:
         issue: LogicIssue,
         history_matches: list[dict[str, str | int]],
     ) -> ReviewLink:
-        current_snippet = issue.get("code_snippet", "").strip()
-        previous_code = str(history_matches[-1]["code"]) if history_matches else ""
+        current_snippet = (
+            issue.get("code_snippet", "").strip()
+            or issue.get("anchor_snippet", "").strip()
+        )
+        latest_match = history_matches[0] if history_matches else None
+        previous_code = str(latest_match["code"]) if latest_match else ""
         previous_snippet = previous_code.strip()
         if len(previous_snippet) > 240:
             previous_snippet = f"{previous_snippet[:237]}..."
 
-        what_improved = (
-            "There is a visible code change since the earlier attempt, which suggests the student is iterating."
-            if previous_code.strip()
-            and previous_code.strip() != current_snippet.strip()
-            else "The current attempt shows little clear progress around this testcase."
-        )
-        what_still_needs_work = (
-            "The same testcase is still linked to a logic problem, so the underlying rule is not fully handled yet."
-        )
+        comparison_mode = self._determine_comparison_mode(issue, history_matches)
+        if comparison_mode == "regression":
+            what_improved = "The student previously had this testcase working, but the latest code change broke that behavior."
+            what_still_needs_work = (
+                "Find the recent change that turned a previously passing case into a failing one and restore that rule without breaking the newer logic."
+            )
+            relation_summary = (
+                "This testcase passed in a recent history entry but fails now, so the current submission introduced a regression."
+            )
+        elif comparison_mode == "persistent":
+            what_improved = (
+                "There is a visible code change since the earlier failed attempt, which suggests the student is iterating."
+                if previous_code.strip()
+                and previous_code.strip() != current_snippet.strip()
+                else "The current attempt shows little clear progress around this testcase."
+            )
+            what_still_needs_work = (
+                "The same testcase is still linked to a logic problem, so the underlying rule is not fully handled yet."
+            )
+            relation_summary = (
+                "This testcase also failed in a recent history entry, so the student has revised the code but not fully resolved the same underlying problem."
+            )
+        else:
+            what_improved = "There is not enough matching testcase history to describe a clear improvement trend."
+            what_still_needs_work = (
+                "Focus on fixing the current logic issue first, then compare the next attempt with this one."
+            )
+            relation_summary = (
+                "This issue appears only in the current attempt or does not have enough earlier testcase history for a stronger comparison."
+            )
 
         return create_review_link(
             current_issue=issue.get("issue", ""),
@@ -85,13 +117,22 @@ class ReviewLinkAgent:
                 int(match["submission_index"]) for match in history_matches
             ],
             previous_code_snippet=previous_snippet,
+            comparison_mode=comparison_mode,
             what_improved=what_improved,
             what_still_needs_work=what_still_needs_work,
-            relation_summary=(
-                "This issue matches a testcase that also failed in an earlier submission, "
-                "so the student has revised the code but not fully resolved the same underlying problem."
-            ),
+            relation_summary=relation_summary,
         )
+
+    def _determine_comparison_mode(
+        self,
+        issue: LogicIssue,
+        history_matches: list[dict[str, str | int]],
+    ) -> str:
+        if issue.get("history_status") == "regression":
+            return "regression"
+        if history_matches and history_matches[0].get("testcase_status") == "failed":
+            return "persistent"
+        return "current_only"
 
     def analyze(self, state: ReviewState) -> ReviewState:
         logger.debug(
@@ -114,10 +155,23 @@ class ReviewLinkAgent:
                     "issue": issue,
                     "testcase_id": testcase_id,
                     "current_issue": issue.get("issue", ""),
-                    "current_code_snippet": issue.get("code_snippet", ""),
+                    "current_code_snippet": (
+                        issue.get("code_snippet", "")
+                        or issue.get("anchor_snippet", "")
+                    ),
+                    "comparison_mode": self._determine_comparison_mode(
+                        issue, history_matches
+                    ),
                     "history_matches": history_matches,
                 }
             )
+
+        if not candidates:
+            new_state["review_links"] = []
+            logger.debug(
+                "ReviewLinkAgent skipped because no matching testcase history was found"
+            )
+            return new_state
 
         for batch_index, batch_candidates in enumerate(
             self.chunk_candidates(candidates), start=1
@@ -166,6 +220,13 @@ class ReviewLinkAgent:
                             previous_code_snippet=str(
                                 parsed_link.get("previous_code_snippet", "")
                             ).strip(),
+                            comparison_mode=str(
+                                parsed_link.get(
+                                    "comparison_mode",
+                                    candidate["comparison_mode"],
+                                )
+                            ).strip()
+                            or candidate["comparison_mode"],
                             what_improved=str(
                                 parsed_link.get("what_improved", "")
                             ).strip(),

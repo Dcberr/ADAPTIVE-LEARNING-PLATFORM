@@ -124,6 +124,11 @@ Each stage can override:
 - temperature
 - max tokens
 
+The current review defaults are intentionally split by stage:
+
+- `logic` and `improvement` default to `fireworks/kimi-k2p5` for stronger code reasoning
+- `fix_hint`, `review_link`, `overview`, and `scoring` default to `fireworks/deepseek-v3p2` for concise grounded guidance, comparison, and structured rubric output
+
 Resolution order is:
 
 1. stage-specific env var
@@ -152,6 +157,8 @@ File: [app/services/review_code_service.py](/Users/thaibao/projects/review-code-
 Prompt builders for review agents now live under:
 
 - `app/prompts/review/`
+
+The logic-review path also uses a code-context preprocessing step from `app/utils/code_context.py`. That step is now C++-oriented: it prefers structural chunks from `tree-sitter` for C++ when the optional parser package is installed, and otherwise falls back to C++ keyword-based windows.
 
 The review pipeline uses `StateGraph(ReviewState)` with these nodes:
 

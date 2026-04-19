@@ -4,11 +4,11 @@
 
 This document describes the current review-agent flow used by `POST /api/v1/review_code`.
 
-The review system is a LangGraph-based multi-agent workflow for CS1 code review. It takes student code, failing testcase results, and optional submission history, then returns:
+The review system is a LangGraph-based multi-agent workflow for CS1 code review. It takes student code, failing testcase results, and an optional `history` array sorted by time descending, then returns:
 
 - a beginner-friendly summary
 - structured review items
-- per-error history links to earlier attempts when the same testcase failed before
+- per-error links to the latest previous attempt when the same testcase failed before
 - a scorecard with ten learning signals
 
 Prompt generation for the review flow is centralized under `app/prompts/review/`. Each prompt file matches one review function, such as `logic.py`, `fix_hint.py`, `review_link.py`, `overview.py`, and `scoring.py`.
@@ -42,7 +42,8 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
   "history": [
     {
       "code": "string",
-      "failed_test_case_ids": ["uuid"]
+      "failed_test_case_ids": ["uuid"],
+      "passed_test_case_ids": ["uuid"]
     }
   ]
 }
@@ -73,6 +74,7 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
         "current_issue": "string",
         "current_code_snippet": "string",
         "previous_submission_indexes": [1, 2],
+        "comparison_mode": "persistent",
         "previous_code_snippet": "string",
         "what_improved": "string",
         "what_still_needs_work": "string",
@@ -164,6 +166,15 @@ Each stage config includes:
 - `temperature`
 - `max_tokens`
 
+Current review-stage defaults are tuned by role rather than using one shared model:
+
+- `logic`: `fireworks/kimi-k2p5`, `temperature=0.1`, `max_tokens=2200`
+- `fix_hint`: `fireworks/deepseek-v3p2`, `temperature=0.25`, `max_tokens=900`
+- `review_link`: `fireworks/deepseek-v3p2`, `temperature=0.1`, `max_tokens=1000`
+- `improvement`: `fireworks/kimi-k2p5`, `temperature=0.15`, `max_tokens=1200`
+- `overview`: `fireworks/deepseek-v3p2`, `temperature=0.3`, `max_tokens=950`
+- `scoring`: `fireworks/deepseek-v3p2`, `temperature=0.05`, `max_tokens=1800`
+
 The shared default map lives in `app/config/model_config.py`, and environment overrides are loaded through `EnvConfig.get_stage_config(feature, stage)`.
 
 Example review env vars:
@@ -213,11 +224,11 @@ Important fields:
 - `assignment_language`: assignment language
 - `sandbox_results`: normalized failing testcase results
 - `assignment_requirements`: assignment prompt/content
-- `history`: past submissions with failed testcase ids
-- `previous_failed_test_case_ids`: failed testcase ids from the first history entry
-- `persistent_failed_test_case_ids`: current failures also present in first history entry
-- `fixed_test_case_ids`: failures from first history entry that are now fixed
-- `regressed_test_case_ids`: new failures compared with first history entry
+- `history`: past submissions sorted newest first, each with failed and passed testcase ids
+- `previous_failed_test_case_ids`: failed testcase ids from the newest history entry
+- `persistent_failed_test_case_ids`: current failures also present in the newest history entry
+- `fixed_test_case_ids`: failures from the newest history entry that are now fixed
+- `regressed_test_case_ids`: new failures compared with the newest history entry
 - `logic_issues`: structured current logic issues keyed by testcase id
 - `improvement_notes`: style/quality warnings
 - `review_links`: internal cross-attempt links for logic issues
@@ -230,31 +241,36 @@ Important fields:
 ### 1. LogicAgent
 
 - File: `app/agents/logic_agent.py`
-- Purpose: detect logic problems from failing sandbox results and map each failure to a code snippet
+- Purpose: detect logic problems from failing sandbox results and map each failure to either an exact buggy snippet or the nearest relevant anchor snippet
 
 Inputs:
 
 - `code`
 - `sandbox_results`
-- `history`
 - progress-derived fields such as `persistent_failed_test_case_ids` and `regressed_test_case_ids`
 
 Outputs:
 
 - updates `logic_issues`
 - fills `history_status` for each logic issue
+- fills richer diagnosis fields such as `cause_type`, `why_test_failed`, `anchor_snippet`, and `missing_behavior`
 
 Core logic:
 
 - filters out cases where normalized `expected == actual`
 - batches testcase analysis with `batch_size = 5`
-- prompts the model with current code, history, and failing tests
+- builds a compact C++ code context before prompting
+- tries structural chunks from `tree-sitter` for C++ when that optional parser package is available
+- falls back to C++ keyword windows when `tree-sitter` is unavailable
+- prompts the model with code context and failing tests
 - parses JSON into `logic_issues`
 - if parsing fails or the model returns nothing, creates deterministic fallback issues
 
 Notes:
 
 - `evidence` in each logic issue is the testcase id
+- `code_snippet` should contain verbatim buggy code only when the bug exists in the current code
+- `anchor_snippet` should contain the nearest related code when the actual problem is missing logic
 - `history_status` is one of:
   - `persistent`
   - `regression`
@@ -279,8 +295,10 @@ Outputs:
 Core logic:
 
 - loops through logic issues one by one
-- prompts using assignment, current code, current issue summary, and testcase details
-- does not use submission history directly
+- prompts using assignment, current code, current issue summary, testcase details, `cause_type`, `why_test_failed`, `missing_behavior`, and `anchor_snippet`
+- chooses a different hint strategy depending on whether the issue is `incorrect_code`, `missing_logic`, `missing_branch`, or `missing_validation`
+- asks for one small, actionable next step instead of a full rewrite
+- does not use the previous submission directly
 - uses a deterministic fallback hint when model output is invalid
 
 ### 3. ReviewLinkAgent
@@ -301,12 +319,13 @@ Outputs:
 Core logic:
 
 - checks each logic issue by testcase id
-- collects all historical submissions containing the same testcase id in `failed_test_case_ids`
+- collects all history entries containing the same testcase id in either `failed_test_case_ids` or `passed_test_case_ids`
+- skips review-link generation when `history` is empty or when no history entry mentions the testcase
 - batches link-analysis candidates with `batch_size = 5`
 - prompts the model with:
   - current issue summary
-  - current logic-agent code snippet
-  - all matching previous submissions for the same testcase
+  - current logic-agent code snippet or anchor snippet
+  - all matching testcase history entries sorted newest first
 - returns a `ReviewLink` structure for each matched issue
 - uses fallback link generation if parsing or the model call fails
 
@@ -314,7 +333,8 @@ ReviewLink meaning:
 
 - `current_issue`: current issue summary
 - `current_code_snippet`: current code snippet from LogicAgent
-- `previous_submission_indexes`: all history positions that failed the same testcase
+- `previous_submission_indexes`: all matching history positions, sorted newest first
+- `comparison_mode`: `persistent`, `regression`, or `current_only`
 - `previous_code_snippet`: best-matching previous snippet selected by the model
 - `what_improved`: what changed positively
 - `what_still_needs_work`: what remains unresolved
@@ -336,9 +356,13 @@ Outputs:
 Core logic:
 
 - one model call for the whole submission
+- builds structured C++ code context before prompting
+- prefers structural chunks from `tree-sitter` for C++ when available and otherwise falls back to keyword windows
+- adds lightweight code-quality hotspot hints so the model focuses on high-signal CS1 warnings
 - asks only for style/quality feedback
 - explicitly excludes logic and syntax errors
 - returns warning-like notes with location, snippet, issue, and suggestion
+- avoids speculative "future bug" warnings unless the code structure itself clearly supports the concern
 
 ### 5. OverviewAgent
 
@@ -375,7 +399,7 @@ Core logic:
 ### 6. ScoringAgent
 
 - File: `app/agents/scoring_agent.py`
-- Purpose: produce a higher-level learning profile from the current code, history, and review findings
+- Purpose: produce a higher-level learning profile from the current code, sorted submission history, and review findings
 
 Inputs:
 
@@ -406,14 +430,14 @@ Score dimensions:
 Core logic:
 
 - one model call for the final scorecard
-- heavily uses history for `self_correction_path`
+- heavily uses sorted history for `self_correction_path`
 - normalizes the returned structure against a fixed template
 - falls back to a default score template on failure
 
 ## How Request Data Becomes Final Output
 
 1. `review_code_route.py` converts API input into `ReviewState`
-2. `create_initial_state()` computes progress signals from current failures and the first history entry
+2. `create_initial_state()` computes progress signals from current failures and the newest history entry
 3. `ReviewCodeService.review_code()` runs the LangGraph workflow
 4. `OverviewAgent` assembles final `review_items`
 5. `review_code_route.py` converts internal state into `ReviewResponse`
@@ -440,7 +464,7 @@ Core logic:
 Current batching:
 
 - `LogicAgent`: batched by testcase, size `5`
-- `ReviewLinkAgent`: batched by issue-history comparison, size `5`
+- `ReviewLinkAgent`: batched by issue-to-history comparison, size `5`
 
 Not currently batched:
 
@@ -454,7 +478,7 @@ Not currently batched:
 Current latency usually comes from:
 
 - many sequential agent stages
-- repeated large prompts containing current code and history
+- repeated large prompts containing current code and testcase history context
 - per-issue calls in `FixHintAgent`
 - a large final prompt in `OverviewAgent`
 - a large final prompt in `ScoringAgent`

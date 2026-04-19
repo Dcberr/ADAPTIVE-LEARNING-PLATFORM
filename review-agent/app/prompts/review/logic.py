@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import Any
 
 from app.models.review_state import SandBoxResult
 
 
 def build_logic_messages(
-    code: str,
+    code_context: str,
     failed_tests: list[SandBoxResult],
-    history: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
     tests_str = "\n".join(
         [
@@ -17,7 +15,6 @@ def build_logic_messages(
             for tc in failed_tests
         ]
     )
-    history_str = _format_history(history)
     return [
         {
             "role": "system",
@@ -25,9 +22,11 @@ def build_logic_messages(
                 """
                 You are a CS1-level programming tutor.
 
-                Analyze student code and failing test cases, optionally using prior
-                submission history as context, and identify the specific code snippets
-                causing each failure.
+                Analyze C++ student code context and failing test cases, and identify
+                the root cause of each failure.
+
+                If the needed behavior is missing, do not invent code that is not
+                present in the submission.
 
                 You must respond in valid JSON only.
                 """
@@ -37,11 +36,8 @@ def build_logic_messages(
             "role": "user",
             "content": dedent(
                 f"""
-                Student code:
-                {code}
-
-                Submission history:
-                {history_str}
+                Relevant code context:
+                {code_context}
 
                 Failing test cases:
                 {tests_str}
@@ -50,8 +46,12 @@ def build_logic_messages(
                 1. For each failing test case, produce a JSON object containing:
                    - "issue": a short explanation of why the test failed
                    - "evidence": the 'id' of the failing test case
-                   - "code_snippet": the part of the student's code that likely caused this failure
+                   - "cause_type": one of "incorrect_code", "missing_logic", "missing_branch", or "missing_validation"
+                   - "why_test_failed": one short causal explanation tied to the testcase
+                   - "code_snippet": the exact buggy code copied verbatim from the student code if it exists, otherwise null
+                   - "anchor_snippet": the nearest relevant code copied verbatim from the student code if no exact buggy code exists, otherwise null
                    - "location": line/column start and end of the code snippet if known (otherwise null)
+                   - "missing_behavior": the missing behavior to add if the failure is caused by missing logic, otherwise null
                 2. Respond only in JSON format, matching this schema:
 
                 {{
@@ -59,35 +59,28 @@ def build_logic_messages(
                     {{
                       "issue": "short explanation",
                       "evidence": "test case id",
-                      "code_snippet": "relevant code snippet",
+                      "cause_type": "incorrect_code",
+                      "why_test_failed": "short causal explanation",
+                      "code_snippet": "verbatim buggy code snippet or null",
+                      "anchor_snippet": "nearest related code snippet or null",
                       "location": {{
                         "start_line": line_number,
                         "end_line": line_number,
                         "start_col": column_number (optional),
                         "end_col": column_number (optional)
-                      }}
+                      }},
+                      "missing_behavior": "short description or null"
                     }}
                   ]
                 }}
 
+                Rules:
+                - Only copy code that actually appears in the student submission.
+                - If the test fails because a branch, validation step, or case is missing, set "code_snippet" to null.
+                - Use "anchor_snippet" to point to the nearest relevant code when behavior is missing.
+                - Merge duplicate test failures that clearly share the same root cause only if the current batch still makes the evidence clear.
                 Make your explanations concise and beginner-friendly.
                 """
             ).strip(),
         },
     ]
-
-
-def _format_history(history: list[dict[str, Any]]) -> str:
-    if not history:
-        return "None"
-
-    return "\n".join(
-        [
-            (
-                f"Submission {index}: "
-                f"failed_test_case_ids={submission.get('failed_test_case_ids', [])}\n"
-                f"Code:\n{submission.get('code', '')}"
-            )
-            for index, submission in enumerate(history, start=1)
-        ]
-    )

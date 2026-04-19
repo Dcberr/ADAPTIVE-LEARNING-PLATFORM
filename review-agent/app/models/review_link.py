@@ -6,6 +6,7 @@ class ReviewLink(TypedDict):
     current_code_snippet: str
     previous_submission_indexes: list[int]
     previous_code_snippet: str
+    comparison_mode: str
     what_improved: str
     what_still_needs_work: str
     relation_summary: str
@@ -16,6 +17,7 @@ def create_review_link(
     current_code_snippet: str = "",
     previous_submission_indexes: list[int] | None = None,
     previous_code_snippet: str = "",
+    comparison_mode: str = "",
     what_improved: str = "",
     what_still_needs_work: str = "",
     relation_summary: str = "",
@@ -25,6 +27,7 @@ def create_review_link(
         "current_code_snippet": current_code_snippet,
         "previous_submission_indexes": previous_submission_indexes or [],
         "previous_code_snippet": previous_code_snippet,
+        "comparison_mode": comparison_mode,
         "what_improved": what_improved,
         "what_still_needs_work": what_still_needs_work,
         "relation_summary": relation_summary,

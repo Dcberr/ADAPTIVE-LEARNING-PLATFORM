@@ -11,6 +11,34 @@ else:
 
 @unittest.skipIf(build_env_config is None, f"missing runtime dependency: {_IMPORT_ERROR}")
 class ModelConfigOverrideTests(unittest.TestCase):
+    def test_review_stage_defaults_are_split_by_role(self):
+        config = build_env_config(
+            {
+                "FIREWORKS_API_KEY": "test-key",
+            }
+        )
+
+        logic_stage = config.get_stage_config("review", "logic")
+        fix_hint_stage = config.get_stage_config("review", "fix_hint")
+        review_link_stage = config.get_stage_config("review", "review_link")
+        scoring_stage = config.get_stage_config("review", "scoring")
+
+        self.assertEqual(logic_stage.model_name, "fireworks/kimi-k2p5")
+        self.assertEqual(logic_stage.temperature, 0.1)
+        self.assertEqual(logic_stage.max_tokens, 2200)
+
+        self.assertEqual(fix_hint_stage.model_name, "fireworks/deepseek-v3p2")
+        self.assertEqual(fix_hint_stage.temperature, 0.25)
+        self.assertEqual(fix_hint_stage.max_tokens, 900)
+
+        self.assertEqual(review_link_stage.model_name, "fireworks/deepseek-v3p2")
+        self.assertEqual(review_link_stage.temperature, 0.1)
+        self.assertEqual(review_link_stage.max_tokens, 1000)
+
+        self.assertEqual(scoring_stage.model_name, "fireworks/deepseek-v3p2")
+        self.assertEqual(scoring_stage.temperature, 0.05)
+        self.assertEqual(scoring_stage.max_tokens, 1800)
+
     def test_stage_specific_recommendation_model_override(self):
         config = build_env_config(
             {

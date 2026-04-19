@@ -149,7 +149,8 @@ If the submission already exists, its stored fields are overwritten by the reque
       "review_link": {
         "current_issue": "string",
         "current_code_snippet": "string",
-        "previous_submission_indexes": [0],
+        "previous_submission_indexes": [1, 2],
+        "comparison_mode": "persistent",
         "previous_code_snippet": "string",
         "what_improved": "string",
         "what_still_needs_work": "string",
