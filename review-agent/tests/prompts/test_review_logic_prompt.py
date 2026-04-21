@@ -36,6 +36,8 @@ class ReviewLogicPromptTests(unittest.TestCase):
         self.assertIn('"anchor_snippet": "nearest related code snippet or null"', user_prompt)
         self.assertIn('"missing_behavior": "short description or null"', user_prompt)
         self.assertIn('set "code_snippet" to null', user_prompt)
+        self.assertIn("Do not include testcase ids, indexes, or any other identifier fields", user_prompt)
+        self.assertNotIn('"evidence": "test case id"', user_prompt)
         self.assertNotIn("Submission history:", user_prompt)
 
 

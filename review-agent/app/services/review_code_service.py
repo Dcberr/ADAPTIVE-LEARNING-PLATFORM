@@ -1,4 +1,5 @@
 import logging
+import inspect
 from time import perf_counter
 from app.agents.fix_hint_agent import FixHintAgent
 from app.agents.improvement_agent import ImprovementAgent
@@ -115,6 +116,26 @@ class ReviewCodeService:
         return workflow.compile()
 
     def _instrument_node(self, node_name: str, handler):
+        if inspect.iscoroutinefunction(handler):
+            async def wrapped(state: ReviewState):
+                start = perf_counter()
+                logger.debug(
+                    "Entering node '%s' with state summary: %s",
+                    node_name,
+                    summarize_state(state),
+                )
+                result = await handler(state)
+                elapsed_ms = (perf_counter() - start) * 1000
+                logger.debug(
+                    "Leaving node '%s' after %.2f ms with state summary: %s",
+                    node_name,
+                    elapsed_ms,
+                    summarize_state(result),
+                )
+                return result
+
+            return wrapped
+
         def wrapped(state: ReviewState):
             start = perf_counter()
             logger.debug(

@@ -1,11 +1,10 @@
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 
 class ReviewLink(TypedDict):
-    current_issue: str
-    current_code_snippet: str
-    previous_submission_indexes: list[int]
-    previous_code_snippet: str
+    issue_evidence: NotRequired[str]
+    previous_submission_id: str
+    previous_code_snippets: list[str]
     comparison_mode: str
     what_improved: str
     what_still_needs_work: str
@@ -13,20 +12,18 @@ class ReviewLink(TypedDict):
 
 
 def create_review_link(
-    current_issue: str = "",
-    current_code_snippet: str = "",
-    previous_submission_indexes: list[int] | None = None,
-    previous_code_snippet: str = "",
+    issue_evidence: str = "",
+    previous_submission_id: str = "",
+    previous_code_snippets: list[str] | None = None,
     comparison_mode: str = "",
     what_improved: str = "",
     what_still_needs_work: str = "",
     relation_summary: str = "",
 ) -> ReviewLink:
     return {
-        "current_issue": current_issue,
-        "current_code_snippet": current_code_snippet,
-        "previous_submission_indexes": previous_submission_indexes or [],
-        "previous_code_snippet": previous_code_snippet,
+        "issue_evidence": issue_evidence,
+        "previous_submission_id": previous_submission_id,
+        "previous_code_snippets": previous_code_snippets or [],
         "comparison_mode": comparison_mode,
         "what_improved": what_improved,
         "what_still_needs_work": what_still_needs_work,

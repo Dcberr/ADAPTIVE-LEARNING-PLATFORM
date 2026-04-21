@@ -8,6 +8,7 @@ from app.models.sandbox_result import SandBoxResult
 
 
 class SubmissionHistory(TypedDict):
+    submission_id: str
     code: str
     failed_test_case_ids: List[str]
     passed_test_case_ids: List[str]

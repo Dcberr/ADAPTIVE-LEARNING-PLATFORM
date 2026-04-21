@@ -13,6 +13,18 @@ The review system is a LangGraph-based multi-agent workflow for CS1 code review.
 
 Prompt generation for the review flow is centralized under `app/prompts/review/`. Each prompt file matches one review function, such as `logic.py`, `fix_hint.py`, `review_link.py`, `overview.py`, and `scoring.py`.
 
+The review flow now also includes a shared JSON-repair prompt and output-shape utility:
+
+- `app/prompts/review/json_repair.py`
+- `app/utils/review_output_tools.py`
+
+Additional review-support tools now used in the flow:
+
+- `app/utils/history_matcher.py`
+- `app/utils/code_diff.py`
+- `app/utils/snippet_tools.py`
+- `app/utils/review_context_tools.py`
+
 ## Endpoint
 
 - Route: `POST /api/v1/review_code`
@@ -41,6 +53,7 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
   ],
   "history": [
     {
+      "submission_id": "uuid",
       "code": "string",
       "failed_test_case_ids": ["uuid"],
       "passed_test_case_ids": ["uuid"]
@@ -53,7 +66,6 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
 
 ```json
 {
-  "review_id": "string",
   "summary": "string",
   "detail": "string",
   "review_items": [
@@ -71,11 +83,9 @@ Prompt generation for the review flow is centralized under `app/prompts/review/`
       "issue": "string",
       "fix_suggestion": "string",
       "review_link": {
-        "current_issue": "string",
-        "current_code_snippet": "string",
-        "previous_submission_indexes": [1, 2],
+        "previous_submission_id": "string",
+        "previous_code_snippets": ["string"],
         "comparison_mode": "persistent",
-        "previous_code_snippet": "string",
         "what_improved": "string",
         "what_still_needs_work": "string",
         "relation_summary": "string"
@@ -263,12 +273,14 @@ Core logic:
 - tries structural chunks from `tree-sitter` for C++ when that optional parser package is available
 - falls back to C++ keyword windows when `tree-sitter` is unavailable
 - prompts the model with code context and failing tests
+- repairs malformed model output into valid JSON when needed and checks that `logic_issues` is a list before trusting it
+- the model response does not return testcase ids; the service assigns testcase evidence by testcase order in code
 - parses JSON into `logic_issues`
 - if parsing fails or the model returns nothing, creates deterministic fallback issues
 
 Notes:
 
-- `evidence` in each logic issue is the testcase id
+- `evidence` in each logic issue is assigned by the service from testcase order, not returned by the model
 - `code_snippet` should contain verbatim buggy code only when the bug exists in the current code
 - `anchor_snippet` should contain the nearest related code when the actual problem is missing logic
 - `history_status` is one of:
@@ -294,11 +306,13 @@ Outputs:
 
 Core logic:
 
-- loops through logic issues one by one
+- builds one prompt per logic issue
+- runs those per-issue LLM calls asynchronously with bounded concurrency inside the node
 - prompts using assignment, current code, current issue summary, testcase details, `cause_type`, `why_test_failed`, `missing_behavior`, and `anchor_snippet`
 - chooses a different hint strategy depending on whether the issue is `incorrect_code`, `missing_logic`, `missing_branch`, or `missing_validation`
 - asks for one small, actionable next step instead of a full rewrite
 - does not use the previous submission directly
+- repairs malformed model output into valid JSON when needed and checks that `fix_suggestion` is present
 - uses a deterministic fallback hint when model output is invalid
 
 ### 3. ReviewLinkAgent
@@ -319,23 +333,25 @@ Outputs:
 Core logic:
 
 - checks each logic issue by testcase id
-- collects all history entries containing the same testcase id in either `failed_test_case_ids` or `passed_test_case_ids`
-- skips review-link generation when `history` is empty or when no history entry mentions the testcase
+- scans history newest first and picks the first earlier submission whose `failed_test_case_ids` contains the testcase id
+- skips review-link generation when `history` is empty or when no earlier failed submission mentions the testcase
 - batches link-analysis candidates with `batch_size = 5`
 - prompts the model with:
   - current issue summary
   - current logic-agent code snippet or anchor snippet
-  - all matching testcase history entries sorted newest first
+  - the first earlier failed submission for that testcase
+  - a short changed-code summary between that earlier submission and the current submission
+- uses shared history-matching, snippet-extraction, and diff helpers before prompting
+- repairs malformed model output into valid JSON when needed and checks that `review_links` is a list
+- the model response does not return issue ids or submission ids; the service attaches those deterministically in code
 - returns a `ReviewLink` structure for each matched issue
 - uses fallback link generation if parsing or the model call fails
 
 ReviewLink meaning:
 
-- `current_issue`: current issue summary
-- `current_code_snippet`: current code snippet from LogicAgent
-- `previous_submission_indexes`: all matching history positions, sorted newest first
-- `comparison_mode`: `persistent`, `regression`, or `current_only`
-- `previous_code_snippet`: best-matching previous snippet selected by the model
+- `previous_submission_id`: id of the first earlier submission where the same testcase failed
+- `previous_code_snippets`: short related snippet list from that earlier failed submission
+- `comparison_mode`: usually `persistent` or `historical_match`
 - `what_improved`: what changed positively
 - `what_still_needs_work`: what remains unresolved
 - `relation_summary`: compact relationship summary
@@ -431,6 +447,10 @@ Core logic:
 
 - one model call for the final scorecard
 - heavily uses sorted history for `self_correction_path`
+- uses rubric-anchored scoring rules with explicit evidence mapping per scorecard dimension
+- tells the model to score each dimension independently instead of letting one large bug lower every score
+- uses a compressed evidence summary instead of passing the raw full workflow state directly
+- repairs malformed model output into valid JSON when needed and checks that `scorecard` is a dictionary
 - normalizes the returned structure against a fixed template
 - falls back to a default score template on failure
 
@@ -468,10 +488,13 @@ Current batching:
 
 Not currently batched:
 
-- `FixHintAgent`: one model call per logic issue
 - `ImprovementAgent`: one model call for the whole submission
 - `OverviewAgent`: one model call for the whole submission
 - `ScoringAgent`: one model call for the whole submission
+
+Async per-issue work:
+
+- `FixHintAgent`: one async model call per logic issue, with bounded concurrency inside the node
 
 ## Performance Notes
 

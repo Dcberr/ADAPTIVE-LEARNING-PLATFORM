@@ -3,14 +3,11 @@ from __future__ import annotations
 from textwrap import dedent
 
 from app.models.review_state import ReviewState
+from app.utils.review_context_tools import build_scoring_context_summary
 
 
 def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
-    progress_summary = (
-        f"Persistent failed testcase IDs: {state.get('persistent_failed_test_case_ids', [])}\n"
-        f"Fixed testcase IDs since previous submission: {state.get('fixed_test_case_ids', [])}\n"
-        f"Newly failing testcase IDs since previous submission: {state.get('regressed_test_case_ids', [])}"
-    )
+    summary = build_scoring_context_summary(state)
     return [
         {
             "role": "system",
@@ -18,10 +15,11 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 """
                 You are an educational assessment agent for CS1 submissions.
 
-                Score learning signals based on the student's current code,
-                recent sorted submission history, and review findings.
+                Your job is to score learning signals, not to punish the student for every failing testcase.
+                Judge each dimension independently using concrete evidence from the current submission first,
+                then use recent history only as a supporting signal.
 
-                Return valid JSON only.
+                Return exactly one valid JSON object and nothing else.
                 """
             ).strip(),
         },
@@ -29,23 +27,26 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
             "role": "user",
             "content": dedent(
                 f"""
-                Current student code:
-                {state.get('code', '')}
+                CURRENT STUDENT CODE:
+                {summary['current_code']}
 
-                Submission history:
-                {_format_history(state)}
+                SUBMISSION HISTORY:
+                {summary['history']}
 
-                Review overview:
-                {state.get('overview', '')}
+                REVIEW OVERVIEW:
+                {summary['overview']}
 
-                Logic issues:
-                {list(state.get('logic_issues', {}).values())}
+                LOGIC ISSUES:
+                {summary['logic_issues']}
 
-                Improvement notes:
-                {state.get('improvement_notes', [])}
+                IMPROVEMENT NOTES:
+                {summary['improvement_notes']}
 
-                History-based progress summary:
-                {progress_summary}
+                REVIEW LINKS:
+                {summary['review_links']}
+
+                HISTORY-BASED PROGRESS SUMMARY:
+                {summary['progress_summary']}
 
                 Score these ten indices:
                 1. Problem-Solving Creativity
@@ -59,10 +60,42 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                 9. Edge Case Awareness
                 10. Debugging Readiness
 
-                For each index:
-                - assign a score from 1 to 5
-                - provide a short label
-                - provide a concise explanation grounded in the code/previous submission/review
+                Core scoring rules:
+                - Score from observable evidence, not from vague impressions.
+                - Use the current submission as the primary evidence source.
+                - Use history as a secondary signal, especially for Self-Correction Path.
+                - Do not let one major bug drag every dimension down.
+                - A failing submission can still show partial understanding in variables, control flow, or debugging behavior.
+                - Since this is CS1, avoid over-penalizing beginner code for style alone.
+                - Use extreme scores only when evidence is strong.
+
+                Score scale:
+                - 1 = very weak evidence of the skill
+                - 2 = limited and inconsistent evidence
+                - 3 = mixed or moderate evidence
+                - 4 = clear but not fully consistent evidence
+                - 5 = strong and consistent evidence
+
+                Evidence mapping by index:
+                - Problem-Solving Creativity: look for whether the student is attempting a real solution strategy or only shallow hard-coded behavior.
+                - Logic Traceability: use how understandable and traceable the reasoning path is through the code and logic issues.
+                - Generalization Score: use evidence about whether the code handles more than the easiest cases.
+                - Construct Appropriateness: use whether the chosen conditions, loops, variables, and basic constructs fit the task.
+                - Self-Correction Path: use newest-first history, fixed testcases, persistent failures, and regressions.
+                - Variable Understanding: use how values are stored, updated, and interpreted in the code and logic issues.
+                - Control Flow Understanding: use conditions, branching, loop behavior, and missing-branch errors.
+                - Input/Output Awareness: use parsing, formatting, exact-output mismatches, and expected-vs-actual behavior.
+                - Edge Case Awareness: use zero/negative/boundary/special-case handling and related failures.
+                - Debugging Readiness: use whether the student's current attempt and recent changes suggest systematic correction or random changes.
+
+                Output rules:
+                - For each index, return:
+                  - score: integer 1 to 5
+                  - label: short phrase
+                  - explanation: concise evidence-based explanation
+                - Keep explanations short and specific.
+                - Do not mention hidden test cases.
+                - Do not return markdown or extra prose.
 
                 Return JSON in exactly this shape:
                 {{
@@ -120,33 +153,8 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
                   }}
                 }}
 
-                Scoring guidance:
-                - 1 means very weak evidence
-                - 3 means mixed or moderate evidence
-                - 5 means strong evidence
-                - Ground every score in observable signals from the code or the history.
-                - For Self-Correction Path, use the newest-first history heavily when available.
-                - For beginner-focused indices, favor concrete evidence about variables, control flow, input/output handling, edge cases, and how the student responds to failed attempts.
-                - Return JSON only.
+                Return JSON only.
                 """
             ).strip(),
         },
     ]
-
-
-def _format_history(state: ReviewState) -> str:
-    history = state.get("history", [])
-    if not history:
-        return "No previous submissions."
-
-    return "\n\n".join(
-        [
-            (
-                f"Previous submission {index} (newest first order):\n"
-                f"Failed testcase IDs: {submission.get('failed_test_case_ids', [])}\n"
-                f"Passed testcase IDs: {submission.get('passed_test_case_ids', [])}\n"
-                f"Code:\n{submission.get('code', '')}"
-            )
-            for index, submission in enumerate(history, start=1)
-        ]
-    )

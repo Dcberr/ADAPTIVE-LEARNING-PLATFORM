@@ -47,11 +47,10 @@ class ReviewLinkAgentTests(unittest.TestCase):
             },
             "review_links": [
                 {
-                    "current_issue": "stale",
-                    "current_code_snippet": "stale",
-                    "previous_submission_indexes": [1],
+                    "issue_evidence": "tc_1",
+                    "previous_submission_id": "11111111-1111-1111-1111-111111111111",
+                    "previous_code_snippets": ["stale"],
                     "comparison_mode": "persistent",
-                    "previous_code_snippet": "stale",
                     "what_improved": "stale",
                     "what_still_needs_work": "stale",
                     "relation_summary": "stale",
@@ -62,6 +61,39 @@ class ReviewLinkAgentTests(unittest.TestCase):
         updated_state = agent.analyze(state)
 
         self.assertEqual(updated_state["review_links"], [])
+
+    def test_review_link_uses_first_earlier_failed_submission(self):
+        agent = ReviewLinkAgent(
+            client=_ExplodingClient(),
+            model_name="test-model",
+        )
+        previous_submission = agent.find_first_failed_history_match(
+            {
+                "history": [
+                    {
+                        "submission_id": "11111111-1111-1111-1111-111111111111",
+                        "code": "first failed code",
+                        "failed_test_case_ids": ["tc_1"],
+                        "passed_test_case_ids": [],
+                    },
+                    {
+                        "submission_id": "22222222-2222-2222-2222-222222222222",
+                        "code": "older failed code",
+                        "failed_test_case_ids": ["tc_1"],
+                        "passed_test_case_ids": [],
+                    },
+                ]
+            },
+            "tc_1",
+        )
+
+        self.assertEqual(
+            previous_submission,
+            {
+                "submission_id": "11111111-1111-1111-1111-111111111111",
+                "code": "first failed code",
+            },
+        )
 
 
 if __name__ == "__main__":

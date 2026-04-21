@@ -11,7 +11,7 @@ from app.models.review_state import (
 from app.prompts.review.logic import build_logic_messages
 from app.utils.code_context import build_logic_code_context
 from app.utils.debug_logging import summarize_state, truncate_text
-from app.utils.parse_json_response import safe_parse_json_response
+from app.utils.review_output_tools import parse_review_json_with_repair
 
 logger = logging.getLogger(__name__)
 
@@ -142,17 +142,20 @@ class LogicAgent:
                     batch_index,
                     truncate_text(model_text),
                 )
-                parsed = safe_parse_json_response(model_text)
+                parsed = parse_review_json_with_repair(
+                    client=self.client,
+                    model_name=self.model_name,
+                    raw_response=model_text,
+                    expected_shape={"logic_issues": list},
+                )
                 batch_issues = parsed.get("logic_issues") or []
                 logger.debug(
                     "LogicAgent batch %s parsed %s issues",
                     batch_index,
                     len(batch_issues),
                 )
-                for issue_data in batch_issues:
-                    evidence = str(issue_data.get("evidence", "")).strip()
-                    if not evidence:
-                        continue
+                for failed_test, issue_data in zip(batch, batch_issues):
+                    evidence = failed_test["id"]
                     code_snippet = issue_data.get("code_snippet")
                     if code_snippet is None:
                         code_snippet = ""
@@ -186,6 +189,16 @@ class LogicAgent:
                         batch_index,
                     )
                     for failed_test in batch:
+                        fallback_issue = self.create_fallback_issue(
+                            new_state, failed_test
+                        )
+                        all_issues[fallback_issue["evidence"]] = fallback_issue
+                elif len(batch_issues) < len(batch):
+                    logger.debug(
+                        "LogicAgent batch %s returned fewer issues than testcases, filling missing items with fallbacks",
+                        batch_index,
+                    )
+                    for failed_test in batch[len(batch_issues) :]:
                         fallback_issue = self.create_fallback_issue(
                             new_state, failed_test
                         )
