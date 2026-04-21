@@ -51,31 +51,6 @@ public class ExecutionServiceImpl implements ExecutionService {
         String combinedCode = CodeExtractor.combineWithStudentCode(template, request.getCode());
         log.info("Combined code for language {}: template + student code", request.getLanguage());
 
-        // ===== COMPILE ONCE =====
-        ExecutionResult compileResult =
-                jobeClient.compile(request.getLanguage(), combinedCode);
-
-        JudgeStatus compileStatus = mapOutcome(compileResult);
-
-        if (compileStatus == JudgeStatus.COMPILE_ERROR) {
-
-        TestcaseResult compileError =
-                TestcaseResult.builder()
-                        .index(1)
-                        .testcaseId(null)
-                        .error(compileResult.getStderr())
-                        .status(JudgeStatus.COMPILE_ERROR)
-                        .runtime(compileResult.getRuntime())
-                        .build();
-
-            return RunCodeResponse.builder()
-                    .status(JudgeStatus.COMPILE_ERROR)
-                    .testcases(List.of(compileError))
-                    .passedTestcases(0)
-                    .totalTestcases(testcases.size())
-                    .build();
-        }
-
         // ===== RUN TESTCASES PARALLEL =====
         List<CompletableFuture<TestcaseResult>> futures = new ArrayList<>();
 

@@ -56,6 +56,8 @@ public class CodeExtractor {
     );
     private static String extractByFunctionPattern(String template) {
 
+        template = template.replaceAll("(?m)^\\s*(public|private|protected)\\s*:\\s*$", "");
+
         Matcher matcher = FUNCTION_PATTERN.matcher(template);
 
         if (!matcher.find()) {
