@@ -25,6 +25,8 @@ public enum ErrorCode {
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Validation error"),
 
+    RECOMMENDATION_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "Recommendation service error"),
+
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
 
     private final HttpStatus status;
