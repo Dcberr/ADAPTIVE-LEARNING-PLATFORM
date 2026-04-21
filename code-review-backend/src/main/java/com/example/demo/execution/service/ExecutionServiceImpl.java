@@ -37,6 +37,15 @@ public class ExecutionServiceImpl implements ExecutionService {
     private final ExecutorService executor =
             Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
+    private static final String CPP_UNSAFE_INT_READ = "int n; cin >> n;";
+    private static final String CPP_SAFE_INT_READ = """
+            int n = 0;
+                if (!(cin >> n)) {
+                    cerr << "Invalid input";
+                    return 0;
+                }
+            """;
+
     @Override
     public RunCodeResponse runByTestcase(RunTestcaseRequest request) {
 
@@ -49,7 +58,13 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         String template = getTemplate(problem, request.getLanguage());
         String combinedCode = CodeExtractor.combineWithStudentCode(template, request.getCode());
-        log.info("Combined code for language {}: template + student code", request.getLanguage());
+        String hardenedCode = hardenGeneratedCode(request.getLanguage(), combinedCode);
+        log.info(
+                "Prepared combined code | problemId={} | language={} | source={}",
+                request.getProblemId(),
+                request.getLanguage(),
+                quoteForLog(hardenedCode)
+        );
 
         // ===== RUN TESTCASES PARALLEL =====
         List<CompletableFuture<TestcaseResult>> futures = new ArrayList<>();
@@ -63,7 +78,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             futures.add(
                     CompletableFuture.supplyAsync(
-                            () -> runSingleTestcase(testcaseIndex, request, combinedCode, tc),
+                            () -> runSingleTestcase(testcaseIndex, request, hardenedCode, tc),
                             executor
                     )
             );
@@ -116,7 +131,16 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         String output = result.getStdout();
         String error = result.getStderr();
-        log.info("Testcase #{}: status={}, output=[{}], error=[{}]", index, status, output, error);
+        log.info(
+                "Raw testcase result | testcaseIndex={} | testcaseId={} | input={} | expected={} | output={} | error={} | mappedStatus={}",
+                index,
+                tc.getId(),
+                quoteForLog(tc.getInput()),
+                quoteForLog(tc.getExpectedOutput()),
+                quoteForLog(output),
+                quoteForLog(error),
+                status
+        );
 
         if (status == JudgeStatus.ACCEPTED) {
 
@@ -129,6 +153,13 @@ public class ExecutionServiceImpl implements ExecutionService {
             status = correct
                     ? JudgeStatus.ACCEPTED
                     : JudgeStatus.WRONG_ANSWER;
+
+            log.info(
+                    "Compared testcase result | testcaseIndex={} | testcaseId={} | finalStatus={}",
+                    index,
+                    tc.getId(),
+                    status
+            );
         }
 
         return TestcaseResult.builder()
@@ -199,5 +230,37 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .passedTestcases(status == JudgeStatus.ACCEPTED ? 1 : 0)
                 .totalTestcases(1)
                 .build();
+    }
+
+    private String quoteForLog(String value) {
+        if (value == null) {
+            return "<null>";
+        }
+
+        String escaped = value
+                .replace("\\", "\\\\")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+
+        if (escaped.length() > 1200) {
+            return "\"" + escaped.substring(0, 1200) + "...(truncated)\"";
+        }
+
+        return "\"" + escaped + "\"";
+    }
+
+    private String hardenGeneratedCode(String language, String combinedCode) {
+        if (!"cpp".equalsIgnoreCase(language) || combinedCode == null || combinedCode.isBlank()) {
+            return combinedCode;
+        }
+
+        if (combinedCode.contains(CPP_UNSAFE_INT_READ)) {
+            String hardenedCode = combinedCode.replace(CPP_UNSAFE_INT_READ, CPP_SAFE_INT_READ);
+            log.info("Applied C++ input hardening for common 'int n; cin >> n;' main pattern");
+            return hardenedCode;
+        }
+
+        return combinedCode;
     }
 }

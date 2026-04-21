@@ -84,7 +84,7 @@ public class LeetCodeStarterCodeGenerator {
             builder.append(buildCppMain(signature));
         } else if (!snippet.contains("main(")) {
             builder.append("\n\nint main() {\n");
-            builder.append("    // Imported from LeetCode. Add stdin parsing here if you want custom input run.\n");
+            builder.append("    // Imported from LeetCode. Add validated stdin parsing here if you want custom input run.\n");
             builder.append("    return 0;\n");
             builder.append("}\n");
         }

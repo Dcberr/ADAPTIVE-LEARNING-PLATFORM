@@ -117,6 +117,7 @@ public class ReviewServiceImpl implements ReviewService {
                             .toList();
                     
                     return Map.of(
+                            "submission_id", prevSubmission.getId().toString(),
                             "code", prevSubmission.getCode(),
                             "failed_test_case_ids", failedTestcaseIds
                     );
@@ -241,6 +242,7 @@ public class ReviewServiceImpl implements ReviewService {
                             .toList();
                     
                     return Map.of(
+                            "submission_id", prevSubmission.getId().toString(),
                             "code", prevSubmission.getCode(),
                             "failed_test_case_ids", failedTestcaseIds
                     );
