@@ -3,14 +3,11 @@ from __future__ import annotations
 from textwrap import dedent
 
 from app.models.review_state import ReviewState
+from app.utils.review_context_tools import build_scoring_context_summary
 
 
 def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
-    progress_summary = (
-        f"Persistent failed testcase IDs: {state.get('persistent_failed_test_case_ids', [])}\n"
-        f"Fixed testcase IDs since previous submission: {state.get('fixed_test_case_ids', [])}\n"
-        f"Newly failing testcase IDs since previous submission: {state.get('regressed_test_case_ids', [])}"
-    )
+    summary = build_scoring_context_summary(state)
     return [
         {
             "role": "system",
@@ -31,22 +28,25 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
             "content": dedent(
                 f"""
                 CURRENT STUDENT CODE:
-                {state.get('code', '')}
+                {summary['current_code']}
 
                 SUBMISSION HISTORY:
-                {_format_history(state)}
+                {summary['history']}
 
                 REVIEW OVERVIEW:
-                {state.get('overview', '')}
+                {summary['overview']}
 
                 LOGIC ISSUES:
-                {list(state.get('logic_issues', {}).values())}
+                {summary['logic_issues']}
 
                 IMPROVEMENT NOTES:
-                {state.get('improvement_notes', [])}
+                {summary['improvement_notes']}
+
+                REVIEW LINKS:
+                {summary['review_links']}
 
                 HISTORY-BASED PROGRESS SUMMARY:
-                {progress_summary}
+                {summary['progress_summary']}
 
                 Score these ten indices:
                 1. Problem-Solving Creativity
@@ -158,21 +158,3 @@ def build_scoring_messages(state: ReviewState) -> list[dict[str, str]]:
             ).strip(),
         },
     ]
-
-
-def _format_history(state: ReviewState) -> str:
-    history = state.get("history", [])
-    if not history:
-        return "No previous submissions."
-
-    return "\n\n".join(
-        [
-            (
-                f"Previous submission {index} (newest first order):\n"
-                f"Failed testcase IDs: {submission.get('failed_test_case_ids', [])}\n"
-                f"Passed testcase IDs: {submission.get('passed_test_case_ids', [])}\n"
-                f"Code:\n{submission.get('code', '')}"
-            )
-            for index, submission in enumerate(history, start=1)
-        ]
-    )

@@ -7,7 +7,7 @@ from openai import OpenAI
 from app.models.review_state import LogicIssue, ReviewState
 from app.prompts.review.fix_hint import build_fix_hint_messages
 from app.utils.debug_logging import summarize_state, truncate_text
-from app.utils.parse_json_response import safe_parse_json_response
+from app.utils.review_output_tools import parse_review_json_with_repair
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,12 @@ class FixHintAgent:
                 issue_id,
                 truncate_text(model_text),
             )
-            parsed = safe_parse_json_response(model_text)
+            parsed = parse_review_json_with_repair(
+                client=self.client,
+                model_name=self.model_name,
+                raw_response=model_text,
+                expected_shape={"fix_suggestion": str},
+            )
 
             issue["fix_suggestion"] = (
                 parsed.get("fix_suggestion", "").strip()

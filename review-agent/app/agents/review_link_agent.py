@@ -1,13 +1,15 @@
 import logging
-from typing import Dict
 
 from openai import OpenAI
 
 from app.models.review_link import ReviewLink, create_review_link
 from app.models.review_state import LogicIssue, ReviewState
 from app.prompts.review.review_link import build_review_link_messages
+from app.utils.code_diff import build_changed_line_summary
 from app.utils.debug_logging import summarize_state, truncate_text
-from app.utils.parse_json_response import safe_parse_json_response
+from app.utils.history_matcher import find_first_failed_history_match
+from app.utils.review_output_tools import parse_review_json_with_repair
+from app.utils.snippet_tools import extract_related_snippets
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +35,6 @@ class ReviewLinkAgent:
         for i in range(0, len(candidates), self.batch_size):
             yield candidates[i : i + self.batch_size]
 
-    def find_first_failed_history_match(
-        self, state: ReviewState, testcase_id: str
-    ) -> dict[str, str] | None:
-        for submission in state.get("history", []):
-            if testcase_id in submission.get("failed_test_case_ids", []):
-                return {
-                    "submission_id": str(submission.get("submission_id", "")).strip(),
-                    "code": str(submission.get("code", "")).strip(),
-                }
-        return None
-
     def generate_messages(
         self,
         current_code: str,
@@ -66,10 +57,15 @@ class ReviewLinkAgent:
         )
         comparison_mode = self._determine_comparison_mode(issue, previous_submission)
         previous_code_snippets = self._build_previous_code_snippets(issue, previous_code)
+        changed_summary = build_changed_line_summary(
+            previous_code=previous_code,
+            current_code=issue.get("current_code_for_diff", "") or "",
+        )
 
         what_improved = (
-            "There is a visible code change since the earlier failed submission, which suggests the student is iterating on the same problem."
-            if previous_code.strip() and previous_code.strip() != current_snippet.strip()
+            "Recent code changes suggest the student is iterating on the same problem: "
+            + "; ".join(changed_summary[:3])
+            if changed_summary
             else "There is little clear improvement between this issue and the earlier failed submission."
         )
         what_still_needs_work = (
@@ -115,11 +111,12 @@ class ReviewLinkAgent:
             str(issue.get("code_snippet", "")).strip(),
             str(issue.get("anchor_snippet", "")).strip(),
         ]
-
-        for anchor in anchors:
-            if anchor and anchor in previous_code and anchor not in snippets:
-                snippets.append(anchor)
-
+        snippets = extract_related_snippets(
+            code=previous_code,
+            anchors=anchors,
+            max_snippets=2,
+            context_lines=1,
+        )
         if snippets:
             return snippets
 
@@ -140,23 +137,30 @@ class ReviewLinkAgent:
 
         for issue in new_state.get("logic_issues", {}).values():
             testcase_id = issue.get("evidence", "")
-            previous_submission = self.find_first_failed_history_match(
-                new_state, testcase_id
+            previous_submission = find_first_failed_history_match(
+                new_state.get("history", []), testcase_id
             )
             if not previous_submission:
                 continue
 
+            issue_for_review_link = dict(issue)
+            issue_for_review_link["current_code_for_diff"] = current_code
+
             candidates.append(
                 {
-                    "issue": issue,
+                    "issue": issue_for_review_link,
                     "testcase_id": testcase_id,
                     "comparison_mode": self._determine_comparison_mode(
-                        issue, previous_submission
+                        issue_for_review_link, previous_submission
                     ),
                     "previous_submission": previous_submission,
                     "current_code_snippet": (
-                        issue.get("code_snippet", "")
-                        or issue.get("anchor_snippet", "")
+                        issue_for_review_link.get("code_snippet", "")
+                        or issue_for_review_link.get("anchor_snippet", "")
+                    ),
+                    "changed_summary": build_changed_line_summary(
+                        previous_code=previous_submission.get("code", ""),
+                        current_code=current_code,
                     ),
                 }
             )
@@ -185,16 +189,17 @@ class ReviewLinkAgent:
                     batch_index,
                     truncate_text(model_text),
                 )
-                parsed = safe_parse_json_response(model_text)
+                parsed = parse_review_json_with_repair(
+                    client=self.client,
+                    model_name=self.model_name,
+                    raw_response=model_text,
+                    expected_shape={"review_links": list},
+                )
                 parsed_links = parsed.get("review_links") or []
-                links_by_ref: Dict[int, dict] = {
-                    item.get("issue_ref"): item
-                    for item in parsed_links
-                    if isinstance(item.get("issue_ref"), int)
-                }
 
-                for issue_ref, candidate in enumerate(batch_candidates):
-                    parsed_link = links_by_ref.get(issue_ref)
+                for candidate, parsed_link in zip(batch_candidates, parsed_links):
+                    if not isinstance(parsed_link, dict):
+                        parsed_link = None
                     if parsed_link is None:
                         review_links.append(
                             self.build_fallback_review_link(
@@ -243,6 +248,15 @@ class ReviewLinkAgent:
                             ).strip(),
                         )
                     )
+
+                if len(parsed_links) < len(batch_candidates):
+                    for candidate in batch_candidates[len(parsed_links) :]:
+                        review_links.append(
+                            self.build_fallback_review_link(
+                                candidate["issue"],
+                                candidate["previous_submission"],
+                            )
+                        )
             except Exception:
                 logger.exception(
                     "ReviewLinkAgent batch %s failed",

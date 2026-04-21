@@ -7,7 +7,7 @@ from app.prompts.review.improvement import build_improvement_messages
 from app.models.review_state import ReviewState
 from app.utils.code_context import build_improvement_code_context
 from app.utils.debug_logging import summarize_state, truncate_text
-from app.utils.parse_json_response import safe_parse_json_response
+from app.utils.review_output_tools import parse_review_json_with_repair
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,12 @@ class ImprovementAgent:
                 "ImprovementAgent raw response preview: %s",
                 truncate_text(model_text),
             )
-            parsed = safe_parse_json_response(model_text)
+            parsed = parse_review_json_with_repair(
+                client=self.client,
+                model_name=self.model_name,
+                raw_response=model_text,
+                expected_shape={"improvement_notes": list},
+            )
 
             new_state["improvement_notes"] = parsed.get("improvement_notes", [])
             logger.debug(

@@ -1,5 +1,4 @@
 import logging
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.api.review_code_deps import get_review_service
@@ -97,9 +96,7 @@ async def review_code(
             for item in result_state["review_items"]
         ]
 
-        review_id = str(uuid4())
         response = ReviewResponse(
-            review_id=review_id,
             summary=overview,
             detail="Review completed",
             review_items=review_items,

@@ -30,8 +30,11 @@ class ReviewLinkPromptTests(unittest.TestCase):
         self.assertIn("First earlier failed submission for this testcase", user_prompt)
         self.assertIn("Comparison mode: persistent", user_prompt)
         self.assertIn("Use only the first earlier submission where the testcase failed.", user_prompt)
-        self.assertIn("previous_submission_id", user_prompt)
         self.assertIn("previous_code_snippets", user_prompt)
+        self.assertIn("Changed code summary between that submission and the current code", user_prompt)
+        self.assertIn("Do not include ids, issue refs, testcase ids, or submission ids in the response.", user_prompt)
+        self.assertNotIn("issue_ref", user_prompt)
+        self.assertNotIn("previous_submission_id", user_prompt)
 
 
 if __name__ == "__main__":

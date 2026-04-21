@@ -27,7 +27,7 @@ Use this API when:
    - `overview`
    - `scoring`
 4. The API assembles the workflow result into `ReviewResponse`.
-5. The API generates a new `review_id` and returns the structured review payload.
+5. The API returns the structured review payload directly.
 
 ## Request Schema
 
@@ -115,7 +115,6 @@ Use this API when:
 
 ```json
 {
-  "review_id": "string",
   "summary": "string",
   "detail": "string",
   "review_items": [

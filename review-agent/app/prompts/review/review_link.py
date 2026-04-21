@@ -9,7 +9,7 @@ def build_review_link_messages(
 ) -> list[dict[str, str]]:
     issues_text = "\n\n".join(
         [
-            f"""Issue ref: {index}
+            f"""Issue {index + 1}
 Current issue summary: {candidate['issue'].get('issue', '')}
 Current code snippet identified by the logic agent:
 {candidate['current_code_snippet']}
@@ -18,6 +18,9 @@ Comparison mode: {candidate['comparison_mode']}
 
 First earlier failed submission for this testcase:
 {_format_previous_submission(candidate['previous_submission'])}
+
+Changed code summary between that submission and the current code:
+{_format_changed_summary(candidate.get('changed_summary', []))}
 """
             for index, candidate in enumerate(batch_candidates)
         ]
@@ -59,8 +62,6 @@ First earlier failed submission for this testcase:
                 {{
                   "review_links": [
                     {{
-                      "issue_ref": 0,
-                      "previous_submission_id": "submission uuid",
                       "previous_code_snippets": ["snippet from the earlier failed submission that relates to the current issue"],
                       "comparison_mode": "persistent",
                       "what_improved": "brief statement of what improved compared with the past attempt(s)",
@@ -74,6 +75,8 @@ First earlier failed submission for this testcase:
                 - Ground the comparison in the current issue, current code snippet, and the earlier failed submission.
                 - It is okay to say that improvement is minimal or unclear.
                 - Use only the first earlier submission where the testcase failed.
+                - Return one review link object per issue in the same order the issues were listed above.
+                - Do not include ids, issue refs, testcase ids, or submission ids in the response.
                 - `previous_code_snippets` should contain only short snippets from that earlier failed submission that relate to the current issue.
                 - If the latest previous submission also failed this testcase, `comparison_mode` should usually be `persistent`.
                 - If the match comes from an older earlier failed submission but not the latest previous submission, `comparison_mode` can be `historical_match`.
@@ -90,3 +93,9 @@ def _format_previous_submission(previous_submission: dict[str, str]) -> str:
         f"Submission id: {previous_submission.get('submission_id', '')}\n"
         f"Code:\n{previous_submission.get('code', '')}"
     )
+
+
+def _format_changed_summary(changed_summary: list[str]) -> str:
+    if not changed_summary:
+        return "No concise code diff summary available."
+    return "\n".join(changed_summary)

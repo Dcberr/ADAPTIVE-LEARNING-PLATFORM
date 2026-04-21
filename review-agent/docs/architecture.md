@@ -175,12 +175,7 @@ Outputs of the review pipeline:
 - `review_items`
 - scorecard
 
-After response assembly, the review API also persists graph context:
-
-- generates `review_id`
-- stores the `Review` node with `student_id`, `exercise_id`, and `submission_id`
-- links `(:Review)-[:REVIEWS_EXERCISE]->(:Exercise)`
-- recalculates or creates the `Student` profile node from the review scorecard
+After response assembly, the review API returns the review payload. Review persistence and graph linking are handled separately by the knowledge-graph APIs.
 
 This stored output becomes the primary input to the recommendation system.
 

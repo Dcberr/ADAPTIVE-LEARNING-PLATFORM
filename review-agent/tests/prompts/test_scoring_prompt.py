@@ -58,6 +58,7 @@ class ScoringPromptTests(unittest.TestCase):
             user_prompt,
         )
         self.assertIn("Self-Correction Path: use newest-first history", user_prompt)
+        self.assertIn("REVIEW LINKS:", user_prompt)
         self.assertIn("Return exactly one valid JSON object", system_prompt)
 
 
