@@ -1,0 +1,566 @@
+# reviewagent_client.DefaultApi
+
+All URIs are relative to *http://localhost*
+
+Method | HTTP request | Description
+------------- | ------------- | -------------
+[**generate_recommendation_api_v1_recommendation_post**](DefaultApi.md#generate_recommendation_api_v1_recommendation_post) | **POST** /api/v1/recommendation | Generate Recommendation
+[**get_knowledge_graph_snapshot_api_v1_knowledgegraph_get**](DefaultApi.md#get_knowledge_graph_snapshot_api_v1_knowledgegraph_get) | **GET** /api/v1/knowledgegraph | Get Knowledge Graph Snapshot
+[**review_code_api_v1_review_code_post**](DefaultApi.md#review_code_api_v1_review_code_post) | **POST** /api/v1/review_code | Review Code
+[**upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put**](DefaultApi.md#upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put) | **PUT** /api/v1/knowledgegraph/concepts/{concept_id} | Upsert Concept
+[**upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put**](DefaultApi.md#upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put) | **PUT** /api/v1/knowledgegraph/exercises/{exercise_id} | Upsert Exercise
+[**upsert_review_api_v1_knowledgegraph_reviews_review_id_put**](DefaultApi.md#upsert_review_api_v1_knowledgegraph_reviews_review_id_put) | **PUT** /api/v1/knowledgegraph/reviews/{review_id} | Upsert Review
+[**upsert_student_api_v1_knowledgegraph_students_student_id_put**](DefaultApi.md#upsert_student_api_v1_knowledgegraph_students_student_id_put) | **PUT** /api/v1/knowledgegraph/students/{student_id} | Upsert Student
+[**upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put**](DefaultApi.md#upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put) | **PUT** /api/v1/knowledgegraph/submissions/{submission_id} | Upsert Submission
+
+
+# **generate_recommendation_api_v1_recommendation_post**
+> RecommendationResponse generate_recommendation_api_v1_recommendation_post(recommendation_request)
+
+Generate Recommendation
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.recommendation_request import RecommendationRequest
+from reviewagent_client.models.recommendation_response import RecommendationResponse
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    recommendation_request = reviewagent_client.RecommendationRequest() # RecommendationRequest | 
+
+    try:
+        # Generate Recommendation
+        api_response = api_instance.generate_recommendation_api_v1_recommendation_post(recommendation_request)
+        print("The response of DefaultApi->generate_recommendation_api_v1_recommendation_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->generate_recommendation_api_v1_recommendation_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **recommendation_request** | [**RecommendationRequest**](RecommendationRequest.md)|  | 
+
+### Return type
+
+[**RecommendationResponse**](RecommendationResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **get_knowledge_graph_snapshot_api_v1_knowledgegraph_get**
+> KnowledgeGraphSnapshotResponse get_knowledge_graph_snapshot_api_v1_knowledgegraph_get()
+
+Get Knowledge Graph Snapshot
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_snapshot_response import KnowledgeGraphSnapshotResponse
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+
+    try:
+        # Get Knowledge Graph Snapshot
+        api_response = api_instance.get_knowledge_graph_snapshot_api_v1_knowledgegraph_get()
+        print("The response of DefaultApi->get_knowledge_graph_snapshot_api_v1_knowledgegraph_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->get_knowledge_graph_snapshot_api_v1_knowledgegraph_get: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**KnowledgeGraphSnapshotResponse**](KnowledgeGraphSnapshotResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **review_code_api_v1_review_code_post**
+> ReviewResponse review_code_api_v1_review_code_post(review_request)
+
+Review Code
+
+Endpoint that uses the LangGraph workflow with Gemini for code review.
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.review_request import ReviewRequest
+from reviewagent_client.models.review_response import ReviewResponse
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    review_request = reviewagent_client.ReviewRequest() # ReviewRequest | 
+
+    try:
+        # Review Code
+        api_response = api_instance.review_code_api_v1_review_code_post(review_request)
+        print("The response of DefaultApi->review_code_api_v1_review_code_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->review_code_api_v1_review_code_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **review_request** | [**ReviewRequest**](ReviewRequest.md)|  | 
+
+### Return type
+
+[**ReviewResponse**](ReviewResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put**
+> KnowledgeGraphConceptResponse upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put(concept_id, upsert_concept_request)
+
+Upsert Concept
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_concept_response import KnowledgeGraphConceptResponse
+from reviewagent_client.models.upsert_concept_request import UpsertConceptRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    concept_id = 'concept_id_example' # str | 
+    upsert_concept_request = reviewagent_client.UpsertConceptRequest() # UpsertConceptRequest | 
+
+    try:
+        # Upsert Concept
+        api_response = api_instance.upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put(concept_id, upsert_concept_request)
+        print("The response of DefaultApi->upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **concept_id** | **str**|  | 
+ **upsert_concept_request** | [**UpsertConceptRequest**](UpsertConceptRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphConceptResponse**](KnowledgeGraphConceptResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put**
+> KnowledgeGraphExerciseResponse upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put(exercise_id, upsert_exercise_request)
+
+Upsert Exercise
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_exercise_response import KnowledgeGraphExerciseResponse
+from reviewagent_client.models.upsert_exercise_request import UpsertExerciseRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    exercise_id = 'exercise_id_example' # str | 
+    upsert_exercise_request = reviewagent_client.UpsertExerciseRequest() # UpsertExerciseRequest | 
+
+    try:
+        # Upsert Exercise
+        api_response = api_instance.upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put(exercise_id, upsert_exercise_request)
+        print("The response of DefaultApi->upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **exercise_id** | **str**|  | 
+ **upsert_exercise_request** | [**UpsertExerciseRequest**](UpsertExerciseRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphExerciseResponse**](KnowledgeGraphExerciseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsert_review_api_v1_knowledgegraph_reviews_review_id_put**
+> KnowledgeGraphReviewResponse upsert_review_api_v1_knowledgegraph_reviews_review_id_put(review_id, upsert_review_request)
+
+Upsert Review
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_review_response import KnowledgeGraphReviewResponse
+from reviewagent_client.models.upsert_review_request import UpsertReviewRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    review_id = 'review_id_example' # str | 
+    upsert_review_request = reviewagent_client.UpsertReviewRequest() # UpsertReviewRequest | 
+
+    try:
+        # Upsert Review
+        api_response = api_instance.upsert_review_api_v1_knowledgegraph_reviews_review_id_put(review_id, upsert_review_request)
+        print("The response of DefaultApi->upsert_review_api_v1_knowledgegraph_reviews_review_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->upsert_review_api_v1_knowledgegraph_reviews_review_id_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **review_id** | **str**|  | 
+ **upsert_review_request** | [**UpsertReviewRequest**](UpsertReviewRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphReviewResponse**](KnowledgeGraphReviewResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsert_student_api_v1_knowledgegraph_students_student_id_put**
+> KnowledgeGraphStudentResponse upsert_student_api_v1_knowledgegraph_students_student_id_put(student_id, upsert_student_profile_request)
+
+Upsert Student
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_student_response import KnowledgeGraphStudentResponse
+from reviewagent_client.models.upsert_student_profile_request import UpsertStudentProfileRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    student_id = 'student_id_example' # str | 
+    upsert_student_profile_request = reviewagent_client.UpsertStudentProfileRequest() # UpsertStudentProfileRequest | 
+
+    try:
+        # Upsert Student
+        api_response = api_instance.upsert_student_api_v1_knowledgegraph_students_student_id_put(student_id, upsert_student_profile_request)
+        print("The response of DefaultApi->upsert_student_api_v1_knowledgegraph_students_student_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->upsert_student_api_v1_knowledgegraph_students_student_id_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **student_id** | **str**|  | 
+ **upsert_student_profile_request** | [**UpsertStudentProfileRequest**](UpsertStudentProfileRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphStudentResponse**](KnowledgeGraphStudentResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put**
+> KnowledgeGraphSubmissionResponse upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put(submission_id, upsert_submission_request)
+
+Upsert Submission
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_submission_response import KnowledgeGraphSubmissionResponse
+from reviewagent_client.models.upsert_submission_request import UpsertSubmissionRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    submission_id = 'submission_id_example' # str | 
+    upsert_submission_request = reviewagent_client.UpsertSubmissionRequest() # UpsertSubmissionRequest | 
+
+    try:
+        # Upsert Submission
+        api_response = api_instance.upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put(submission_id, upsert_submission_request)
+        print("The response of DefaultApi->upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **submission_id** | **str**|  | 
+ **upsert_submission_request** | [**UpsertSubmissionRequest**](UpsertSubmissionRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphSubmissionResponse**](KnowledgeGraphSubmissionResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

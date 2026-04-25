@@ -6,7 +6,8 @@ Python batch job that:
 - fetches exercises from the LeetCode GraphQL API
 - inserts data into `tmp_import_exercises`
 - finds changed exercises versus `latest_import_exercises`
-- calls a placeholder update API hook
+- calls the code review import subprocess
+- calls the review agent knowledge graph import subprocess
 - upserts data into `latest_import_exercises`
 
 ## Run
@@ -21,3 +22,35 @@ uv run import-exercise-batch
 uv build
 ```
 
+## Postgres Schema
+
+`tmp_import_exercises`
+
+```sql
+CREATE TABLE tmp_import_exercises (
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    difficulty TEXT NOT NULL,
+    topic_tag_slugs TEXT NOT NULL,
+    similar_question_slugs TEXT NOT NULL
+);
+```
+
+`latest_import_exercises`
+
+```sql
+CREATE TABLE latest_import_exercises (
+    exercise_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    difficulty TEXT NOT NULL,
+    topic_tag_slugs TEXT NOT NULL,
+    similar_question_slugs TEXT NOT NULL
+);
+```
+
+If you use `gen_random_uuid()`, make sure `pgcrypto` is enabled:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+```

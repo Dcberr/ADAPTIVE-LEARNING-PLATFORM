@@ -1,4 +1,3 @@
-from import_exercise_batch.model.exercise import Exercise
+from import_exercise_batch.model.exercise_import import ExerciseImportRecord
 
-__all__ = ["Exercise"]
-
+__all__ = ["ExerciseImportRecord"]

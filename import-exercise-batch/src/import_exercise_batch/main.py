@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from import_exercise_batch.config import Settings
-from import_exercise_batch.process.main_process import MainProcess
+from import_exercise_batch.config import ImportExercisesSettings
+from import_exercise_batch.process import ImportExercisesMainProcess
 
 
 def main() -> None:
-    settings = Settings()
-    MainProcess(settings).run()
+    ImportExercisesMainProcess(ImportExercisesSettings.from_env()).run()
 
 
 if __name__ == "__main__":

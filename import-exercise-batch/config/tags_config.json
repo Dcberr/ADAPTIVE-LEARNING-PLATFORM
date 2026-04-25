@@ -1,0 +1,428 @@
+[
+  {
+    "name": "Array",
+    "slug": "array",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "String",
+    "slug": "string",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Hash Table",
+    "slug": "hash-table",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Math",
+    "slug": "math",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Dynamic Programming",
+    "slug": "dynamic-programming",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Sorting",
+    "slug": "sorting",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Greedy",
+    "slug": "greedy",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Depth-First Search",
+    "slug": "depth-first-search",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Binary Search",
+    "slug": "binary-search",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Database",
+    "slug": "database",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Bit Manipulation",
+    "slug": "bit-manipulation",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Matrix",
+    "slug": "matrix",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Tree",
+    "slug": "tree",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Breadth-First Search",
+    "slug": "breadth-first-search",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Two Pointers",
+    "slug": "two-pointers",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Prefix Sum",
+    "slug": "prefix-sum",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Heap (Priority Queue)",
+    "slug": "heap-priority-queue",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Simulation",
+    "slug": "simulation",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Counting",
+    "slug": "counting",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Graph Theory",
+    "slug": "graph",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Binary Tree",
+    "slug": "binary-tree",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Stack",
+    "slug": "stack",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Sliding Window",
+    "slug": "sliding-window",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Enumeration",
+    "slug": "enumeration",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Design",
+    "slug": "design",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Backtracking",
+    "slug": "backtracking",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Union-Find",
+    "slug": "union-find",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Number Theory",
+    "slug": "number-theory",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Linked List",
+    "slug": "linked-list",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Ordered Set",
+    "slug": "ordered-set",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Segment Tree",
+    "slug": "segment-tree",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Monotonic Stack",
+    "slug": "monotonic-stack",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Divide and Conquer",
+    "slug": "divide-and-conquer",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Combinatorics",
+    "slug": "combinatorics",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Trie",
+    "slug": "trie",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Bitmask",
+    "slug": "bitmask",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Queue",
+    "slug": "queue",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Recursion",
+    "slug": "recursion",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Geometry",
+    "slug": "geometry",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Binary Indexed Tree",
+    "slug": "binary-indexed-tree",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Memoization",
+    "slug": "memoization",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Hash Function",
+    "slug": "hash-function",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Binary Search Tree",
+    "slug": "binary-search-tree",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Topological Sort",
+    "slug": "topological-sort",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Shortest Path",
+    "slug": "shortest-path",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "String Matching",
+    "slug": "string-matching",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Rolling Hash",
+    "slug": "rolling-hash",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Game Theory",
+    "slug": "game-theory",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Interactive",
+    "slug": "interactive",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Data Stream",
+    "slug": "data-stream",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Monotonic Queue",
+    "slug": "monotonic-queue",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Brainteaser",
+    "slug": "brainteaser",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Doubly-Linked List",
+    "slug": "doubly-linked-list",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Merge Sort",
+    "slug": "merge-sort",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Randomized",
+    "slug": "randomized",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Counting Sort",
+    "slug": "counting-sort",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Iterator",
+    "slug": "iterator",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Concurrency",
+    "slug": "concurrency",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Quickselect",
+    "slug": "quickselect",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Suffix Array",
+    "slug": "suffix-array",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Sweep Line",
+    "slug": "line-sweep",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Probability and Statistics",
+    "slug": "probability-and-statistics",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Minimum Spanning Tree",
+    "slug": "minimum-spanning-tree",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Bucket Sort",
+    "slug": "bucket-sort",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Shell",
+    "slug": "shell",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Reservoir Sampling",
+    "slug": "reservoir-sampling",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Eulerian Circuit",
+    "slug": "eulerian-circuit",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Radix Sort",
+    "slug": "radix-sort",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Strongly Connected Component",
+    "slug": "strongly-connected-component",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Rejection Sampling",
+    "slug": "rejection-sampling",
+    "enable": false,
+    "limit": -1
+  },
+  {
+    "name": "Biconnected Component",
+    "slug": "biconnected-component",
+    "enable": false,
+    "limit": -1
+  }
+]
