@@ -1,0 +1,27 @@
+[project]
+name = "import-exercise-batch"
+version = "0.1.0"
+description = "Batch job for importing LeetCode exercises."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openapi-client",
+]
+
+[project.scripts]
+import-exercise-batch = "import_exercise_batch.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
+[tool.uv.workspace]
+members = [
+    "libs/clients/codereview",
+]
+
+[tool.uv.sources]
+openapi-client = { workspace = true, editable = true }
