@@ -22,6 +22,8 @@ from reviewagent_client.models.knowledge_graph_review_response import KnowledgeG
 from reviewagent_client.models.knowledge_graph_snapshot_response import KnowledgeGraphSnapshotResponse
 from reviewagent_client.models.knowledge_graph_student_response import KnowledgeGraphStudentResponse
 from reviewagent_client.models.knowledge_graph_submission_response import KnowledgeGraphSubmissionResponse
+from reviewagent_client.models.patch_concept_relations_request import PatchConceptRelationsRequest
+from reviewagent_client.models.patch_exercise_relations_request import PatchExerciseRelationsRequest
 from reviewagent_client.models.recommendation_request import RecommendationRequest
 from reviewagent_client.models.recommendation_response import RecommendationResponse
 from reviewagent_client.models.review_request import ReviewRequest
@@ -566,6 +568,582 @@ class DefaultApi:
 
 
     @validate_call
+    def patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch(
+        self,
+        concept_slug: StrictStr,
+        patch_concept_relations_request: PatchConceptRelationsRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> KnowledgeGraphConceptResponse:
+        """Patch Concept Relations
+
+
+        :param concept_slug: (required)
+        :type concept_slug: str
+        :param patch_concept_relations_request: (required)
+        :type patch_concept_relations_request: PatchConceptRelationsRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch_serialize(
+            concept_slug=concept_slug,
+            patch_concept_relations_request=patch_concept_relations_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "KnowledgeGraphConceptResponse",
+            '422': "HTTPValidationError",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch_with_http_info(
+        self,
+        concept_slug: StrictStr,
+        patch_concept_relations_request: PatchConceptRelationsRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[KnowledgeGraphConceptResponse]:
+        """Patch Concept Relations
+
+
+        :param concept_slug: (required)
+        :type concept_slug: str
+        :param patch_concept_relations_request: (required)
+        :type patch_concept_relations_request: PatchConceptRelationsRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch_serialize(
+            concept_slug=concept_slug,
+            patch_concept_relations_request=patch_concept_relations_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "KnowledgeGraphConceptResponse",
+            '422': "HTTPValidationError",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch_without_preload_content(
+        self,
+        concept_slug: StrictStr,
+        patch_concept_relations_request: PatchConceptRelationsRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Patch Concept Relations
+
+
+        :param concept_slug: (required)
+        :type concept_slug: str
+        :param patch_concept_relations_request: (required)
+        :type patch_concept_relations_request: PatchConceptRelationsRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch_serialize(
+            concept_slug=concept_slug,
+            patch_concept_relations_request=patch_concept_relations_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "KnowledgeGraphConceptResponse",
+            '422': "HTTPValidationError",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch_serialize(
+        self,
+        concept_slug,
+        patch_concept_relations_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if concept_slug is not None:
+            _path_params['concept_slug'] = concept_slug
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if patch_concept_relations_request is not None:
+            _body_params = patch_concept_relations_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+        ]
+
+        return self.api_client.param_serialize(
+            method='PATCH',
+            resource_path='/api/v1/knowledgegraph/concepts/{concept_slug}/relations',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch(
+        self,
+        exercise_id: StrictStr,
+        patch_exercise_relations_request: PatchExerciseRelationsRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> KnowledgeGraphExerciseResponse:
+        """Patch Exercise Relations
+
+
+        :param exercise_id: (required)
+        :type exercise_id: str
+        :param patch_exercise_relations_request: (required)
+        :type patch_exercise_relations_request: PatchExerciseRelationsRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch_serialize(
+            exercise_id=exercise_id,
+            patch_exercise_relations_request=patch_exercise_relations_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "KnowledgeGraphExerciseResponse",
+            '422': "HTTPValidationError",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch_with_http_info(
+        self,
+        exercise_id: StrictStr,
+        patch_exercise_relations_request: PatchExerciseRelationsRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[KnowledgeGraphExerciseResponse]:
+        """Patch Exercise Relations
+
+
+        :param exercise_id: (required)
+        :type exercise_id: str
+        :param patch_exercise_relations_request: (required)
+        :type patch_exercise_relations_request: PatchExerciseRelationsRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch_serialize(
+            exercise_id=exercise_id,
+            patch_exercise_relations_request=patch_exercise_relations_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "KnowledgeGraphExerciseResponse",
+            '422': "HTTPValidationError",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch_without_preload_content(
+        self,
+        exercise_id: StrictStr,
+        patch_exercise_relations_request: PatchExerciseRelationsRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Patch Exercise Relations
+
+
+        :param exercise_id: (required)
+        :type exercise_id: str
+        :param patch_exercise_relations_request: (required)
+        :type patch_exercise_relations_request: PatchExerciseRelationsRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch_serialize(
+            exercise_id=exercise_id,
+            patch_exercise_relations_request=patch_exercise_relations_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '200': "KnowledgeGraphExerciseResponse",
+            '422': "HTTPValidationError",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch_serialize(
+        self,
+        exercise_id,
+        patch_exercise_relations_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if exercise_id is not None:
+            _path_params['exercise_id'] = exercise_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if patch_exercise_relations_request is not None:
+            _body_params = patch_exercise_relations_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+        ]
+
+        return self.api_client.param_serialize(
+            method='PATCH',
+            resource_path='/api/v1/knowledgegraph/exercises/{exercise_id}/relations',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
     def review_code_api_v1_review_code_post(
         self,
         review_request: ReviewRequest,
@@ -842,9 +1420,9 @@ class DefaultApi:
 
 
     @validate_call
-    def upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put(
+    def upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put(
         self,
-        concept_id: StrictStr,
+        concept_slug: StrictStr,
         upsert_concept_request: UpsertConceptRequest,
         _request_timeout: Union[
             None,
@@ -862,8 +1440,8 @@ class DefaultApi:
         """Upsert Concept
 
 
-        :param concept_id: (required)
-        :type concept_id: str
+        :param concept_slug: (required)
+        :type concept_slug: str
         :param upsert_concept_request: (required)
         :type upsert_concept_request: UpsertConceptRequest
         :param _request_timeout: timeout setting for this request. If one
@@ -888,8 +1466,8 @@ class DefaultApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put_serialize(
-            concept_id=concept_id,
+        _param = self._upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put_serialize(
+            concept_slug=concept_slug,
             upsert_concept_request=upsert_concept_request,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -913,9 +1491,9 @@ class DefaultApi:
 
 
     @validate_call
-    def upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put_with_http_info(
+    def upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put_with_http_info(
         self,
-        concept_id: StrictStr,
+        concept_slug: StrictStr,
         upsert_concept_request: UpsertConceptRequest,
         _request_timeout: Union[
             None,
@@ -933,8 +1511,8 @@ class DefaultApi:
         """Upsert Concept
 
 
-        :param concept_id: (required)
-        :type concept_id: str
+        :param concept_slug: (required)
+        :type concept_slug: str
         :param upsert_concept_request: (required)
         :type upsert_concept_request: UpsertConceptRequest
         :param _request_timeout: timeout setting for this request. If one
@@ -959,8 +1537,8 @@ class DefaultApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put_serialize(
-            concept_id=concept_id,
+        _param = self._upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put_serialize(
+            concept_slug=concept_slug,
             upsert_concept_request=upsert_concept_request,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -984,9 +1562,9 @@ class DefaultApi:
 
 
     @validate_call
-    def upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put_without_preload_content(
+    def upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put_without_preload_content(
         self,
-        concept_id: StrictStr,
+        concept_slug: StrictStr,
         upsert_concept_request: UpsertConceptRequest,
         _request_timeout: Union[
             None,
@@ -1004,8 +1582,8 @@ class DefaultApi:
         """Upsert Concept
 
 
-        :param concept_id: (required)
-        :type concept_id: str
+        :param concept_slug: (required)
+        :type concept_slug: str
         :param upsert_concept_request: (required)
         :type upsert_concept_request: UpsertConceptRequest
         :param _request_timeout: timeout setting for this request. If one
@@ -1030,8 +1608,8 @@ class DefaultApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put_serialize(
-            concept_id=concept_id,
+        _param = self._upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put_serialize(
+            concept_slug=concept_slug,
             upsert_concept_request=upsert_concept_request,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -1050,9 +1628,9 @@ class DefaultApi:
         return response_data.response
 
 
-    def _upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put_serialize(
+    def _upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put_serialize(
         self,
-        concept_id,
+        concept_slug,
         upsert_concept_request,
         _request_auth,
         _content_type,
@@ -1075,8 +1653,8 @@ class DefaultApi:
         _body_params: Optional[bytes] = None
 
         # process the path parameters
-        if concept_id is not None:
-            _path_params['concept_id'] = concept_id
+        if concept_slug is not None:
+            _path_params['concept_slug'] = concept_slug
         # process the query parameters
         # process the header parameters
         # process the form parameters
@@ -1113,7 +1691,7 @@ class DefaultApi:
 
         return self.api_client.param_serialize(
             method='PUT',
-            resource_path='/api/v1/knowledgegraph/concepts/{concept_id}',
+            resource_path='/api/v1/knowledgegraph/concepts/{concept_slug}',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

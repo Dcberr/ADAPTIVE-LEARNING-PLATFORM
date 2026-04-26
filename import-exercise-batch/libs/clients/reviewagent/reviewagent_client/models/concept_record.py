@@ -28,10 +28,11 @@ class ConceptRecord(BaseModel):
     ConceptRecord
     """ # noqa: E501
     concept_id: StrictStr
+    slug: Optional[StrictStr] = ''
     name: StrictStr
     description: Optional[StrictStr] = ''
     difficulty: Optional[StrictInt] = 1
-    __properties: ClassVar[List[str]] = ["concept_id", "name", "description", "difficulty"]
+    __properties: ClassVar[List[str]] = ["concept_id", "slug", "name", "description", "difficulty"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -85,6 +86,7 @@ class ConceptRecord(BaseModel):
 
         _obj = cls.model_validate({
             "concept_id": obj.get("concept_id"),
+            "slug": obj.get("slug") if obj.get("slug") is not None else '',
             "name": obj.get("name"),
             "description": obj.get("description") if obj.get("description") is not None else '',
             "difficulty": obj.get("difficulty") if obj.get("difficulty") is not None else 1

@@ -6,6 +6,33 @@ from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv() -> bool:
+        dotenv_path = Path(__file__).resolve().parents[2] / ".env"
+        if not dotenv_path.is_file():
+            return False
+
+        for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if (
+                len(value) >= 2
+                and value[0] == value[-1]
+                and value[0] in {'"', "'"}
+            ):
+                value = value[1:-1]
+            os.environ.setdefault(key, value)
+        return True
+
+
+load_dotenv()
+
 
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -28,6 +55,8 @@ class DatabaseSettings:
 @dataclass(frozen=True)
 class LeetCodeSettings:
     graphql_url: str
+    session: str
+    csrf_token: str
     request_timeout_seconds: int
     max_retries: int
     backoff_seconds: float
@@ -37,6 +66,8 @@ class LeetCodeSettings:
     def from_env(cls) -> "LeetCodeSettings":
         return cls(
             graphql_url=os.getenv("LEETCODE_GRAPHQL_URL", "https://leetcode.com/graphql"),
+            session=os.getenv("LEETCODE_SESSION", ""),
+            csrf_token=os.getenv("CSRFTOKEN", ""),
             request_timeout_seconds=int(os.getenv("REQUEST_TIMEOUT_SECONDS", "30")),
             max_retries=int(os.getenv("MAX_RETRIES", "3")),
             backoff_seconds=float(os.getenv("BACKOFF_SECONDS", "1.5")),
@@ -68,15 +99,17 @@ class TagConfig:
     slug: str
     enable: bool
     limit: int
+    prerequisite_slugs: list[str]
 
 
 def load_tags_config() -> list[TagConfig]:
-    resource = files("import_exercise_batch.resources").joinpath("tags_config.json")
-    if resource.is_file():
-        content = resource.read_text(encoding="utf-8")
+    project_root = Path(__file__).resolve().parents[2]
+    local_config_path = project_root / "config" / "tags_config.json"
+    if local_config_path.is_file():
+        content = local_config_path.read_text(encoding="utf-8")
     else:
-        project_root = Path(__file__).resolve().parents[2]
-        content = (project_root / "config" / "tags_config.json").read_text(encoding="utf-8")
+        resource = files("import_exercise_batch.resources").joinpath("tags_config.json")
+        content = resource.read_text(encoding="utf-8")
 
     tags = json.loads(content)
     return [TagConfig(**tag) for tag in tags]
@@ -96,6 +129,19 @@ class ImportExercisesSettings:
             database=DatabaseSettings.from_env(),
             leetcode=LeetCodeSettings.from_env(),
             code_review_api=CodeReviewApiSettings.from_env(),
+            review_agent_api=ReviewAgentApiSettings.from_env(),
+            tags=load_tags_config(),
+        )
+
+
+@dataclass(frozen=True)
+class ImportTopicsSettings:
+    review_agent_api: ReviewAgentApiSettings
+    tags: list[TagConfig]
+
+    @classmethod
+    def from_env(cls) -> "ImportTopicsSettings":
+        return cls(
             review_agent_api=ReviewAgentApiSettings.from_env(),
             tags=load_tags_config(),
         )

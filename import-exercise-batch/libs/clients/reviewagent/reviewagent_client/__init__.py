@@ -14,7 +14,7 @@
 """  # noqa: E501
 
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 # Define package exports
 __all__ = [
@@ -48,6 +48,8 @@ __all__ = [
     "KnowledgeGraphSubmissionResponse",
     "LineContext",
     "LocationInner",
+    "PatchConceptRelationsRequest",
+    "PatchExerciseRelationsRequest",
     "RecommendationExercise",
     "RecommendationGraphSummary",
     "RecommendationRequest",
@@ -112,6 +114,8 @@ from reviewagent_client.models.knowledge_graph_student_response import Knowledge
 from reviewagent_client.models.knowledge_graph_submission_response import KnowledgeGraphSubmissionResponse as KnowledgeGraphSubmissionResponse
 from reviewagent_client.models.line_context import LineContext as LineContext
 from reviewagent_client.models.location_inner import LocationInner as LocationInner
+from reviewagent_client.models.patch_concept_relations_request import PatchConceptRelationsRequest as PatchConceptRelationsRequest
+from reviewagent_client.models.patch_exercise_relations_request import PatchExerciseRelationsRequest as PatchExerciseRelationsRequest
 from reviewagent_client.models.recommendation_exercise import RecommendationExercise as RecommendationExercise
 from reviewagent_client.models.recommendation_graph_summary import RecommendationGraphSummary as RecommendationGraphSummary
 from reviewagent_client.models.recommendation_request import RecommendationRequest as RecommendationRequest

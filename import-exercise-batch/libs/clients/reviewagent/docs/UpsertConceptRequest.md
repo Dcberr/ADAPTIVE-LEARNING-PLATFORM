@@ -8,7 +8,6 @@ Name | Type | Description | Notes
 **name** | **str** |  | 
 **description** | **str** |  | [optional] [default to '']
 **difficulty** | **int** |  | [optional] [default to 1]
-**prerequisite_ids** | **List[str]** |  | [optional] 
 
 ## Example
 

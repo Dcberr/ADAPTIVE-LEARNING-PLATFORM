@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **exercise_id** | **str** |  | 
+**slug** | **str** |  | [optional] [default to '']
 **title** | **str** |  | 
 **description** | **str** |  | 
 **content** | **str** |  | 

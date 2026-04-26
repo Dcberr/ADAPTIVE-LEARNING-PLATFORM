@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from html import unescape
 from typing import Any
@@ -8,11 +9,13 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from import_exercise_batch.config import LeetCodeSettings
-from import_exercise_batch.model import ExerciseImportRecord
+from import_exercise_batch.model import LeetCodeProblem
 from import_exercise_batch.process.subprocess.base import BaseSubProcess
 
 
 class LeetCodeFetchSubProcess(BaseSubProcess):
+    logger = logging.getLogger(__name__)
+
     problemset_query = """
     query problemsetQuestionList(
       $categorySlug: String,
@@ -44,26 +47,80 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
     def __init__(self, settings: LeetCodeSettings) -> None:
         self.settings = settings
 
-    def get_exercises_by_tag(self, tag: str, limit: int) -> list[ExerciseImportRecord]:
-        payload = {
+    def get_exercises_by_tag(self, tag: str, limit: int) -> list[LeetCodeProblem]:
+        self.logger.info("Fetching LeetCode exercises for tag=%s limit=%s", tag, limit)
+        if limit == -1:
+            exercises = self._get_all_exercises_by_tag(tag)
+        else:
+            response_data = self._post_with_retry(self._build_payload(tag=tag, limit=limit, skip=0))
+            exercises = self._parse_exercises(response_data)
+        self.logger.info(
+            "Fetched %s LeetCode exercises for tag=%s",
+            len(exercises),
+            tag,
+        )
+        return exercises
+
+    def resolve_limit(self, limit: int) -> int:
+        return limit
+
+    def _get_all_exercises_by_tag(self, tag: str) -> list[LeetCodeProblem]:
+        exercises: list[LeetCodeProblem] = []
+        skip = 0
+        page_limit = self.settings.limit
+        total: int | None = None
+
+        while True:
+            response_data = self._post_with_retry(
+                self._build_payload(tag=tag, limit=page_limit, skip=skip)
+            )
+            page = response_data.get("data", {}).get("problemsetQuestionList", {})
+            if total is None:
+                total_value = page.get("total")
+                total = total_value if isinstance(total_value, int) else None
+
+            page_exercises = self._parse_exercises(response_data)
+            exercises.extend(page_exercises)
+            self.logger.info(
+                "Fetched page for tag=%s skip=%s page_size=%s total_loaded=%s total=%s",
+                tag,
+                skip,
+                len(page_exercises),
+                len(exercises),
+                total if total is not None else "unknown",
+            )
+
+            if not page_exercises:
+                break
+            skip += page_limit
+            if total is not None and skip >= total:
+                break
+            if len(page_exercises) < page_limit:
+                break
+
+        return exercises
+
+    def _build_payload(self, tag: str, limit: int, skip: int) -> dict[str, Any]:
+        return {
             "query": self.problemset_query,
             "variables": {
                 "categorySlug": "",
-                "skip": 0,
+                "skip": skip,
                 "limit": limit,
                 "filters": {
                     "tags": [tag],
                 },
             },
         }
-        response_data = self._post_with_retry(payload)
+
+    def _parse_exercises(self, response_data: dict[str, Any]) -> list[LeetCodeProblem]:
         questions = (
             response_data.get("data", {})
             .get("problemsetQuestionList", {})
             .get("questions", [])
         )
         return [
-            ExerciseImportRecord(
+            LeetCodeProblem(
                 question_slug=question["titleSlug"].strip(),
                 title=question["title"].strip(),
                 content=self._normalize_content(question.get("content")),
@@ -79,23 +136,35 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
             and question.get("difficulty")
         ]
 
-    def resolve_limit(self, limit: int) -> int:
-        return self.settings.limit if limit < 0 else limit
-
     def _post_with_retry(self, payload: dict[str, Any]) -> dict[str, Any]:
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "import-exercise-batch/0.1.0",
+        }
+        cookies: list[str] = []
+        if self.settings.session:
+            cookies.append(f"LEETCODE_SESSION={self.settings.session}")
+        if self.settings.csrf_token:
+            headers["x-csrftoken"] = self.settings.csrf_token
+            cookies.append(f"csrftoken={self.settings.csrf_token}")
+        if cookies:
+            headers["Cookie"] = "; ".join(cookies)
+
         request = Request(
             self.settings.graphql_url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "import-exercise-batch/0.1.0",
-            },
+            headers=headers,
             method="POST",
         )
 
         last_error: Exception | None = None
         for attempt in range(1, self.settings.max_retries + 1):
             try:
+                self.logger.info(
+                    "Calling LeetCode GraphQL attempt=%s url=%s",
+                    attempt,
+                    self.settings.graphql_url,
+                )
                 with urlopen(request, timeout=self.settings.request_timeout_seconds) as response:
                     body = response.read().decode("utf-8")
                     parsed = json.loads(body)
@@ -103,6 +172,7 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
                         raise RuntimeError(
                             f"LeetCode GraphQL returned errors: {parsed['errors']}"
                         )
+                    self.logger.info("LeetCode GraphQL call succeeded on attempt=%s", attempt)
                     return parsed
             except (
                 HTTPError,
@@ -112,6 +182,11 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
                 RuntimeError,
             ) as error:
                 last_error = error
+                self.logger.warning(
+                    "LeetCode GraphQL call failed on attempt=%s: %s",
+                    attempt,
+                    error,
+                )
                 if attempt == self.settings.max_retries:
                     break
                 time.sleep(self.settings.backoff_seconds * attempt)

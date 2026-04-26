@@ -50,23 +50,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v1/knowledgegraph/concepts/{concept_id}:
+  /api/v1/knowledgegraph/concepts/{concept_slug}:
     put:
       summary: Upsert Concept
-      operationId: upsert_concept_api_v1_knowledgegraph_concepts__concept_id__put
+      operationId: upsert_concept_api_v1_knowledgegraph_concepts__concept_slug__put
       parameters:
-        - name: concept_id
+        - name: concept_slug
           in: path
           required: true
           schema:
             type: string
-            title: Concept Id
+            title: Concept Slug
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UpsertConceptRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphConceptResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/concepts/{concept_slug}/relations:
+    patch:
+      summary: Patch Concept Relations
+      operationId: patch_concept_relations_api_v1_knowledgegraph_concepts__concept_slug__relations_patch
+      parameters:
+        - name: concept_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Concept Slug
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchConceptRelationsRequest'
       responses:
         "200":
           description: Successful Response
@@ -97,6 +127,36 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpsertExerciseRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphExerciseResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/exercises/{exercise_id}/relations:
+    patch:
+      summary: Patch Exercise Relations
+      operationId: patch_exercise_relations_api_v1_knowledgegraph_exercises__exercise_id__relations_patch
+      parameters:
+        - name: exercise_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Exercise Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchExerciseRelationsRequest'
       responses:
         "200":
           description: Successful Response
@@ -244,11 +304,51 @@ components:
         - start
         - end
       title: ColumnContext
+    PatchConceptRelationsRequest:
+      properties:
+        prerequisite_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Prerequisite Slugs
+      type: object
+      title: PatchConceptRelationsRequest
+    PatchExerciseRelationsRequest:
+      properties:
+        concept_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Concept Slugs
+        related_exercise_ids:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Ids
+        related_exercise_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Slugs
+      type: object
+      title: PatchExerciseRelationsRequest
     ConceptRecord:
       properties:
         concept_id:
           type: string
           title: Concept Id
+        slug:
+          type: string
+          title: Slug
+          default: ""
         name:
           type: string
           title: Name
@@ -329,6 +429,10 @@ components:
         exercise_id:
           type: string
           title: Exercise Id
+        slug:
+          type: string
+          title: Slug
+          default: ""
         title:
           type: string
           title: Title
@@ -1184,17 +1288,16 @@ components:
           type: integer
           title: Difficulty
           default: 1
-        prerequisite_ids:
-          items:
-            type: string
-          type: array
-          title: Prerequisite Ids
       type: object
       required:
         - name
       title: UpsertConceptRequest
     UpsertExerciseRequest:
       properties:
+        slug:
+          type: string
+          title: Slug
+          default: ""
         title:
           type: string
           title: Title
@@ -1212,16 +1315,6 @@ components:
             type: string
           type: array
           title: Tags
-        concept_ids:
-          items:
-            type: string
-          type: array
-          title: Concept Ids
-        related_exercise_ids:
-          items:
-            type: string
-          type: array
-          title: Related Exercise Ids
       type: object
       required:
         - title

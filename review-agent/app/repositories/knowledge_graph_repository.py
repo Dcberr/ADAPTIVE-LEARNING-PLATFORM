@@ -140,6 +140,7 @@ class KnowledgeGraphRepository:
                 MATCH (c:Concept)
                 WHERE c.concept_id IN $concept_ids
                 RETURN c.concept_id AS concept_id,
+                       coalesce(c.slug, c.concept_id) AS slug,
                        coalesce(c.name, c.concept_id) AS name,
                        coalesce(c.description, '') AS description,
                        coalesce(c.difficulty, 1) AS difficulty
@@ -149,12 +150,50 @@ class KnowledgeGraphRepository:
             return {
                 record["concept_id"]: ConceptRecord(
                     concept_id=record["concept_id"],
+                    slug=record["slug"],
                     name=record["name"],
                     description=record["description"],
                     difficulty=record["difficulty"],
                 )
                 for record in rows
             }
+
+    def get_concepts_by_slugs(
+        self, concept_slugs: list[str]
+    ) -> dict[str, list[ConceptRecord]]:
+        unique_slugs = list(dict.fromkeys(concept_slugs))
+        if not unique_slugs:
+            return {}
+
+        with self.driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (c:Concept)
+                WHERE c.slug IN $concept_slugs
+                RETURN c.slug AS slug,
+                       c.concept_id AS concept_id,
+                       coalesce(c.name, c.concept_id) AS name,
+                       coalesce(c.description, '') AS description,
+                       coalesce(c.difficulty, 1) AS difficulty
+                ORDER BY slug ASC, concept_id ASC
+                """,
+                concept_slugs=unique_slugs,
+            )
+            concept_map: dict[str, list[ConceptRecord]] = {
+                slug: [] for slug in unique_slugs
+            }
+            for record in rows:
+                slug = record["slug"]
+                concept_map.setdefault(slug, []).append(
+                    ConceptRecord(
+                        concept_id=record["concept_id"],
+                        slug=record["slug"],
+                        name=record["name"],
+                        description=record["description"],
+                        difficulty=record["difficulty"],
+                    )
+                )
+            return concept_map
 
     def get_exercises_by_ids(self, exercise_ids: list[str]) -> dict[str, ExerciseRecord]:
         unique_ids = list(dict.fromkeys(exercise_ids))
@@ -167,6 +206,7 @@ class KnowledgeGraphRepository:
                 MATCH (e:Exercise)
                 WHERE e.exercise_id IN $exercise_ids
                 RETURN e.exercise_id AS exercise_id,
+                       coalesce(e.slug, '') AS slug,
                        coalesce(e.title, '') AS title,
                        coalesce(e.description, '') AS description,
                        coalesce(e.content, '') AS content,
@@ -178,6 +218,7 @@ class KnowledgeGraphRepository:
             return {
                 record["exercise_id"]: ExerciseRecord(
                     exercise_id=record["exercise_id"],
+                    slug=record["slug"],
                     title=record["title"],
                     description=record["description"],
                     content=record["content"],
@@ -186,6 +227,47 @@ class KnowledgeGraphRepository:
                 )
                 for record in rows
             }
+
+    def get_exercises_by_slugs(
+        self, exercise_slugs: list[str]
+    ) -> dict[str, list[ExerciseRecord]]:
+        unique_slugs = list(dict.fromkeys(exercise_slugs))
+        if not unique_slugs:
+            return {}
+
+        with self.driver.session() as session:
+            rows = session.run(
+                """
+                MATCH (e:Exercise)
+                WHERE e.slug IN $exercise_slugs
+                RETURN e.slug AS slug,
+                       e.exercise_id AS exercise_id,
+                       coalesce(e.title, '') AS title,
+                       coalesce(e.description, '') AS description,
+                       coalesce(e.content, '') AS content,
+                       coalesce(e.difficulty, '') AS difficulty,
+                       coalesce(e.tags, []) AS tags
+                ORDER BY slug ASC, exercise_id ASC
+                """,
+                exercise_slugs=unique_slugs,
+            )
+            exercise_map: dict[str, list[ExerciseRecord]] = {
+                slug: [] for slug in unique_slugs
+            }
+            for record in rows:
+                slug = record["slug"]
+                exercise_map.setdefault(slug, []).append(
+                    ExerciseRecord(
+                        exercise_id=record["exercise_id"],
+                        slug=record["slug"],
+                        title=record["title"],
+                        description=record["description"],
+                        content=record["content"],
+                        difficulty=record["difficulty"],
+                        tags=record["tags"] or [],
+                    )
+                )
+            return exercise_map
 
     def get_concept_ids_for_exercises(self, exercise_ids: list[str]) -> list[str]:
         unique_ids = list(dict.fromkeys(exercise_ids))
@@ -654,89 +736,98 @@ class KnowledgeGraphRepository:
     def upsert_concept(
         self,
         concept: ConceptRecord,
-        prerequisites: list[tuple[ConceptRecord, float]] | None = None,
     ) -> ConceptRecord:
         with self.driver.session() as session:
             session.run(
                 """
-                MERGE (c:Concept {concept_id: $concept_id})
-                SET c.name = $name,
+                MERGE (c:Concept {slug: $slug})
+                SET c.concept_id = $concept_id,
+                    c.slug = $slug,
+                    c.name = $name,
                     c.description = $description,
                     c.difficulty = $difficulty
                 """,
                 concept_id=concept.concept_id,
+                slug=concept.slug,
                 name=concept.name,
                 description=concept.description,
                 difficulty=concept.difficulty,
             )
+        return concept
 
+    def replace_concept_prerequisites(
+        self,
+        *,
+        concept_slug: str,
+        prerequisites: list[tuple[ConceptRecord, float]],
+    ) -> None:
+        with self.driver.session() as session:
             session.run(
                 """
-                MATCH (:Concept)-[r:PREREQUISITE_OF]->(c:Concept {concept_id: $concept_id})
+                MATCH (:Concept)-[r:PREREQUISITE_OF]->(c:Concept {slug: $concept_slug})
                 DELETE r
                 """,
-                concept_id=concept.concept_id,
+                concept_slug=concept_slug,
             )
 
-            for prerequisite, strength in prerequisites or []:
+            for prerequisite, strength in prerequisites:
                 session.run(
                     """
-                    MATCH (p:Concept {concept_id: $prerequisite_id})
-                    MATCH (c:Concept {concept_id: $concept_id})
+                    MATCH (p:Concept {slug: $prerequisite_slug})
+                    MATCH (c:Concept {slug: $concept_slug})
                     MERGE (p)-[r:PREREQUISITE_OF]->(c)
                     SET r.strength = $strength
                     """,
-                    prerequisite_id=prerequisite.concept_id,
-                    concept_id=concept.concept_id,
+                    prerequisite_slug=prerequisite.slug,
+                    concept_slug=concept_slug,
                     strength=strength,
                 )
-
-        return concept
 
     def upsert_exercise(
         self,
         exercise: ExerciseRecord,
-        concepts: list[tuple[ConceptRecord, float, list[dict]]],
-        related_exercises: list[tuple[ExerciseRecord, dict]],
     ) -> ExerciseRecord:
         with self.driver.session() as session:
             session.run(
                 """
                 MERGE (e:Exercise {exercise_id: $exercise_id})
-                SET e.title = $title,
+                SET e.slug = $slug,
+                    e.title = $title,
                     e.description = $description,
                     e.content = $content,
                     e.difficulty = $difficulty,
                     e.tags = $tags
                 """,
                 exercise_id=exercise.exercise_id,
+                slug=exercise.slug,
                 title=exercise.title,
                 description=exercise.description,
                 content=exercise.content,
                 difficulty=exercise.difficulty,
                 tags=exercise.tags,
             )
+        return exercise
 
+    def replace_exercise_concepts(
+        self,
+        *,
+        exercise_id: str,
+        concepts: list[tuple[ConceptRecord, float, list[dict]]],
+    ) -> None:
+        with self.driver.session() as session:
             session.run(
                 """
                 MATCH (e:Exercise {exercise_id: $exercise_id})-[r:TESTS]->(:Concept)
                 DELETE r
                 """,
-                exercise_id=exercise.exercise_id,
+                exercise_id=exercise_id,
             )
             session.run(
                 """
                 MATCH (e:Exercise {exercise_id: $exercise_id})-[r:RECOMMENDED_FOR]->(:Concept)
                 DELETE r
                 """,
-                exercise_id=exercise.exercise_id,
-            )
-            session.run(
-                """
-                MATCH (e:Exercise {exercise_id: $exercise_id})-[r:RELATED_TO]->(:Exercise)
-                DELETE r
-                """,
-                exercise_id=exercise.exercise_id,
+                exercise_id=exercise_id,
             )
 
             for concept, weight, recommended_paths in concepts:
@@ -748,7 +839,7 @@ class KnowledgeGraphRepository:
                     SET r.weight = $weight
                     """,
                     concept_id=concept.concept_id,
-                    exercise_id=exercise.exercise_id,
+                    exercise_id=exercise_id,
                     weight=weight,
                 )
                 for path_config in recommended_paths:
@@ -759,11 +850,26 @@ class KnowledgeGraphRepository:
                         MERGE (e)-[r:RECOMMENDED_FOR {path: $path}]->(c)
                         SET r.weight = $weight
                         """,
-                        exercise_id=exercise.exercise_id,
+                        exercise_id=exercise_id,
                         concept_id=concept.concept_id,
                         path=path_config["path"],
                         weight=path_config.get("weight", 1.0),
                     )
+
+    def replace_exercise_related_exercises(
+        self,
+        *,
+        exercise_id: str,
+        related_exercises: list[tuple[ExerciseRecord, dict]],
+    ) -> None:
+        with self.driver.session() as session:
+            session.run(
+                """
+                MATCH (e:Exercise {exercise_id: $exercise_id})-[r:RELATED_TO]->(:Exercise)
+                DELETE r
+                """,
+                exercise_id=exercise_id,
+            )
 
             for related_exercise, relation_config in related_exercises:
                 session.run(
@@ -779,7 +885,7 @@ class KnowledgeGraphRepository:
                         r.progression_score = $progression_score,
                         r.similarity_score = $similarity_score
                     """,
-                    exercise_id=exercise.exercise_id,
+                    exercise_id=exercise_id,
                     related_exercise_id=related_exercise.exercise_id,
                     weight=relation_config.get("weight", 1.0),
                     relation_type=relation_config.get("relation_type", ""),
@@ -789,8 +895,6 @@ class KnowledgeGraphRepository:
                     progression_score=relation_config.get("progression_score", 0.0),
                     similarity_score=relation_config.get("similarity_score", 0.0),
                 )
-
-        return exercise
 
     def upsert_student(
         self,
@@ -1634,6 +1738,7 @@ class KnowledgeGraphRepository:
                 """
                 MATCH (:Concept {concept_id: $concept_id})-[:PREREQUISITE_OF]->(next:Concept)
                 RETURN next.concept_id AS concept_id,
+                       coalesce(next.slug, next.concept_id) AS slug,
                        next.name AS name,
                        coalesce(next.description, '') AS description,
                        coalesce(next.difficulty, 1) AS difficulty
@@ -1644,6 +1749,7 @@ class KnowledgeGraphRepository:
             return [
                 ConceptRecord(
                     concept_id=record["concept_id"],
+                    slug=record["slug"],
                     name=record["name"] or record["concept_id"],
                     description=record["description"],
                     difficulty=record["difficulty"],
@@ -1735,6 +1841,7 @@ class KnowledgeGraphRepository:
                         "similarity_score": float(record["similarity_score"] or 0.0),
                         "exercise": ExerciseRecord(
                             exercise_id=record["exercise_id"],
+                            slug=record["slug"] or "",
                             title=record["title"],
                             description=record["description"],
                             content=record["content"],
@@ -1750,6 +1857,7 @@ class KnowledgeGraphRepository:
             concepts = [
                 ConceptRecord(
                     concept_id=record["concept_id"],
+                    slug=record["slug"] or record["concept_id"],
                     name=record["name"] or record["concept_id"],
                     description=record["description"],
                     difficulty=record["difficulty"],
@@ -1758,6 +1866,7 @@ class KnowledgeGraphRepository:
                     """
                     MATCH (c:Concept)
                     RETURN c.concept_id AS concept_id,
+                           coalesce(c.slug, c.concept_id) AS slug,
                            c.name AS name,
                            coalesce(c.description, '') AS description,
                            coalesce(c.difficulty, 1) AS difficulty
@@ -1783,6 +1892,7 @@ class KnowledgeGraphRepository:
             exercises = [
                 ExerciseRecord(
                     exercise_id=record["exercise_id"],
+                    slug=record["slug"] or "",
                     title=record["title"],
                     description=record["description"],
                     content=record["content"],
@@ -1793,6 +1903,7 @@ class KnowledgeGraphRepository:
                     """
                     MATCH (e:Exercise)
                     RETURN e.exercise_id AS exercise_id,
+                           coalesce(e.slug, '') AS slug,
                            e.title AS title,
                            coalesce(e.description, '') AS description,
                            coalesce(e.content, '') AS content,

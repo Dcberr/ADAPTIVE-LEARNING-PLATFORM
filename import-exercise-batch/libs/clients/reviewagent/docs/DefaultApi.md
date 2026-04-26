@@ -6,8 +6,10 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**generate_recommendation_api_v1_recommendation_post**](DefaultApi.md#generate_recommendation_api_v1_recommendation_post) | **POST** /api/v1/recommendation | Generate Recommendation
 [**get_knowledge_graph_snapshot_api_v1_knowledgegraph_get**](DefaultApi.md#get_knowledge_graph_snapshot_api_v1_knowledgegraph_get) | **GET** /api/v1/knowledgegraph | Get Knowledge Graph Snapshot
+[**patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch**](DefaultApi.md#patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch) | **PATCH** /api/v1/knowledgegraph/concepts/{concept_slug}/relations | Patch Concept Relations
+[**patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch**](DefaultApi.md#patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch) | **PATCH** /api/v1/knowledgegraph/exercises/{exercise_id}/relations | Patch Exercise Relations
 [**review_code_api_v1_review_code_post**](DefaultApi.md#review_code_api_v1_review_code_post) | **POST** /api/v1/review_code | Review Code
-[**upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put**](DefaultApi.md#upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put) | **PUT** /api/v1/knowledgegraph/concepts/{concept_id} | Upsert Concept
+[**upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put**](DefaultApi.md#upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put) | **PUT** /api/v1/knowledgegraph/concepts/{concept_slug} | Upsert Concept
 [**upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put**](DefaultApi.md#upsert_exercise_api_v1_knowledgegraph_exercises_exercise_id_put) | **PUT** /api/v1/knowledgegraph/exercises/{exercise_id} | Upsert Exercise
 [**upsert_review_api_v1_knowledgegraph_reviews_review_id_put**](DefaultApi.md#upsert_review_api_v1_knowledgegraph_reviews_review_id_put) | **PUT** /api/v1/knowledgegraph/reviews/{review_id} | Upsert Review
 [**upsert_student_api_v1_knowledgegraph_students_student_id_put**](DefaultApi.md#upsert_student_api_v1_knowledgegraph_students_student_id_put) | **PUT** /api/v1/knowledgegraph/students/{student_id} | Upsert Student
@@ -144,6 +146,146 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch**
+> KnowledgeGraphConceptResponse patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch(concept_slug, patch_concept_relations_request)
+
+Patch Concept Relations
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_concept_response import KnowledgeGraphConceptResponse
+from reviewagent_client.models.patch_concept_relations_request import PatchConceptRelationsRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    concept_slug = 'concept_slug_example' # str | 
+    patch_concept_relations_request = reviewagent_client.PatchConceptRelationsRequest() # PatchConceptRelationsRequest | 
+
+    try:
+        # Patch Concept Relations
+        api_response = api_instance.patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch(concept_slug, patch_concept_relations_request)
+        print("The response of DefaultApi->patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **concept_slug** | **str**|  | 
+ **patch_concept_relations_request** | [**PatchConceptRelationsRequest**](PatchConceptRelationsRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphConceptResponse**](KnowledgeGraphConceptResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch**
+> KnowledgeGraphExerciseResponse patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch(exercise_id, patch_exercise_relations_request)
+
+Patch Exercise Relations
+
+### Example
+
+
+```python
+import reviewagent_client
+from reviewagent_client.models.knowledge_graph_exercise_response import KnowledgeGraphExerciseResponse
+from reviewagent_client.models.patch_exercise_relations_request import PatchExerciseRelationsRequest
+from reviewagent_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = reviewagent_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with reviewagent_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = reviewagent_client.DefaultApi(api_client)
+    exercise_id = 'exercise_id_example' # str | 
+    patch_exercise_relations_request = reviewagent_client.PatchExerciseRelationsRequest() # PatchExerciseRelationsRequest | 
+
+    try:
+        # Patch Exercise Relations
+        api_response = api_instance.patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch(exercise_id, patch_exercise_relations_request)
+        print("The response of DefaultApi->patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **exercise_id** | **str**|  | 
+ **patch_exercise_relations_request** | [**PatchExerciseRelationsRequest**](PatchExerciseRelationsRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphExerciseResponse**](KnowledgeGraphExerciseResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **review_code_api_v1_review_code_post**
 > ReviewResponse review_code_api_v1_review_code_post(review_request)
 
@@ -214,8 +356,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put**
-> KnowledgeGraphConceptResponse upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put(concept_id, upsert_concept_request)
+# **upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put**
+> KnowledgeGraphConceptResponse upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put(concept_slug, upsert_concept_request)
 
 Upsert Concept
 
@@ -240,16 +382,16 @@ configuration = reviewagent_client.Configuration(
 with reviewagent_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = reviewagent_client.DefaultApi(api_client)
-    concept_id = 'concept_id_example' # str | 
+    concept_slug = 'concept_slug_example' # str | 
     upsert_concept_request = reviewagent_client.UpsertConceptRequest() # UpsertConceptRequest | 
 
     try:
         # Upsert Concept
-        api_response = api_instance.upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put(concept_id, upsert_concept_request)
-        print("The response of DefaultApi->upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put:\n")
+        api_response = api_instance.upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put(concept_slug, upsert_concept_request)
+        print("The response of DefaultApi->upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling DefaultApi->upsert_concept_api_v1_knowledgegraph_concepts_concept_id_put: %s\n" % e)
+        print("Exception when calling DefaultApi->upsert_concept_api_v1_knowledgegraph_concepts_concept_slug_put: %s\n" % e)
 ```
 
 
@@ -259,7 +401,7 @@ with reviewagent_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **concept_id** | **str**|  | 
+ **concept_slug** | **str**|  | 
  **upsert_concept_request** | [**UpsertConceptRequest**](UpsertConceptRequest.md)|  | 
 
 ### Return type

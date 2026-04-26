@@ -27,14 +27,13 @@ class UpsertExerciseRequest(BaseModel):
     """
     UpsertExerciseRequest
     """ # noqa: E501
+    slug: Optional[StrictStr] = ''
     title: StrictStr
     description: StrictStr
     content: StrictStr
     difficulty: StrictStr
     tags: Optional[List[StrictStr]] = None
-    concept_ids: Optional[List[StrictStr]] = None
-    related_exercise_ids: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["title", "description", "content", "difficulty", "tags", "concept_ids", "related_exercise_ids"]
+    __properties: ClassVar[List[str]] = ["slug", "title", "description", "content", "difficulty", "tags"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -87,13 +86,12 @@ class UpsertExerciseRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "slug": obj.get("slug") if obj.get("slug") is not None else '',
             "title": obj.get("title"),
             "description": obj.get("description"),
             "content": obj.get("content"),
             "difficulty": obj.get("difficulty"),
-            "tags": obj.get("tags"),
-            "concept_ids": obj.get("concept_ids"),
-            "related_exercise_ids": obj.get("related_exercise_ids")
+            "tags": obj.get("tags")
         })
         return _obj
 

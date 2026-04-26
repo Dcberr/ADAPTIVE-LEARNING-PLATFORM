@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **concept_id** | **str** |  | 
+**slug** | **str** |  | [optional] [default to '']
 **name** | **str** |  | 
 **description** | **str** |  | [optional] [default to '']
 **difficulty** | **int** |  | [optional] [default to 1]

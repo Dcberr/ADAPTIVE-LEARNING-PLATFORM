@@ -52,6 +52,7 @@ class TestKnowledgeGraphSnapshotResponse(unittest.TestCase):
                     exercises = [
                         reviewagent_client.models.exercise_record.ExerciseRecord(
                             exercise_id = '', 
+                            slug = '', 
                             title = '', 
                             description = '', 
                             content = '', 
@@ -157,6 +158,7 @@ class TestKnowledgeGraphSnapshotResponse(unittest.TestCase):
                     exercises = [
                         reviewagent_client.models.exercise_record.ExerciseRecord(
                             exercise_id = '', 
+                            slug = '', 
                             title = '', 
                             description = '', 
                             content = '', 

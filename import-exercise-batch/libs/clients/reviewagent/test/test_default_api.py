@@ -40,6 +40,13 @@ class TestDefaultApi(unittest.TestCase):
         """
         pass
 
+    def test_patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch(self) -> None:
+        """Test case for patch_exercise_relations_api_v1_knowledgegraph_exercises_exercise_id_relations_patch
+
+        Patch Exercise Relations
+        """
+        pass
+
     def test_review_code_api_v1_review_code_post(self) -> None:
         """Test case for review_code_api_v1_review_code_post
 

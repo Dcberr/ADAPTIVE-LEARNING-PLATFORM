@@ -30,8 +30,7 @@ class UpsertConceptRequest(BaseModel):
     name: StrictStr
     description: Optional[StrictStr] = ''
     difficulty: Optional[StrictInt] = 1
-    prerequisite_ids: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["name", "description", "difficulty", "prerequisite_ids"]
+    __properties: ClassVar[List[str]] = ["name", "description", "difficulty"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -86,8 +85,7 @@ class UpsertConceptRequest(BaseModel):
         _obj = cls.model_validate({
             "name": obj.get("name"),
             "description": obj.get("description") if obj.get("description") is not None else '',
-            "difficulty": obj.get("difficulty") if obj.get("difficulty") is not None else 1,
-            "prerequisite_ids": obj.get("prerequisite_ids")
+            "difficulty": obj.get("difficulty") if obj.get("difficulty") is not None else 1
         })
         return _obj
 

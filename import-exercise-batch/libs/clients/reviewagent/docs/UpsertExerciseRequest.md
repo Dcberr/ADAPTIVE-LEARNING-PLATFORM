@@ -5,13 +5,12 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**slug** | **str** |  | [optional] [default to '']
 **title** | **str** |  | 
 **description** | **str** |  | 
 **content** | **str** |  | 
 **difficulty** | **str** |  | 
 **tags** | **List[str]** |  | [optional] 
-**concept_ids** | **List[str]** |  | [optional] 
-**related_exercise_ids** | **List[str]** |  | [optional] 
 
 ## Example
 

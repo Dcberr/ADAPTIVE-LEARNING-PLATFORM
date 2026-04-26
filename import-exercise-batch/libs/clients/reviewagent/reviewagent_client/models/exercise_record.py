@@ -28,12 +28,13 @@ class ExerciseRecord(BaseModel):
     ExerciseRecord
     """ # noqa: E501
     exercise_id: StrictStr
+    slug: Optional[StrictStr] = ''
     title: StrictStr
     description: StrictStr
     content: StrictStr
     difficulty: StrictStr
     tags: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["exercise_id", "title", "description", "content", "difficulty", "tags"]
+    __properties: ClassVar[List[str]] = ["exercise_id", "slug", "title", "description", "content", "difficulty", "tags"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -87,6 +88,7 @@ class ExerciseRecord(BaseModel):
 
         _obj = cls.model_validate({
             "exercise_id": obj.get("exercise_id"),
+            "slug": obj.get("slug") if obj.get("slug") is not None else '',
             "title": obj.get("title"),
             "description": obj.get("description"),
             "content": obj.get("content"),

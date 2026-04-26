@@ -36,6 +36,7 @@ class TestExerciseRecord(unittest.TestCase):
         if include_optional:
             return ExerciseRecord(
                 exercise_id = '',
+                slug = '',
                 title = '',
                 description = '',
                 content = '',

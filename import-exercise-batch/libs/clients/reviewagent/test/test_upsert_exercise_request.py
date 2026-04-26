@@ -35,17 +35,12 @@ class TestUpsertExerciseRequest(unittest.TestCase):
         model = UpsertExerciseRequest()
         if include_optional:
             return UpsertExerciseRequest(
+                slug = '',
                 title = '',
                 description = '',
                 content = '',
                 difficulty = '',
                 tags = [
-                    ''
-                    ],
-                concept_ids = [
-                    ''
-                    ],
-                related_exercise_ids = [
                     ''
                     ]
             )

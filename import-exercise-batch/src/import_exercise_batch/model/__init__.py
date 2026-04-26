@@ -1,3 +1,4 @@
-from import_exercise_batch.model.exercise_import import ExerciseImportRecord
+from import_exercise_batch.model.leetcode_problem import LeetCodeProblem
+from import_exercise_batch.model.leetcode_problem_change import LeetCodeProblemChange
 
-__all__ = ["ExerciseImportRecord"]
+__all__ = ["LeetCodeProblem", "LeetCodeProblemChange"]

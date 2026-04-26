@@ -37,6 +37,7 @@ class TestKnowledgeGraphExerciseResponse(unittest.TestCase):
             return KnowledgeGraphExerciseResponse(
                 exercise = reviewagent_client.models.exercise_record.ExerciseRecord(
                     exercise_id = '', 
+                    slug = '', 
                     title = '', 
                     description = '', 
                     content = '', 
@@ -49,6 +50,7 @@ class TestKnowledgeGraphExerciseResponse(unittest.TestCase):
             return KnowledgeGraphExerciseResponse(
                 exercise = reviewagent_client.models.exercise_record.ExerciseRecord(
                     exercise_id = '', 
+                    slug = '', 
                     title = '', 
                     description = '', 
                     content = '', 
