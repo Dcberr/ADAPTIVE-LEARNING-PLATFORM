@@ -29,4 +29,5 @@ public class ProblemResponse {
 
     private List<TestcaseResponse> testcases;
 
+    private List<String> similarQuestionIds;
 }

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -198,29 +199,66 @@ public class ProblemServiceImpl implements ProblemService {
     @Override
     public void batchInsertLeetCode(List<LeetCodeImportRequest> requests) {
 
+        Map<String, Problem> cache = new HashMap<>();
+
+        // =========================
+        // PHASE 1: INSERT PROBLEMS
+        // =========================
         for (LeetCodeImportRequest req : requests) {
 
-            boolean exists = problemRepository.existsBySourceAndExternalId(
-                    "LEETCODE", req.getExternalId()
-            );
+            Optional<Problem> existing =
+                    problemRepository.findBySourceAndExternalId("LEETCODE", req.getExternalId());
 
-            if (exists) continue;
+            Problem problem;
 
-            Problem problem = Problem.builder()
-                    .title(req.getTitle())
-                    .description(req.getDescription())
-                    .difficulty(req.getDifficulty())
-                    .problemConstraint(req.getConstraints())
-                    .starterCodes(req.getStarterCodes())
-                    .type(ProblemType.LEETCODE)
-                    .source("LEETCODE")
-                    .externalId(req.getExternalId())
-                    .createdAt(Instant.now())
-                    .build();
+            if (existing.isPresent()) {
+                problem = existing.get();
+            } else {
+                problem = Problem.builder()
+                        .title(req.getTitle())
+                        .description(req.getDescription())
+                        .difficulty(req.getDifficulty())
+                        .problemConstraint(req.getConstraints())
+                        .starterCodes(req.getStarterCodes())
+                        .type(ProblemType.LEETCODE)
+                        .source("LEETCODE")
+                        .externalId(req.getExternalId())
+                        .createdAt(Instant.now())
+                        .build();
 
-            problemRepository.save(problem);
+                problemRepository.save(problem);
 
-            saveTestcases(problem.getId(), req.getTestcases());
+                saveTestcases(problem.getId(), req.getTestcases());
+            }
+
+            cache.put(req.getExternalId(), problem);
+        }
+
+        // =========================
+        // PHASE 2: LINK SIMILAR
+        // =========================
+        for (LeetCodeImportRequest req : requests) {
+
+            Problem current = cache.get(req.getExternalId());
+
+            if (req.getSimilarQuestionIds() == null) continue;
+
+            for (String similarId : req.getSimilarQuestionIds()) {
+
+                Problem similar = problemRepository
+                        .findBySourceAndExternalId("LEETCODE", similarId)
+                        .orElse(null);
+
+                if (similar != null && !similar.getId().equals(current.getId())) {
+
+                    current.getSimilarProblems().add(similar);
+
+                    // OPTIONAL: 2 chiều
+                    similar.getSimilarProblems().add(current);
+                }
+            }
+
+            problemRepository.save(current);
         }
     }
 

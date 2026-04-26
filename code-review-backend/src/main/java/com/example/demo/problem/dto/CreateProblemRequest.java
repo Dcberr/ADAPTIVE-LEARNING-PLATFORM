@@ -22,6 +22,8 @@ public class CreateProblemRequest {
 
     private List<TestcaseDto> testcases;
 
+    // private List<String> similarQuestionIds;
+
     // @Data
     // public static class TestcaseRequest {
     //     private String input;
