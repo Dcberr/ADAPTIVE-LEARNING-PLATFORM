@@ -12,17 +12,25 @@ class UpsertConceptRequest(BaseModel):
     name: str
     description: str = ""
     difficulty: int = 1
-    prerequisite_ids: list[str] = Field(default_factory=list)
+
+
+class PatchConceptRelationsRequest(BaseModel):
+    prerequisite_slugs: list[str] | None = None
 
 
 class UpsertExerciseRequest(BaseModel):
+    slug: str = ""
     title: str
     description: str
     content: str
     difficulty: str
     tags: list[str] = Field(default_factory=list)
-    concept_ids: list[str] = Field(default_factory=list)
-    related_exercise_ids: list[str] = Field(default_factory=list)
+
+
+class PatchExerciseRelationsRequest(BaseModel):
+    concept_slugs: list[str] | None = None
+    related_exercise_ids: list[str] | None = None
+    related_exercise_slugs: list[str] | None = None
 
 
 class UpsertStudentProfileRequest(BaseModel):

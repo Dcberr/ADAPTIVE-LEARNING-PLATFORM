@@ -1,6 +1,0 @@
-{
-    "editor.fontFamily": "JetBrains Mono, JetBrainsMono Nerd Font, monospace",
-    "editor.defaultFormatter": "ms-python.black-formatter",
-    "editor.formatOnSave": true
-    
-}

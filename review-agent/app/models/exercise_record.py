@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class ExerciseRecord(BaseModel):
     exercise_id: str
+    slug: str = ""
     title: str
     description: str
     content: str

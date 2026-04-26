@@ -13,6 +13,7 @@ AssignedPath = Literal["REINFORCE", "IMPROVE", "NEXT_CONCEPT"]
 
 class ConceptRecord(BaseModel):
     concept_id: str
+    slug: str = ""
     name: str
     description: str = ""
     difficulty: int = 1
