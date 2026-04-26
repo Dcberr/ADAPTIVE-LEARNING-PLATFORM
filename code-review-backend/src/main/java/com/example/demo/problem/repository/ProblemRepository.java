@@ -10,5 +10,5 @@ import com.example.demo.problem.entity.Problem;
 @Repository
 public interface ProblemRepository
         extends JpaRepository<Problem, UUID> {
-
+        boolean existsBySourceAndExternalId(String source, String externalId);
 }
