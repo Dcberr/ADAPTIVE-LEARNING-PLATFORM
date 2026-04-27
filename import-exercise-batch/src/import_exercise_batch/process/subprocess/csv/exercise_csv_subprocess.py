@@ -17,6 +17,8 @@ class ExerciseCsvSubProcess(BaseSubProcess):
         "question_slug",
         "title",
         "content",
+        "sample_test_case",
+        "code_snippet",
         "difficulty",
         "topic_tag_slugs",
         "similar_question_slugs",
@@ -38,6 +40,8 @@ class ExerciseCsvSubProcess(BaseSubProcess):
                         "question_slug": exercise.question_slug,
                         "title": exercise.title,
                         "content": exercise.content,
+                        "sample_test_case": exercise.sample_test_case,
+                        "code_snippet": exercise.code_snippet,
                         "difficulty": exercise.difficulty,
                         "topic_tag_slugs": json.dumps(
                             exercise.topic_tag_slugs, ensure_ascii=False

@@ -13,9 +13,13 @@ class LeetCodeProblemChange:
     question_slug: str
     title: str
     content: str
+    sample_test_case: str
+    code_snippet: str
     difficulty: str
     topic_tag_slugs: list[str]
     similar_question_slugs: list[str]
+    latest_sample_test_case: str
+    latest_code_snippet: str
     latest_topic_tag_slugs: list[str]
     latest_similar_question_slugs: list[str]
     diff_type: str
@@ -30,9 +34,13 @@ class LeetCodeProblemChange:
             question_slug=row["question_slug"],
             title=row["title"],
             content=row["content"],
+            sample_test_case=row["sample_test_case"],
+            code_snippet=row["code_snippet"],
             difficulty=row["difficulty"],
             topic_tag_slugs=json.loads(row["topic_tag_slugs"]),
             similar_question_slugs=json.loads(row["similar_question_slugs"]),
+            latest_sample_test_case=row["latest_sample_test_case"] or "",
+            latest_code_snippet=row["latest_code_snippet"] or "",
             latest_topic_tag_slugs=json.loads(row["latest_topic_tag_slugs"] or "[]"),
             latest_similar_question_slugs=json.loads(
                 row["latest_similar_question_slugs"] or "[]"
@@ -48,6 +56,8 @@ class LeetCodeProblemChange:
             question_slug=self.question_slug,
             title=self.title,
             content=self.content,
+            sample_test_case=self.sample_test_case,
+            code_snippet=self.code_snippet,
             difficulty=self.difficulty,
             topic_tag_slugs=self.topic_tag_slugs,
             similar_question_slugs=self.similar_question_slugs,
@@ -64,6 +74,8 @@ class LeetCodeProblemChange:
             "question_slug": record["question_slug"],
             "title": record["title"],
             "content": record["content"],
+            "sample_test_case": record["sample_test_case"],
+            "code_snippet": record["code_snippet"],
             "difficulty": record["difficulty"],
             "topic_tag_slugs": record["topic_tag_slugs"],
             "similar_question_slugs": record["similar_question_slugs"],

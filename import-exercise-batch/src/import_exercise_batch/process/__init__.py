@@ -1,6 +1,6 @@
 """Batch processing modules."""
 
-from import_exercise_batch.process.main_processes import (
+from import_exercise_batch.process.mainprocess import (
     BaseMainProcess,
     ImportExercisesMainProcess,
     ImportTopicsMainProcess,

@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -6,10 +7,13 @@ from code_review_ai.api.knowledge_graph_deps import get_knowledge_graph_reposito
 from code_review_ai.api.knowledge_graph_deps import get_exercise_weight_agent
 from code_review_ai.api.knowledge_graph_deps import get_prerequisite_weight_agent
 from code_review_ai.api.knowledge_graph_schema import (
+    BatchPatchExerciseRelationsRequest,
+    BatchUpsertExercisesRequest,
     KnowledgeGraphConceptResponse,
     PatchConceptRelationsRequest,
     PatchExerciseRelationsRequest,
     KnowledgeGraphReviewResponse,
+    KnowledgeGraphExercisesBatchResponse,
     KnowledgeGraphExerciseResponse,
     KnowledgeGraphSnapshotResponse,
     KnowledgeGraphStudentResponse,
@@ -29,6 +33,7 @@ from code_review_ai.agents.prerequisite_weight_agent import PrerequisiteWeightAg
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+RELATION_EVALUATION_CONCURRENCY = 4
 
 
 @router.put(
@@ -131,6 +136,273 @@ async def patch_concept_relations(
         logger.exception("Concept relation update failed")
         raise HTTPException(
             status_code=500, detail=f"Concept relation update failed: {exc}"
+        )
+
+
+@router.put(
+    "/knowledgegraph/exercises/batch",
+    response_model=KnowledgeGraphExercisesBatchResponse,
+)
+async def batch_upsert_exercises(
+    request: BatchUpsertExercisesRequest,
+    repository: KnowledgeGraphRepository = Depends(get_knowledge_graph_repository),
+):
+    try:
+        exercises = repository.upsert_exercises(
+            [
+                ExerciseRecord(
+                    exercise_id=item.exercise_id,
+                    slug=item.slug,
+                    title=item.title,
+                    description=item.description,
+                    content=item.content,
+                    difficulty=item.difficulty,
+                    tags=item.tags,
+                )
+                for item in request.exercises
+            ]
+        )
+        return KnowledgeGraphExercisesBatchResponse(exercises=exercises)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Exercise batch upsert failed")
+        raise HTTPException(
+            status_code=500, detail=f"Exercise batch upsert failed: {exc}"
+        )
+
+
+@router.patch(
+    "/knowledgegraph/exercises/relations/batch",
+    response_model=KnowledgeGraphExercisesBatchResponse,
+)
+async def batch_patch_exercise_relations(
+    request: BatchPatchExerciseRelationsRequest,
+    repository: KnowledgeGraphRepository = Depends(get_knowledge_graph_repository),
+    exercise_weight_agent: ExerciseWeightAgent = Depends(get_exercise_weight_agent),
+):
+    try:
+        exercises_by_id = repository.get_exercises_by_ids(
+            [item.exercise_id for item in request.exercises]
+        )
+        missing_exercise_ids = [
+            item.exercise_id
+            for item in request.exercises
+            if item.exercise_id not in exercises_by_id
+        ]
+        if missing_exercise_ids:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Exercise relation update failed: exercise(s) not found: "
+                    + ", ".join(missing_exercise_ids)
+                ),
+            )
+
+        concept_slug_map = repository.get_concepts_by_slugs(
+            [
+                concept_slug
+                for item in request.exercises
+                for concept_slug in (item.concept_slugs or [])
+            ]
+        )
+        existing_concept_ids_by_exercise = repository.get_concept_ids_by_exercise(
+            [item.exercise_id for item in request.exercises]
+        )
+        existing_concept_ids = list(
+            dict.fromkeys(
+                concept_id
+                for concept_ids in existing_concept_ids_by_exercise.values()
+                for concept_id in concept_ids
+            )
+        )
+        existing_concepts_by_id = repository.get_concepts_by_ids(existing_concept_ids)
+
+        related_exercise_ids = [
+            related_exercise_id
+            for item in request.exercises
+            for related_exercise_id in (item.related_exercise_ids or [])
+        ]
+        related_exercises_by_id = repository.get_exercises_by_ids(related_exercise_ids)
+        related_exercise_slug_map = repository.get_exercises_by_slugs(
+            [
+                exercise_slug
+                for item in request.exercises
+                for exercise_slug in (item.related_exercise_slugs or [])
+            ]
+        )
+
+        prepared_items = []
+        response_exercises: list[ExerciseRecord] = []
+        for item in request.exercises:
+            exercise = exercises_by_id[item.exercise_id]
+            response_exercises.append(exercise)
+
+            should_update_concepts = item.concept_slugs is not None
+            if should_update_concepts:
+                ignored_concept_slugs = [
+                    concept_slug
+                    for concept_slug in (item.concept_slugs or [])
+                    if not concept_slug_map.get(concept_slug)
+                ]
+                if ignored_concept_slugs:
+                    logger.info(
+                        "Ignoring missing concept slug(s) while updating exercise '%s' relations: %s",
+                        item.exercise_id,
+                        ", ".join(ignored_concept_slugs),
+                    )
+
+                concept_records: list[ConceptRecord] = []
+                seen_concept_ids: set[str] = set()
+                for concept_slug in item.concept_slugs or []:
+                    for record in concept_slug_map.get(concept_slug, []):
+                        if record.concept_id in seen_concept_ids:
+                            continue
+                        concept_records.append(record)
+                        seen_concept_ids.add(record.concept_id)
+            else:
+                concept_records = [
+                    existing_concepts_by_id[concept_id]
+                    for concept_id in existing_concept_ids_by_exercise.get(
+                        item.exercise_id, []
+                    )
+                    if concept_id in existing_concepts_by_id
+                ]
+
+            should_update_related_exercises = (
+                item.related_exercise_ids is not None
+                or item.related_exercise_slugs is not None
+            )
+            related_exercise_records: list[ExerciseRecord] = []
+            if should_update_related_exercises:
+                missing_related_exercises = [
+                    related_exercise_id
+                    for related_exercise_id in (item.related_exercise_ids or [])
+                    if related_exercise_id not in related_exercises_by_id
+                ]
+                if missing_related_exercises:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=(
+                            "Exercise relation update failed: related exercise(s) not found: "
+                            + ", ".join(missing_related_exercises)
+                        ),
+                    )
+
+                missing_related_exercise_slugs = [
+                    exercise_slug
+                    for exercise_slug in (item.related_exercise_slugs or [])
+                    if not related_exercise_slug_map.get(exercise_slug)
+                ]
+                if missing_related_exercise_slugs:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=(
+                            "Exercise relation update failed: related exercise slug(s) not found: "
+                            + ", ".join(missing_related_exercise_slugs)
+                        ),
+                    )
+
+                seen_related_ids: set[str] = {item.exercise_id}
+                for related_exercise_id in item.related_exercise_ids or []:
+                    record = related_exercises_by_id[related_exercise_id]
+                    if record.exercise_id in seen_related_ids:
+                        continue
+                    related_exercise_records.append(record)
+                    seen_related_ids.add(record.exercise_id)
+                for exercise_slug in item.related_exercise_slugs or []:
+                    for record in related_exercise_slug_map.get(exercise_slug, []):
+                        if record.exercise_id in seen_related_ids:
+                            continue
+                        related_exercise_records.append(record)
+                        seen_related_ids.add(record.exercise_id)
+
+            prepared_items.append(
+                {
+                    "exercise": exercise,
+                    "concept_records": concept_records,
+                    "should_update_concepts": should_update_concepts,
+                    "related_exercise_records": related_exercise_records,
+                    "should_update_related_exercises": should_update_related_exercises,
+                }
+            )
+
+        semaphore = asyncio.Semaphore(RELATION_EVALUATION_CONCURRENCY)
+
+        async def evaluate_prepared_item(prepared_item: dict) -> dict:
+            async with semaphore:
+                (
+                    concept_weights,
+                    concept_recommended_paths,
+                    related_exercise_weights,
+                ) = await asyncio.to_thread(
+                    exercise_weight_agent.evaluate,
+                    main_exercise=prepared_item["exercise"],
+                    concepts=prepared_item["concept_records"],
+                    related_exercises=prepared_item["related_exercise_records"],
+                )
+                return {
+                    **prepared_item,
+                    "concept_weights": concept_weights,
+                    "concept_recommended_paths": concept_recommended_paths,
+                    "related_exercise_weights": related_exercise_weights,
+                }
+
+        evaluated_items = await asyncio.gather(
+            *(evaluate_prepared_item(prepared_item) for prepared_item in prepared_items)
+        )
+
+        repository.replace_exercise_concepts_batch(
+            [
+                {
+                    "exercise_id": evaluated_item["exercise"].exercise_id,
+                    "concepts": [
+                        (
+                            concept_record,
+                            evaluated_item["concept_weights"].get(
+                                concept_record.concept_id,
+                                ExerciseWeightAgent.DEFAULT_WEIGHT,
+                            ),
+                            evaluated_item["concept_recommended_paths"].get(
+                                concept_record.concept_id, []
+                            ),
+                        )
+                        for concept_record in evaluated_item["concept_records"]
+                    ],
+                }
+                for evaluated_item in evaluated_items
+                if evaluated_item["should_update_concepts"]
+            ]
+        )
+
+        repository.replace_exercise_related_exercises_batch(
+            [
+                {
+                    "exercise_id": evaluated_item["exercise"].exercise_id,
+                    "related_exercises": [
+                        (
+                            related_record,
+                            evaluated_item["related_exercise_weights"].get(
+                                related_record.exercise_id,
+                                dict(ExerciseWeightAgent.DEFAULT_RELATION_METADATA),
+                            ),
+                        )
+                        for related_record in evaluated_item["related_exercise_records"]
+                    ],
+                }
+                for evaluated_item in evaluated_items
+                if evaluated_item["should_update_related_exercises"]
+            ]
+        )
+
+        return KnowledgeGraphExercisesBatchResponse(exercises=response_exercises)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Exercise batch relation update failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Exercise batch relation update failed: {exc}",
         )
 
 

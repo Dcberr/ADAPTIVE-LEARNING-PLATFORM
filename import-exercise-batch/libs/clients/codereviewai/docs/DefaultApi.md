@@ -4,6 +4,8 @@ All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch**](DefaultApi.md#batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch) | **PATCH** /api/v1/knowledgegraph/exercises/relations/batch | Batch Patch Exercise Relations
+[**batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put**](DefaultApi.md#batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put) | **PUT** /api/v1/knowledgegraph/exercises/batch | Batch Upsert Exercises
 [**generate_recommendation_api_v1_recommendation_post**](DefaultApi.md#generate_recommendation_api_v1_recommendation_post) | **POST** /api/v1/recommendation | Generate Recommendation
 [**get_knowledge_graph_snapshot_api_v1_knowledgegraph_get**](DefaultApi.md#get_knowledge_graph_snapshot_api_v1_knowledgegraph_get) | **GET** /api/v1/knowledgegraph | Get Knowledge Graph Snapshot
 [**patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch**](DefaultApi.md#patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch) | **PATCH** /api/v1/knowledgegraph/concepts/{concept_slug}/relations | Patch Concept Relations
@@ -15,6 +17,142 @@ Method | HTTP request | Description
 [**upsert_student_api_v1_knowledgegraph_students_student_id_put**](DefaultApi.md#upsert_student_api_v1_knowledgegraph_students_student_id_put) | **PUT** /api/v1/knowledgegraph/students/{student_id} | Upsert Student
 [**upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put**](DefaultApi.md#upsert_submission_api_v1_knowledgegraph_submissions_submission_id_put) | **PUT** /api/v1/knowledgegraph/submissions/{submission_id} | Upsert Submission
 
+
+# **batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch**
+> KnowledgeGraphExercisesBatchResponse batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch(batch_patch_exercise_relations_request)
+
+Batch Patch Exercise Relations
+
+### Example
+
+
+```python
+import code_review_ai_client
+from code_review_ai_client.models.batch_patch_exercise_relations_request import BatchPatchExerciseRelationsRequest
+from code_review_ai_client.models.knowledge_graph_exercises_batch_response import KnowledgeGraphExercisesBatchResponse
+from code_review_ai_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = code_review_ai_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with code_review_ai_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = code_review_ai_client.DefaultApi(api_client)
+    batch_patch_exercise_relations_request = code_review_ai_client.BatchPatchExerciseRelationsRequest() # BatchPatchExerciseRelationsRequest | 
+
+    try:
+        # Batch Patch Exercise Relations
+        api_response = api_instance.batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch(batch_patch_exercise_relations_request)
+        print("The response of DefaultApi->batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **batch_patch_exercise_relations_request** | [**BatchPatchExerciseRelationsRequest**](BatchPatchExerciseRelationsRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphExercisesBatchResponse**](KnowledgeGraphExercisesBatchResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put**
+> KnowledgeGraphExercisesBatchResponse batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put(batch_upsert_exercises_request)
+
+Batch Upsert Exercises
+
+### Example
+
+
+```python
+import code_review_ai_client
+from code_review_ai_client.models.batch_upsert_exercises_request import BatchUpsertExercisesRequest
+from code_review_ai_client.models.knowledge_graph_exercises_batch_response import KnowledgeGraphExercisesBatchResponse
+from code_review_ai_client.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = code_review_ai_client.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with code_review_ai_client.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = code_review_ai_client.DefaultApi(api_client)
+    batch_upsert_exercises_request = code_review_ai_client.BatchUpsertExercisesRequest() # BatchUpsertExercisesRequest | 
+
+    try:
+        # Batch Upsert Exercises
+        api_response = api_instance.batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put(batch_upsert_exercises_request)
+        print("The response of DefaultApi->batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling DefaultApi->batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **batch_upsert_exercises_request** | [**BatchUpsertExercisesRequest**](BatchUpsertExercisesRequest.md)|  | 
+
+### Return type
+
+[**KnowledgeGraphExercisesBatchResponse**](KnowledgeGraphExercisesBatchResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successful Response |  -  |
+**422** | Validation Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **generate_recommendation_api_v1_recommendation_post**
 > RecommendationResponse generate_recommendation_api_v1_recommendation_post(recommendation_request)

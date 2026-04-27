@@ -78,23 +78,23 @@ class ReviewModelConfig:
 class KnowledgeGraphModelConfig:
     prerequisite_weight: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
+            model_name="fireworks/qwen3-8b",
             temperature=0.0,
-            max_tokens=900,
+            max_tokens=400,
         )
     )
     exercise_weight: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
+            model_name="fireworks/qwen3-8b",
             temperature=0.0,
-            max_tokens=1200,
+            max_tokens=700,
         )
     )
     default: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/kimi-k2p5",
+            model_name="fireworks/qwen3-8b",
             temperature=0.1,
-            max_tokens=900,
+            max_tokens=400,
         )
     )
 

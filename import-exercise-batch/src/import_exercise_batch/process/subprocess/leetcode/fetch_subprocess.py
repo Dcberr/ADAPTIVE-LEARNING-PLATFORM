@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 import json
 import logging
 import time
@@ -34,11 +35,36 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
           titleSlug
           title
           content
+          sampleTestCase
           similarQuestions
           difficulty
+          codeSnippets {
+            langSlug
+            code
+          }
           topicTags {
             slug
           }
+        }
+      }
+    }
+    """
+
+    question_detail_query = """
+    query questionData($titleSlug: String!) {
+      question(titleSlug: $titleSlug) {
+        titleSlug
+        title
+        content
+        sampleTestCase
+        similarQuestions
+        difficulty
+        codeSnippets {
+          langSlug
+          code
+        }
+        topicTags {
+          slug
         }
       }
     }
@@ -50,14 +76,16 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
     def get_exercises_by_tag(self, tag: str, limit: int) -> list[LeetCodeProblem]:
         self.logger.info("Fetching LeetCode exercises for tag=%s limit=%s", tag, limit)
         if limit == -1:
-            exercises = self._get_all_exercises_by_tag(tag)
+            seed_exercises = self._get_all_exercises_by_tag(tag)
         else:
             response_data = self._post_with_retry(self._build_payload(tag=tag, limit=limit, skip=0))
-            exercises = self._parse_exercises(response_data)
+            seed_exercises = self._parse_problemset_exercises(response_data)
+        exercises = self._expand_similar_exercises(seed_exercises, target_tag=tag)
         self.logger.info(
-            "Fetched %s LeetCode exercises for tag=%s",
+            "Fetched %s LeetCode exercises for tag=%s after BFS expansion from %s seed exercises",
             len(exercises),
             tag,
+            len(seed_exercises),
         )
         return exercises
 
@@ -79,7 +107,7 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
                 total_value = page.get("total")
                 total = total_value if isinstance(total_value, int) else None
 
-            page_exercises = self._parse_exercises(response_data)
+            page_exercises = self._parse_problemset_exercises(response_data)
             exercises.extend(page_exercises)
             self.logger.info(
                 "Fetched page for tag=%s skip=%s page_size=%s total_loaded=%s total=%s",
@@ -113,28 +141,104 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
             },
         }
 
-    def _parse_exercises(self, response_data: dict[str, Any]) -> list[LeetCodeProblem]:
+    def _build_question_detail_payload(self, title_slug: str) -> dict[str, Any]:
+        return {
+            "query": self.question_detail_query,
+            "variables": {
+                "titleSlug": title_slug,
+            },
+        }
+
+    def _parse_problemset_exercises(self, response_data: dict[str, Any]) -> list[LeetCodeProblem]:
         questions = (
             response_data.get("data", {})
             .get("problemsetQuestionList", {})
             .get("questions", [])
         )
-        return [
-            LeetCodeProblem(
-                question_slug=question["titleSlug"].strip(),
-                title=question["title"].strip(),
-                content=self._normalize_content(question.get("content")),
-                difficulty=question["difficulty"].strip(),
-                topic_tag_slugs=self._extract_topic_tag_slugs(question.get("topicTags")),
-                similar_question_slugs=self._extract_similar_question_slugs(
-                    question.get("similarQuestions")
-                ),
-            )
-            for question in questions
-            if question.get("titleSlug")
-            and question.get("title")
-            and question.get("difficulty")
-        ]
+        exercises: list[LeetCodeProblem] = []
+        for question in questions:
+            exercise = self._parse_question(question)
+            if exercise is not None:
+                exercises.append(exercise)
+        return exercises
+
+    def _parse_question_detail(self, response_data: dict[str, Any]) -> LeetCodeProblem | None:
+        question = response_data.get("data", {}).get("question")
+        if not isinstance(question, dict):
+            return None
+        return self._parse_question(question)
+
+    def _parse_question(self, question: dict[str, Any]) -> LeetCodeProblem | None:
+        if (
+            not question.get("titleSlug")
+            or not question.get("title")
+            or not question.get("difficulty")
+        ):
+            return None
+        return LeetCodeProblem(
+            question_slug=question["titleSlug"].strip(),
+            title=question["title"].strip(),
+            content=self._normalize_content(question.get("content")),
+            sample_test_case=self._normalize_text(question.get("sampleTestCase")),
+            code_snippet=self._extract_cpp_code_snippet(question.get("codeSnippets")),
+            difficulty=question["difficulty"].strip(),
+            topic_tag_slugs=self._extract_topic_tag_slugs(question.get("topicTags")),
+            similar_question_slugs=self._extract_similar_question_slugs(
+                question.get("similarQuestions")
+            ),
+        )
+
+    def _expand_similar_exercises(
+        self,
+        seed_exercises: list[LeetCodeProblem],
+        target_tag: str,
+    ) -> list[LeetCodeProblem]:
+        exercises_by_slug = {
+            exercise.question_slug: exercise for exercise in seed_exercises
+        }
+        visited_slugs = set(exercises_by_slug)
+        queued_slugs: set[str] = set()
+        slugs_to_visit: deque[tuple[str, int]] = deque()
+        max_depth = self.settings.similar_question_max_depth
+
+        for exercise in seed_exercises:
+            for similar_slug in exercise.similar_question_slugs:
+                if similar_slug in visited_slugs or similar_slug in queued_slugs:
+                    continue
+                slugs_to_visit.append((similar_slug, 1))
+                queued_slugs.add(similar_slug)
+
+        while slugs_to_visit:
+            similar_slug, depth = slugs_to_visit.popleft()
+            if similar_slug in visited_slugs:
+                continue
+            visited_slugs.add(similar_slug)
+
+            exercise = self._get_exercise_by_slug(similar_slug)
+            if exercise is None:
+                self.logger.info(
+                    "Skipping similar question slug=%s because no exercise detail was returned",
+                    similar_slug,
+                )
+                continue
+
+            if depth < max_depth:
+                for nested_similar_slug in exercise.similar_question_slugs:
+                    if nested_similar_slug in visited_slugs or nested_similar_slug in queued_slugs:
+                        continue
+                    slugs_to_visit.append((nested_similar_slug, depth + 1))
+                    queued_slugs.add(nested_similar_slug)
+
+            if target_tag not in exercise.topic_tag_slugs:
+                continue
+
+            exercises_by_slug.setdefault(exercise.question_slug, exercise)
+
+        return list(exercises_by_slug.values())
+
+    def _get_exercise_by_slug(self, title_slug: str) -> LeetCodeProblem | None:
+        response_data = self._post_with_retry(self._build_question_detail_payload(title_slug))
+        return self._parse_question_detail(response_data)
 
     def _post_with_retry(self, payload: dict[str, Any]) -> dict[str, Any]:
         headers = {
@@ -200,6 +304,12 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
         return unescape(content).strip()
 
     @staticmethod
+    def _normalize_text(value: str | None) -> str:
+        if not value:
+            return ""
+        return value.strip()
+
+    @staticmethod
     def _extract_topic_tag_slugs(topic_tags: Any) -> list[str]:
         if not isinstance(topic_tags, list):
             return []
@@ -229,3 +339,17 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
             for item in parsed
             if isinstance(item, dict) and item.get("titleSlug")
         ]
+
+    @staticmethod
+    def _extract_cpp_code_snippet(code_snippets: Any) -> str:
+        if not isinstance(code_snippets, list):
+            return ""
+        for code_snippet in code_snippets:
+            if not isinstance(code_snippet, dict):
+                continue
+            if code_snippet.get("langSlug") != "cpp":
+                continue
+            code = code_snippet.get("code")
+            if isinstance(code, str):
+                return code.strip()
+        return ""

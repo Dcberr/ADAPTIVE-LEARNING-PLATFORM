@@ -29,6 +29,10 @@ __all__ = [
     "ApiAttributeError",
     "ApiException",
     "AssignmentContext",
+    "BatchPatchExerciseRelationsItem",
+    "BatchPatchExerciseRelationsRequest",
+    "BatchUpsertExerciseItem",
+    "BatchUpsertExercisesRequest",
     "ColumnContext",
     "ConceptRecord",
     "ConceptRelation",
@@ -42,6 +46,7 @@ __all__ = [
     "KnowledgeGraphConceptResponse",
     "KnowledgeGraphDocument",
     "KnowledgeGraphExerciseResponse",
+    "KnowledgeGraphExercisesBatchResponse",
     "KnowledgeGraphReviewResponse",
     "KnowledgeGraphSnapshotResponse",
     "KnowledgeGraphStudentResponse",
@@ -95,6 +100,10 @@ from code_review_ai_client.exceptions import ApiException as ApiException
 
 # import models into sdk package
 from code_review_ai_client.models.assignment_context import AssignmentContext as AssignmentContext
+from code_review_ai_client.models.batch_patch_exercise_relations_item import BatchPatchExerciseRelationsItem as BatchPatchExerciseRelationsItem
+from code_review_ai_client.models.batch_patch_exercise_relations_request import BatchPatchExerciseRelationsRequest as BatchPatchExerciseRelationsRequest
+from code_review_ai_client.models.batch_upsert_exercise_item import BatchUpsertExerciseItem as BatchUpsertExerciseItem
+from code_review_ai_client.models.batch_upsert_exercises_request import BatchUpsertExercisesRequest as BatchUpsertExercisesRequest
 from code_review_ai_client.models.column_context import ColumnContext as ColumnContext
 from code_review_ai_client.models.concept_record import ConceptRecord as ConceptRecord
 from code_review_ai_client.models.concept_relation import ConceptRelation as ConceptRelation
@@ -108,6 +117,7 @@ from code_review_ai_client.models.http_validation_error import HTTPValidationErr
 from code_review_ai_client.models.knowledge_graph_concept_response import KnowledgeGraphConceptResponse as KnowledgeGraphConceptResponse
 from code_review_ai_client.models.knowledge_graph_document import KnowledgeGraphDocument as KnowledgeGraphDocument
 from code_review_ai_client.models.knowledge_graph_exercise_response import KnowledgeGraphExerciseResponse as KnowledgeGraphExerciseResponse
+from code_review_ai_client.models.knowledge_graph_exercises_batch_response import KnowledgeGraphExercisesBatchResponse as KnowledgeGraphExercisesBatchResponse
 from code_review_ai_client.models.knowledge_graph_review_response import KnowledgeGraphReviewResponse as KnowledgeGraphReviewResponse
 from code_review_ai_client.models.knowledge_graph_snapshot_response import KnowledgeGraphSnapshotResponse as KnowledgeGraphSnapshotResponse
 from code_review_ai_client.models.knowledge_graph_student_response import KnowledgeGraphStudentResponse as KnowledgeGraphStudentResponse

@@ -27,10 +27,26 @@ class UpsertExerciseRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class BatchUpsertExerciseItem(UpsertExerciseRequest):
+    exercise_id: str
+
+
+class BatchUpsertExercisesRequest(BaseModel):
+    exercises: list[BatchUpsertExerciseItem] = Field(default_factory=list)
+
+
 class PatchExerciseRelationsRequest(BaseModel):
     concept_slugs: list[str] | None = None
     related_exercise_ids: list[str] | None = None
     related_exercise_slugs: list[str] | None = None
+
+
+class BatchPatchExerciseRelationsItem(PatchExerciseRelationsRequest):
+    exercise_id: str
+
+
+class BatchPatchExerciseRelationsRequest(BaseModel):
+    exercises: list[BatchPatchExerciseRelationsItem] = Field(default_factory=list)
 
 
 class UpsertStudentProfileRequest(BaseModel):
@@ -65,6 +81,10 @@ class KnowledgeGraphConceptResponse(BaseModel):
 
 class KnowledgeGraphExerciseResponse(BaseModel):
     exercise: ExerciseRecord
+
+
+class KnowledgeGraphExercisesBatchResponse(BaseModel):
+    exercises: list[ExerciseRecord] = Field(default_factory=list)
 
 
 class KnowledgeGraphStudentResponse(BaseModel):
