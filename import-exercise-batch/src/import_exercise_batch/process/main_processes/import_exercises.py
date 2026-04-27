@@ -24,7 +24,10 @@ class ImportExercisesMainProcess(BaseMainProcess):
         self.csv_subprocess = ExerciseCsvSubProcess(settings.database.import_csv_path)
         self.leetcode_subprocess = LeetCodeFetchSubProcess(settings.leetcode)
         self.code_review_subprocess = CodeReviewSubProcess(settings.code_review_api.base_url)
-        self.review_agent_subprocess = ReviewAgentSubProcess(settings.review_agent_api.base_url)
+        self.review_agent_subprocess = ReviewAgentSubProcess(
+            settings.review_agent_api.base_url,
+            settings.review_agent_api.max_workers,
+        )
 
     def run(self) -> None:
         self.logger.info("Starting import exercises batch")

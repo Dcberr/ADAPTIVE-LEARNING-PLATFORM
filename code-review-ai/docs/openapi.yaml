@@ -1,0 +1,1404 @@
+openapi: 3.1.0
+info:
+  title: CodeReviewAI API
+  version: 0.1.0
+paths:
+  /api/v1/review_code:
+    post:
+      summary: Review Code
+      description: Endpoint that uses the LangGraph workflow with Gemini for code review.
+      operationId: review_code_api_v1_review_code_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/recommendation:
+    post:
+      summary: Generate Recommendation
+      operationId: generate_recommendation_api_v1_recommendation_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationRequest'
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/concepts/{concept_slug}:
+    put:
+      summary: Upsert Concept
+      operationId: upsert_concept_api_v1_knowledgegraph_concepts__concept_slug__put
+      parameters:
+        - name: concept_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Concept Slug
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertConceptRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphConceptResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/concepts/{concept_slug}/relations:
+    patch:
+      summary: Patch Concept Relations
+      operationId: patch_concept_relations_api_v1_knowledgegraph_concepts__concept_slug__relations_patch
+      parameters:
+        - name: concept_slug
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Concept Slug
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchConceptRelationsRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphConceptResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/exercises/{exercise_id}:
+    put:
+      summary: Upsert Exercise
+      operationId: upsert_exercise_api_v1_knowledgegraph_exercises__exercise_id__put
+      parameters:
+        - name: exercise_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Exercise Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertExerciseRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphExerciseResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/exercises/{exercise_id}/relations:
+    patch:
+      summary: Patch Exercise Relations
+      operationId: patch_exercise_relations_api_v1_knowledgegraph_exercises__exercise_id__relations_patch
+      parameters:
+        - name: exercise_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Exercise Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchExerciseRelationsRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphExerciseResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/students/{student_id}:
+    put:
+      summary: Upsert Student
+      operationId: upsert_student_api_v1_knowledgegraph_students__student_id__put
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Student Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertStudentProfileRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphStudentResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/submissions/{submission_id}:
+    put:
+      summary: Upsert Submission
+      operationId: upsert_submission_api_v1_knowledgegraph_submissions__submission_id__put
+      parameters:
+        - name: submission_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Submission Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertSubmissionRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphSubmissionResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/reviews/{review_id}:
+    put:
+      summary: Upsert Review
+      operationId: upsert_review_api_v1_knowledgegraph_reviews__review_id__put
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Review Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertReviewRequest'
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphReviewResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph:
+    get:
+      summary: Get Knowledge Graph Snapshot
+      operationId: get_knowledge_graph_snapshot_api_v1_knowledgegraph_get
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphSnapshotResponse'
+components:
+  schemas:
+    AssignmentContext:
+      properties:
+        content:
+          type: string
+          title: Content
+        language:
+          type: string
+          title: Language
+          description: E.g., C, C++, Python
+      type: object
+      required:
+        - content
+        - language
+      title: AssignmentContext
+    ColumnContext:
+      properties:
+        start:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Start
+        end:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: End
+      type: object
+      required:
+        - start
+        - end
+      title: ColumnContext
+    PatchConceptRelationsRequest:
+      properties:
+        prerequisite_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Prerequisite Slugs
+      type: object
+      title: PatchConceptRelationsRequest
+    PatchExerciseRelationsRequest:
+      properties:
+        concept_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Concept Slugs
+        related_exercise_ids:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Ids
+        related_exercise_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Slugs
+      type: object
+      title: PatchExerciseRelationsRequest
+    ConceptRecord:
+      properties:
+        concept_id:
+          type: string
+          title: Concept Id
+        slug:
+          type: string
+          title: Slug
+          default: ""
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+          default: ""
+        difficulty:
+          type: integer
+          title: Difficulty
+          default: 1
+      type: object
+      required:
+        - concept_id
+        - name
+      title: ConceptRecord
+    ConceptRelation:
+      properties:
+        prerequisite_id:
+          type: string
+          title: Prerequisite Id
+        concept_id:
+          type: string
+          title: Concept Id
+        strength:
+          type: number
+          title: Strength
+          default: 1.0
+      type: object
+      required:
+        - prerequisite_id
+        - concept_id
+      title: ConceptRelation
+    ExerciseConceptLink:
+      properties:
+        exercise_id:
+          type: string
+          title: Exercise Id
+        concept_id:
+          type: string
+          title: Concept Id
+        weight:
+          type: number
+          title: Weight
+          default: 1.0
+      type: object
+      required:
+        - exercise_id
+        - concept_id
+      title: ExerciseConceptLink
+    ExercisePathLink:
+      properties:
+        exercise_id:
+          type: string
+          title: Exercise Id
+        concept_id:
+          type: string
+          title: Concept Id
+        path:
+          type: string
+          enum:
+            - REINFORCE
+            - IMPROVE
+            - NEXT_CONCEPT
+          title: Path
+        weight:
+          type: number
+          title: Weight
+          default: 1.0
+      type: object
+      required:
+        - exercise_id
+        - concept_id
+        - path
+      title: ExercisePathLink
+    ExerciseRecord:
+      properties:
+        exercise_id:
+          type: string
+          title: Exercise Id
+        slug:
+          type: string
+          title: Slug
+          default: ""
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+        content:
+          type: string
+          title: Content
+        difficulty:
+          type: string
+          title: Difficulty
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+      type: object
+      required:
+        - exercise_id
+        - title
+        - description
+        - content
+        - difficulty
+      title: ExerciseRecord
+    ExerciseRelation:
+      properties:
+        exercise_id:
+          type: string
+          title: Exercise Id
+        related_exercise_id:
+          type: string
+          title: Related Exercise Id
+        weight:
+          type: number
+          title: Weight
+          default: 1.0
+        relation_type:
+          type: string
+          title: Relation Type
+          default: ""
+        target_concept_id:
+          type: string
+          title: Target Concept Id
+          default: ""
+        shared_concept_ids:
+          items:
+            type: string
+          type: array
+          title: Shared Concept Ids
+        difficulty_gap:
+          type: number
+          title: Difficulty Gap
+          default: 0.0
+        progression_score:
+          type: number
+          title: Progression Score
+          default: 0.0
+        similarity_score:
+          type: number
+          title: Similarity Score
+          default: 0.0
+      type: object
+      required:
+        - exercise_id
+        - related_exercise_id
+      title: ExerciseRelation
+    ExplanationBlock:
+      properties:
+        content:
+          type: string
+          title: Content
+        refs:
+          items:
+            $ref: '#/components/schemas/ExplanationRef'
+          type: array
+          title: Refs
+      type: object
+      required:
+        - content
+        - refs
+      title: ExplanationBlock
+    ExplanationRef:
+      properties:
+        ref_id:
+          type: string
+          title: Ref Id
+        content:
+          type: string
+          title: Content
+        ref_category:
+          type: string
+          enum:
+            - code
+            - review
+            - exercise
+          title: Ref Category
+      type: object
+      required:
+        - ref_id
+        - content
+        - ref_category
+      title: ExplanationRef
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    KnowledgeGraphConceptResponse:
+      properties:
+        concept:
+          $ref: '#/components/schemas/ConceptRecord'
+      type: object
+      required:
+        - concept
+      title: KnowledgeGraphConceptResponse
+    KnowledgeGraphDocument:
+      properties:
+        concepts:
+          items:
+            $ref: '#/components/schemas/ConceptRecord'
+          type: array
+          title: Concepts
+        concept_relations:
+          items:
+            $ref: '#/components/schemas/ConceptRelation'
+          type: array
+          title: Concept Relations
+        exercises:
+          items:
+            $ref: '#/components/schemas/ExerciseRecord'
+          type: array
+          title: Exercises
+        exercise_concept_links:
+          items:
+            $ref: '#/components/schemas/ExerciseConceptLink'
+          type: array
+          title: Exercise Concept Links
+        exercise_path_links:
+          items:
+            $ref: '#/components/schemas/ExercisePathLink'
+          type: array
+          title: Exercise Path Links
+        exercise_relations:
+          items:
+            $ref: '#/components/schemas/ExerciseRelation'
+          type: array
+          title: Exercise Relations
+        students:
+          items:
+            $ref: '#/components/schemas/StudentRecord'
+          type: array
+          title: Students
+        submissions:
+          items:
+            $ref: '#/components/schemas/SubmissionRecord'
+          type: array
+          title: Submissions
+        submission_relations:
+          items:
+            $ref: '#/components/schemas/SubmissionRelation'
+          type: array
+          title: Submission Relations
+        reviews:
+          items:
+            $ref: '#/components/schemas/ReviewRecord'
+          type: array
+          title: Reviews
+        review_relations:
+          items:
+            $ref: '#/components/schemas/ReviewRelation'
+          type: array
+          title: Review Relations
+      type: object
+      title: KnowledgeGraphDocument
+    KnowledgeGraphExerciseResponse:
+      properties:
+        exercise:
+          $ref: '#/components/schemas/ExerciseRecord'
+      type: object
+      required:
+        - exercise
+      title: KnowledgeGraphExerciseResponse
+    KnowledgeGraphReviewResponse:
+      properties:
+        review:
+          $ref: '#/components/schemas/ReviewRecord'
+      type: object
+      required:
+        - review
+      title: KnowledgeGraphReviewResponse
+    KnowledgeGraphSnapshotResponse:
+      properties:
+        graph:
+          $ref: '#/components/schemas/KnowledgeGraphDocument'
+      type: object
+      required:
+        - graph
+      title: KnowledgeGraphSnapshotResponse
+    KnowledgeGraphStudentResponse:
+      properties:
+        student_id:
+          type: string
+          title: Student Id
+        student_profile:
+          $ref: '#/components/schemas/StudentProfileScoring'
+      type: object
+      required:
+        - student_id
+        - student_profile
+      title: KnowledgeGraphStudentResponse
+    KnowledgeGraphSubmissionResponse:
+      properties:
+        submission:
+          $ref: '#/components/schemas/SubmissionRecord'
+      type: object
+      required:
+        - submission
+      title: KnowledgeGraphSubmissionResponse
+    LineContext:
+      properties:
+        start:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Start
+        end:
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: End
+      type: object
+      required:
+        - start
+        - end
+      title: LineContext
+    RecommendationExercise:
+      properties:
+        exercise_id:
+          type: string
+          title: Exercise Id
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+        content:
+          type: string
+          title: Content
+        difficulty:
+          type: string
+          title: Difficulty
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        concept_ids:
+          items:
+            type: string
+          type: array
+          title: Concept Ids
+        directive:
+          type: string
+          title: Directive
+      type: object
+      required:
+        - exercise_id
+        - title
+        - description
+        - content
+        - difficulty
+        - concept_ids
+        - directive
+      title: RecommendationExercise
+    RecommendationGraphSummary:
+      properties:
+        current_concept_weight:
+          type: number
+          title: Current Concept Weight
+        best_path_weight:
+          type: number
+          title: Best Path Weight
+        best_related_exercise_weight:
+          type: number
+          title: Best Related Exercise Weight
+        latest_review_improvement_signal:
+          type: number
+          title: Latest Review Improvement Signal
+        latest_review_severity_change:
+          type: number
+          title: Latest Review Severity Change
+        latest_submission_improvement_ratio:
+          type: number
+          title: Latest Submission Improvement Ratio
+        latest_submission_regression_ratio:
+          type: number
+          title: Latest Submission Regression Ratio
+      type: object
+      required:
+        - current_concept_weight
+        - best_path_weight
+        - best_related_exercise_weight
+        - latest_review_improvement_signal
+        - latest_review_severity_change
+        - latest_submission_improvement_ratio
+        - latest_submission_regression_ratio
+      title: RecommendationGraphSummary
+    RecommendationRequest:
+      properties:
+        student_id:
+          type: string
+          title: Student Id
+        exercise_id:
+          type: string
+          title: Exercise Id
+      type: object
+      required:
+        - student_id
+        - exercise_id
+      title: RecommendationRequest
+    RecommendationResponse:
+      properties:
+        student_id:
+          type: string
+          title: Student Id
+        current_exercise_id:
+          type: string
+          title: Current Exercise Id
+        anchor_concept:
+          type: string
+          title: Anchor Concept
+        assigned_path:
+          type: string
+          enum:
+            - REINFORCE
+            - IMPROVE
+            - NEXT_CONCEPT
+          title: Assigned Path
+        focus_concept_id:
+          type: string
+          title: Focus Concept Id
+        critical_errors:
+          type: integer
+          title: Critical Errors
+        framework:
+          $ref: '#/components/schemas/RecommendationScoringFramework'
+        graph_summary:
+          $ref: '#/components/schemas/RecommendationGraphSummary'
+        reasoning:
+          $ref: '#/components/schemas/ExplanationBlock'
+        roadmap_summary:
+          $ref: '#/components/schemas/ExplanationBlock'
+        roadmap:
+          items:
+            $ref: '#/components/schemas/RecommendationRoadmapStep'
+          type: array
+          title: Roadmap
+      type: object
+      required:
+        - student_id
+        - current_exercise_id
+        - anchor_concept
+        - assigned_path
+        - focus_concept_id
+        - critical_errors
+        - framework
+        - graph_summary
+        - reasoning
+        - roadmap_summary
+        - roadmap
+      title: RecommendationResponse
+    RecommendationRoadmapStep:
+      properties:
+        step:
+          type: integer
+          title: Step
+        exercise:
+          $ref: '#/components/schemas/RecommendationExercise'
+      type: object
+      required:
+        - step
+        - exercise
+      title: RecommendationRoadmapStep
+    RecommendationScoringFramework:
+      properties:
+        risk_level:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+          title: Risk Level
+        readiness_level:
+          type: string
+          enum:
+            - emerging
+            - developing
+            - ready
+          title: Readiness Level
+        explanation:
+          type: string
+          title: Explanation
+      type: object
+      required:
+        - risk_level
+        - readiness_level
+        - explanation
+      title: RecommendationScoringFramework
+    ReviewItem:
+      properties:
+        line:
+          $ref: '#/components/schemas/LineContext'
+        column:
+          anyOf:
+            - $ref: '#/components/schemas/ColumnContext'
+            - type: "null"
+        code_snippet:
+          type: string
+          title: Code Snippet
+        type:
+          type: string
+          enum:
+            - Error
+            - Warning
+          title: Type
+        issue:
+          type: string
+          title: Issue
+          description: For a 'Warning', this should explain a clean-code, readability, or refactoring improvement in simple terms.
+        fix_suggestion:
+          type: string
+          title: Fix Suggestion
+        review_link:
+          anyOf:
+            - $ref: '#/components/schemas/ReviewLink'
+            - type: "null"
+      type: object
+      required:
+        - code_snippet
+        - type
+        - issue
+        - fix_suggestion
+      title: ReviewItem
+    ReviewLink:
+      properties:
+        previous_submission_id:
+          type: string
+          title: Previous Submission Id
+        previous_code_snippets:
+          items:
+            type: string
+          type: array
+          title: Previous Code Snippets
+        comparison_mode:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Comparison Mode
+        what_improved:
+          type: string
+          title: What Improved
+        what_still_needs_work:
+          type: string
+          title: What Still Needs Work
+        relation_summary:
+          type: string
+          title: Relation Summary
+      type: object
+      required:
+        - previous_submission_id
+        - what_improved
+        - what_still_needs_work
+        - relation_summary
+      title: ReviewLink
+    ReviewRecord:
+      properties:
+        review_id:
+          type: string
+          title: Review Id
+        student_id:
+          type: string
+          title: Student Id
+        exercise_id:
+          type: string
+          title: Exercise Id
+          default: ""
+        submission_id:
+          type: string
+          title: Submission Id
+          default: ""
+        current_concept:
+          type: string
+          title: Current Concept
+          default: ""
+        created_at:
+          type: string
+          title: Created At
+          default: ""
+        summary:
+          type: string
+          title: Summary
+        detail:
+          type: string
+          title: Detail
+      type: object
+      required:
+        - review_id
+        - student_id
+        - summary
+        - detail
+      title: ReviewRecord
+    ReviewRelation:
+      properties:
+        previous_review_id:
+          type: string
+          title: Previous Review Id
+        next_review_id:
+          type: string
+          title: Next Review Id
+        student_id:
+          type: string
+          title: Student Id
+          default: ""
+        linked_at:
+          type: string
+          title: Linked At
+          default: ""
+        same_concept:
+          type: boolean
+          title: Same Concept
+          default: false
+        improvement_signal:
+          type: number
+          title: Improvement Signal
+          default: 0.0
+        severity_change:
+          type: number
+          title: Severity Change
+          default: 0.0
+      type: object
+      required:
+        - previous_review_id
+        - next_review_id
+      title: ReviewRelation
+    ReviewRequest:
+      properties:
+        assignment:
+          $ref: '#/components/schemas/AssignmentContext'
+        code:
+          type: string
+          title: Code
+        test_results:
+          items:
+            $ref: '#/components/schemas/TestResult'
+          type: array
+          title: Test Results
+        history:
+          items:
+            $ref: '#/components/schemas/SubmissionHistoryItem'
+          type: array
+          title: History
+      type: object
+      required:
+        - assignment
+        - code
+        - test_results
+      title: ReviewRequest
+      description: The complete input payload for the code review endpoint.
+    ReviewResponse:
+      properties:
+        summary:
+          type: string
+          title: Summary
+        detail:
+          type: string
+          title: Detail
+        review_items:
+          items:
+            $ref: '#/components/schemas/ReviewItem'
+          type: array
+          title: Review Items
+        scorecard:
+          $ref: '#/components/schemas/ScoreCard'
+      type: object
+      required:
+        - summary
+        - detail
+        - review_items
+        - scorecard
+      title: ReviewResponse
+      description: The structured output generated by the Gemini Model.
+    ScoreCard:
+      properties:
+        problem_solving_creativity:
+          $ref: '#/components/schemas/ScoreCardItem'
+        logic_traceability:
+          $ref: '#/components/schemas/ScoreCardItem'
+        generalization_score:
+          $ref: '#/components/schemas/ScoreCardItem'
+        construct_appropriateness:
+          $ref: '#/components/schemas/ScoreCardItem'
+        self_correction_path:
+          $ref: '#/components/schemas/ScoreCardItem'
+        variable_understanding:
+          $ref: '#/components/schemas/ScoreCardItem'
+        control_flow_understanding:
+          $ref: '#/components/schemas/ScoreCardItem'
+        input_output_awareness:
+          $ref: '#/components/schemas/ScoreCardItem'
+        edge_case_awareness:
+          $ref: '#/components/schemas/ScoreCardItem'
+        debugging_readiness:
+          $ref: '#/components/schemas/ScoreCardItem'
+      type: object
+      required:
+        - problem_solving_creativity
+        - logic_traceability
+        - generalization_score
+        - construct_appropriateness
+        - self_correction_path
+        - variable_understanding
+        - control_flow_understanding
+        - input_output_awareness
+        - edge_case_awareness
+        - debugging_readiness
+      title: ScoreCard
+    ScoreCardItem:
+      properties:
+        score:
+          type: integer
+          maximum: 5.0
+          minimum: 1.0
+          title: Score
+        label:
+          type: string
+          title: Label
+        explanation:
+          type: string
+          title: Explanation
+      type: object
+      required:
+        - score
+        - label
+        - explanation
+      title: ScoreCardItem
+    StudentProfileScoring:
+      properties:
+        concept_mastery:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Concept Mastery
+        implementation_consistency:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Implementation Consistency
+        debugging_independence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Debugging Independence
+        efficiency_awareness:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Efficiency Awareness
+        concept_transfer:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Concept Transfer
+        learning_velocity:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Learning Velocity
+        notes:
+          type: string
+          title: Notes
+          default: ""
+      type: object
+      required:
+        - concept_mastery
+        - implementation_consistency
+        - debugging_independence
+        - efficiency_awareness
+        - concept_transfer
+        - learning_velocity
+      title: StudentProfileScoring
+    StudentRecord:
+      properties:
+        student_id:
+          type: string
+          title: Student Id
+        current_concept:
+          type: string
+          title: Current Concept
+          default: ""
+        notes:
+          type: string
+          title: Notes
+          default: ""
+      type: object
+      required:
+        - student_id
+      title: StudentRecord
+    SubmissionHistoryItem:
+      properties:
+        submission_id:
+          type: string
+          format: uuid
+          title: Submission Id
+        code:
+          type: string
+          title: Code
+        failed_test_case_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Failed Test Case Ids
+          description: UUIDs of the failed testcases for that submission attempt
+        passed_test_case_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Passed Test Case Ids
+          description: UUIDs of the passed testcases for that submission attempt
+      type: object
+      required:
+        - submission_id
+        - code
+      title: SubmissionHistoryItem
+    SubmissionRecord:
+      properties:
+        submission_id:
+          type: string
+          title: Submission Id
+        student_id:
+          type: string
+          title: Student Id
+        exercise_id:
+          type: string
+          title: Exercise Id
+          default: ""
+        code:
+          type: string
+          title: Code
+        testcase_outputs:
+          items:
+            $ref: '#/components/schemas/SubmissionTestCaseOutput'
+          type: array
+          title: Testcase Outputs
+        created_at:
+          type: string
+          title: Created At
+          default: ""
+      type: object
+      required:
+        - submission_id
+        - student_id
+        - code
+      title: SubmissionRecord
+    SubmissionRelation:
+      properties:
+        previous_submission_id:
+          type: string
+          title: Previous Submission Id
+        next_submission_id:
+          type: string
+          title: Next Submission Id
+        student_id:
+          type: string
+          title: Student Id
+          default: ""
+        linked_at:
+          type: string
+          title: Linked At
+          default: ""
+        same_exercise:
+          type: boolean
+          title: Same Exercise
+          default: true
+        improvement_ratio:
+          type: number
+          title: Improvement Ratio
+          default: 0.0
+        regression_ratio:
+          type: number
+          title: Regression Ratio
+          default: 0.0
+      type: object
+      required:
+        - previous_submission_id
+        - next_submission_id
+      title: SubmissionRelation
+    SubmissionTestCaseOutput:
+      properties:
+        expect:
+          type: string
+          title: Expect
+          default: ""
+        output:
+          type: string
+          title: Output
+          default: ""
+      type: object
+      title: SubmissionTestCaseOutput
+    TestResult:
+      properties:
+        testcase_id:
+          type: string
+          format: uuid
+          title: Testcase Id
+        name:
+          type: string
+          title: Name
+        input:
+          type: string
+          title: Input
+        expect:
+          type: string
+          title: Expect
+        actual:
+          type: string
+          title: Actual
+      type: object
+      required:
+        - testcase_id
+        - name
+        - input
+        - expect
+        - actual
+      title: TestResult
+    UpsertConceptRequest:
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+          default: ""
+        difficulty:
+          type: integer
+          title: Difficulty
+          default: 1
+      type: object
+      required:
+        - name
+      title: UpsertConceptRequest
+    UpsertExerciseRequest:
+      properties:
+        slug:
+          type: string
+          title: Slug
+          default: ""
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+        content:
+          type: string
+          title: Content
+        difficulty:
+          type: string
+          title: Difficulty
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+      type: object
+      required:
+        - title
+        - description
+        - content
+        - difficulty
+      title: UpsertExerciseRequest
+    UpsertReviewRequest:
+      properties:
+        submission_id:
+          type: string
+          title: Submission Id
+        summary:
+          type: string
+          title: Summary
+        detail:
+          type: string
+          title: Detail
+        review_items:
+          items:
+            $ref: '#/components/schemas/ReviewItem'
+          type: array
+          title: Review Items
+        scorecard:
+          $ref: '#/components/schemas/ScoreCard'
+        current_concept:
+          type: string
+          title: Current Concept
+          default: ""
+      type: object
+      required:
+        - submission_id
+        - summary
+        - detail
+        - scorecard
+      title: UpsertReviewRequest
+    UpsertStudentProfileRequest:
+      properties:
+        student_profile:
+          $ref: '#/components/schemas/StudentProfileScoring'
+      type: object
+      required:
+        - student_profile
+      title: UpsertStudentProfileRequest
+    UpsertSubmissionRequest:
+      properties:
+        student_id:
+          type: string
+          title: Student Id
+        exercise_id:
+          type: string
+          title: Exercise Id
+        code:
+          type: string
+          title: Code
+        testcase_outputs:
+          items:
+            $ref: '#/components/schemas/SubmissionTestCaseOutput'
+          type: array
+          title: Testcase Outputs
+      type: object
+      required:
+        - student_id
+        - exercise_id
+        - code
+      title: UpsertSubmissionRequest
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError

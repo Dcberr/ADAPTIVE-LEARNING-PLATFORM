@@ -1,5 +1,0 @@
-{
-    "python.analysis.autoImportCompletions": true,
-    "python.languageServer": "Pylance",
-    "editor.suggest.autoImports": true
-}
