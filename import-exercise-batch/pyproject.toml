@@ -8,7 +8,7 @@ dependencies = [
     "openapi-client",
     "python-dotenv>=1.0",
     "psycopg[binary]>=3.2",
-    "reviewagent-client",
+    "code_review_ai_client",
 ]
 
 [project.scripts]
@@ -38,9 +38,9 @@ package = true
 [tool.uv.workspace]
 members = [
     "libs/clients/codereview",
-    "libs/clients/reviewagent",
+    "libs/clients/codereviewai",
 ]
 
 [tool.uv.sources]
 openapi-client = { workspace = true, editable = true }
-reviewagent-client = { workspace = true, editable = true }
+code_review_ai_client = { workspace = true, editable = true }

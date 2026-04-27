@@ -304,42 +304,6 @@ components:
         - start
         - end
       title: ColumnContext
-    PatchConceptRelationsRequest:
-      properties:
-        prerequisite_slugs:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: "null"
-          title: Prerequisite Slugs
-      type: object
-      title: PatchConceptRelationsRequest
-    PatchExerciseRelationsRequest:
-      properties:
-        concept_slugs:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: "null"
-          title: Concept Slugs
-        related_exercise_ids:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: "null"
-          title: Related Exercise Ids
-        related_exercise_slugs:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: "null"
-          title: Related Exercise Slugs
-      type: object
-      title: PatchExerciseRelationsRequest
     ConceptRecord:
       properties:
         concept_id:
@@ -673,11 +637,51 @@ components:
         - start
         - end
       title: LineContext
+    PatchConceptRelationsRequest:
+      properties:
+        prerequisite_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Prerequisite Slugs
+      type: object
+      title: PatchConceptRelationsRequest
+    PatchExerciseRelationsRequest:
+      properties:
+        concept_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Concept Slugs
+        related_exercise_ids:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Ids
+        related_exercise_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Slugs
+      type: object
+      title: PatchExerciseRelationsRequest
     RecommendationExercise:
       properties:
         exercise_id:
           type: string
           title: Exercise Id
+        slug:
+          type: string
+          title: Slug
+          default: ""
         title:
           type: string
           title: Title
