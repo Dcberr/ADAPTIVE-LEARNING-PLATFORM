@@ -67,15 +67,15 @@ configuration = code_review_ai_client.Configuration(
 with code_review_ai_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = code_review_ai_client.DefaultApi(api_client)
-    recommendation_request = code_review_ai_client.RecommendationRequest() # RecommendationRequest | 
+    batch_patch_exercise_relations_request = code_review_ai_client.BatchPatchExerciseRelationsRequest() # BatchPatchExerciseRelationsRequest | 
 
     try:
-        # Generate Recommendation
-        api_response = api_instance.generate_recommendation_api_v1_recommendation_post(recommendation_request)
-        print("The response of DefaultApi->generate_recommendation_api_v1_recommendation_post:\n")
+        # Batch Patch Exercise Relations
+        api_response = api_instance.batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch(batch_patch_exercise_relations_request)
+        print("The response of DefaultApi->batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch:\n")
         pprint(api_response)
     except ApiException as e:
-        print("Exception when calling DefaultApi->generate_recommendation_api_v1_recommendation_post: %s\n" % e)
+        print("Exception when calling DefaultApi->batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch: %s\n" % e)
 
 ```
 
@@ -85,6 +85,8 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch**](docs/DefaultApi.md#batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch) | **PATCH** /api/v1/knowledgegraph/exercises/relations/batch | Batch Patch Exercise Relations
+*DefaultApi* | [**batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put**](docs/DefaultApi.md#batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put) | **PUT** /api/v1/knowledgegraph/exercises/batch | Batch Upsert Exercises
 *DefaultApi* | [**generate_recommendation_api_v1_recommendation_post**](docs/DefaultApi.md#generate_recommendation_api_v1_recommendation_post) | **POST** /api/v1/recommendation | Generate Recommendation
 *DefaultApi* | [**get_knowledge_graph_snapshot_api_v1_knowledgegraph_get**](docs/DefaultApi.md#get_knowledge_graph_snapshot_api_v1_knowledgegraph_get) | **GET** /api/v1/knowledgegraph | Get Knowledge Graph Snapshot
 *DefaultApi* | [**patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch**](docs/DefaultApi.md#patch_concept_relations_api_v1_knowledgegraph_concepts_concept_slug_relations_patch) | **PATCH** /api/v1/knowledgegraph/concepts/{concept_slug}/relations | Patch Concept Relations
@@ -100,6 +102,10 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [AssignmentContext](docs/AssignmentContext.md)
+ - [BatchPatchExerciseRelationsItem](docs/BatchPatchExerciseRelationsItem.md)
+ - [BatchPatchExerciseRelationsRequest](docs/BatchPatchExerciseRelationsRequest.md)
+ - [BatchUpsertExerciseItem](docs/BatchUpsertExerciseItem.md)
+ - [BatchUpsertExercisesRequest](docs/BatchUpsertExercisesRequest.md)
  - [ColumnContext](docs/ColumnContext.md)
  - [ConceptRecord](docs/ConceptRecord.md)
  - [ConceptRelation](docs/ConceptRelation.md)
@@ -113,6 +119,7 @@ Class | Method | HTTP request | Description
  - [KnowledgeGraphConceptResponse](docs/KnowledgeGraphConceptResponse.md)
  - [KnowledgeGraphDocument](docs/KnowledgeGraphDocument.md)
  - [KnowledgeGraphExerciseResponse](docs/KnowledgeGraphExerciseResponse.md)
+ - [KnowledgeGraphExercisesBatchResponse](docs/KnowledgeGraphExercisesBatchResponse.md)
  - [KnowledgeGraphReviewResponse](docs/KnowledgeGraphReviewResponse.md)
  - [KnowledgeGraphSnapshotResponse](docs/KnowledgeGraphSnapshotResponse.md)
  - [KnowledgeGraphStudentResponse](docs/KnowledgeGraphStudentResponse.md)

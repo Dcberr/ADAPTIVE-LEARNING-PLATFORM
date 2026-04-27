@@ -5,7 +5,7 @@ description = "Batch job for importing LeetCode exercises."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "openapi-client",
+    "code_review_api_client",
     "python-dotenv>=1.0",
     "psycopg[binary]>=3.2",
     "code_review_ai_client",
@@ -37,10 +37,10 @@ package = true
 
 [tool.uv.workspace]
 members = [
-    "libs/clients/codereview",
+    "libs/clients/codereviewapi",
     "libs/clients/codereviewai",
 ]
 
 [tool.uv.sources]
-openapi-client = { workspace = true, editable = true }
+code_review_api_client = { workspace = true, editable = true }
 code_review_ai_client = { workspace = true, editable = true }

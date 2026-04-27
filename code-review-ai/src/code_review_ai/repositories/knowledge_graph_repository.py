@@ -787,26 +787,42 @@ class KnowledgeGraphRepository:
         self,
         exercise: ExerciseRecord,
     ) -> ExerciseRecord:
+        self.upsert_exercises([exercise])
+        return exercise
+
+    def upsert_exercises(
+        self,
+        exercises: list[ExerciseRecord],
+    ) -> list[ExerciseRecord]:
+        if not exercises:
+            return []
+
         with self.driver.session() as session:
             session.run(
                 """
-                MERGE (e:Exercise {exercise_id: $exercise_id})
-                SET e.slug = $slug,
-                    e.title = $title,
-                    e.description = $description,
-                    e.content = $content,
-                    e.difficulty = $difficulty,
-                    e.tags = $tags
+                UNWIND $rows AS row
+                MERGE (e:Exercise {exercise_id: row.exercise_id})
+                SET e.slug = row.slug,
+                    e.title = row.title,
+                    e.description = row.description,
+                    e.content = row.content,
+                    e.difficulty = row.difficulty,
+                    e.tags = row.tags
                 """,
-                exercise_id=exercise.exercise_id,
-                slug=exercise.slug,
-                title=exercise.title,
-                description=exercise.description,
-                content=exercise.content,
-                difficulty=exercise.difficulty,
-                tags=exercise.tags,
+                rows=[
+                    {
+                        "exercise_id": exercise.exercise_id,
+                        "slug": exercise.slug,
+                        "title": exercise.title,
+                        "description": exercise.description,
+                        "content": exercise.content,
+                        "difficulty": exercise.difficulty,
+                        "tags": exercise.tags,
+                    }
+                    for exercise in exercises
+                ],
             )
-        return exercise
+        return exercises
 
     def replace_exercise_concepts(
         self,
@@ -814,47 +830,86 @@ class KnowledgeGraphRepository:
         exercise_id: str,
         concepts: list[tuple[ConceptRecord, float, list[dict]]],
     ) -> None:
+        self.replace_exercise_concepts_batch(
+            [
+                {
+                    "exercise_id": exercise_id,
+                    "concepts": concepts,
+                }
+            ]
+        )
+
+    def replace_exercise_concepts_batch(
+        self,
+        items: list[dict],
+    ) -> None:
+        if not items:
+            return
+
+        exercise_ids = list(
+            dict.fromkeys(str(item["exercise_id"]) for item in items if item.get("exercise_id"))
+        )
+        tests_rows: list[dict] = []
+        recommended_rows: list[dict] = []
+        for item in items:
+            exercise_id = str(item["exercise_id"])
+            for concept, weight, recommended_paths in item.get("concepts", []):
+                tests_rows.append(
+                    {
+                        "exercise_id": exercise_id,
+                        "concept_id": concept.concept_id,
+                        "weight": weight,
+                    }
+                )
+                for path_config in recommended_paths:
+                    recommended_rows.append(
+                        {
+                            "exercise_id": exercise_id,
+                            "concept_id": concept.concept_id,
+                            "path": path_config["path"],
+                            "weight": path_config.get("weight", 1.0),
+                        }
+                    )
+
         with self.driver.session() as session:
             session.run(
                 """
-                MATCH (e:Exercise {exercise_id: $exercise_id})-[r:TESTS]->(:Concept)
+                MATCH (e:Exercise)-[r:TESTS]->(:Concept)
+                WHERE e.exercise_id IN $exercise_ids
                 DELETE r
                 """,
-                exercise_id=exercise_id,
+                exercise_ids=exercise_ids,
             )
             session.run(
                 """
-                MATCH (e:Exercise {exercise_id: $exercise_id})-[r:RECOMMENDED_FOR]->(:Concept)
+                MATCH (e:Exercise)-[r:RECOMMENDED_FOR]->(:Concept)
+                WHERE e.exercise_id IN $exercise_ids
                 DELETE r
                 """,
-                exercise_id=exercise_id,
+                exercise_ids=exercise_ids,
             )
-
-            for concept, weight, recommended_paths in concepts:
+            if tests_rows:
                 session.run(
                     """
-                    MATCH (c:Concept {concept_id: $concept_id})
-                    MATCH (e:Exercise {exercise_id: $exercise_id})
+                    UNWIND $rows AS row
+                    MATCH (c:Concept {concept_id: row.concept_id})
+                    MATCH (e:Exercise {exercise_id: row.exercise_id})
                     MERGE (e)-[r:TESTS]->(c)
-                    SET r.weight = $weight
+                    SET r.weight = row.weight
                     """,
-                    concept_id=concept.concept_id,
-                    exercise_id=exercise_id,
-                    weight=weight,
+                    rows=tests_rows,
                 )
-                for path_config in recommended_paths:
-                    session.run(
-                        """
-                        MATCH (e:Exercise {exercise_id: $exercise_id})
-                        MATCH (c:Concept {concept_id: $concept_id})
-                        MERGE (e)-[r:RECOMMENDED_FOR {path: $path}]->(c)
-                        SET r.weight = $weight
-                        """,
-                        exercise_id=exercise_id,
-                        concept_id=concept.concept_id,
-                        path=path_config["path"],
-                        weight=path_config.get("weight", 1.0),
-                    )
+            if recommended_rows:
+                session.run(
+                    """
+                    UNWIND $rows AS row
+                    MATCH (e:Exercise {exercise_id: row.exercise_id})
+                    MATCH (c:Concept {concept_id: row.concept_id})
+                    MERGE (e)-[r:RECOMMENDED_FOR {path: row.path}]->(c)
+                    SET r.weight = row.weight
+                    """,
+                    rows=recommended_rows,
+                )
 
     def replace_exercise_related_exercises(
         self,
@@ -862,38 +917,68 @@ class KnowledgeGraphRepository:
         exercise_id: str,
         related_exercises: list[tuple[ExerciseRecord, dict]],
     ) -> None:
+        self.replace_exercise_related_exercises_batch(
+            [
+                {
+                    "exercise_id": exercise_id,
+                    "related_exercises": related_exercises,
+                }
+            ]
+        )
+
+    def replace_exercise_related_exercises_batch(
+        self,
+        items: list[dict],
+    ) -> None:
+        if not items:
+            return
+
+        exercise_ids = list(
+            dict.fromkeys(str(item["exercise_id"]) for item in items if item.get("exercise_id"))
+        )
+        rows: list[dict] = []
+        for item in items:
+            exercise_id = str(item["exercise_id"])
+            for related_exercise, relation_config in item.get("related_exercises", []):
+                rows.append(
+                    {
+                        "exercise_id": exercise_id,
+                        "related_exercise_id": related_exercise.exercise_id,
+                        "weight": relation_config.get("weight", 1.0),
+                        "relation_type": relation_config.get("relation_type", ""),
+                        "target_concept_id": relation_config.get("target_concept_id", ""),
+                        "shared_concept_ids": relation_config.get("shared_concept_ids", []),
+                        "difficulty_gap": relation_config.get("difficulty_gap", 0.0),
+                        "progression_score": relation_config.get("progression_score", 0.0),
+                        "similarity_score": relation_config.get("similarity_score", 0.0),
+                    }
+                )
+
         with self.driver.session() as session:
             session.run(
                 """
-                MATCH (e:Exercise {exercise_id: $exercise_id})-[r:RELATED_TO]->(:Exercise)
+                MATCH (e:Exercise)-[r:RELATED_TO]->(:Exercise)
+                WHERE e.exercise_id IN $exercise_ids
                 DELETE r
                 """,
-                exercise_id=exercise_id,
+                exercise_ids=exercise_ids,
             )
-
-            for related_exercise, relation_config in related_exercises:
+            if rows:
                 session.run(
                     """
-                    MATCH (related:Exercise {exercise_id: $related_exercise_id})
-                    MATCH (main:Exercise {exercise_id: $exercise_id})
+                    UNWIND $rows AS row
+                    MATCH (related:Exercise {exercise_id: row.related_exercise_id})
+                    MATCH (main:Exercise {exercise_id: row.exercise_id})
                     MERGE (main)-[r:RELATED_TO]->(related)
-                    SET r.weight = $weight,
-                        r.relation_type = $relation_type,
-                        r.target_concept_id = $target_concept_id,
-                        r.shared_concept_ids = $shared_concept_ids,
-                        r.difficulty_gap = $difficulty_gap,
-                        r.progression_score = $progression_score,
-                        r.similarity_score = $similarity_score
+                    SET r.weight = row.weight,
+                        r.relation_type = row.relation_type,
+                        r.target_concept_id = row.target_concept_id,
+                        r.shared_concept_ids = row.shared_concept_ids,
+                        r.difficulty_gap = row.difficulty_gap,
+                        r.progression_score = row.progression_score,
+                        r.similarity_score = row.similarity_score
                     """,
-                    exercise_id=exercise_id,
-                    related_exercise_id=related_exercise.exercise_id,
-                    weight=relation_config.get("weight", 1.0),
-                    relation_type=relation_config.get("relation_type", ""),
-                    target_concept_id=relation_config.get("target_concept_id", ""),
-                    shared_concept_ids=relation_config.get("shared_concept_ids", []),
-                    difficulty_gap=relation_config.get("difficulty_gap", 0.0),
-                    progression_score=relation_config.get("progression_score", 0.0),
-                    similarity_score=relation_config.get("similarity_score", 0.0),
+                    rows=rows,
                 )
 
     def upsert_student(

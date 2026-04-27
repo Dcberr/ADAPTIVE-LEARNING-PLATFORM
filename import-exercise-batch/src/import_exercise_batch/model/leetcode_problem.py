@@ -10,6 +10,8 @@ class LeetCodeProblem:
     question_slug: str
     title: str
     content: str
+    sample_test_case: str
+    code_snippet: str
     difficulty: str
     topic_tag_slugs: list[str]
     similar_question_slugs: list[str]
@@ -28,6 +30,8 @@ class LeetCodeProblem:
             question_slug=row["question_slug"],
             title=row["title"],
             content=row["content"],
+            sample_test_case=row["sample_test_case"],
+            code_snippet=row["code_snippet"],
             difficulty=row["difficulty"],
             topic_tag_slugs=json.loads(row["topic_tag_slugs"]),
             similar_question_slugs=json.loads(row["similar_question_slugs"]),

@@ -110,6 +110,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/exercises/batch:
+    put:
+      summary: Batch Upsert Exercises
+      operationId: batch_upsert_exercises_api_v1_knowledgegraph_exercises_batch_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchUpsertExercisesRequest'
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphExercisesBatchResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/knowledgegraph/exercises/relations/batch:
+    patch:
+      summary: Batch Patch Exercise Relations
+      operationId: batch_patch_exercise_relations_api_v1_knowledgegraph_exercises_relations_batch_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchPatchExerciseRelationsRequest'
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGraphExercisesBatchResponse'
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/knowledgegraph/exercises/{exercise_id}:
     put:
       summary: Upsert Exercise
@@ -287,6 +333,88 @@ components:
         - content
         - language
       title: AssignmentContext
+    BatchPatchExerciseRelationsItem:
+      properties:
+        concept_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Concept Slugs
+        related_exercise_ids:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Ids
+        related_exercise_slugs:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: "null"
+          title: Related Exercise Slugs
+        exercise_id:
+          type: string
+          title: Exercise Id
+      type: object
+      required:
+        - exercise_id
+      title: BatchPatchExerciseRelationsItem
+    BatchPatchExerciseRelationsRequest:
+      properties:
+        exercises:
+          items:
+            $ref: '#/components/schemas/BatchPatchExerciseRelationsItem'
+          type: array
+          title: Exercises
+      type: object
+      title: BatchPatchExerciseRelationsRequest
+    BatchUpsertExerciseItem:
+      properties:
+        slug:
+          type: string
+          title: Slug
+          default: ""
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+        content:
+          type: string
+          title: Content
+        difficulty:
+          type: string
+          title: Difficulty
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        exercise_id:
+          type: string
+          title: Exercise Id
+      type: object
+      required:
+        - title
+        - description
+        - content
+        - difficulty
+        - exercise_id
+      title: BatchUpsertExerciseItem
+    BatchUpsertExercisesRequest:
+      properties:
+        exercises:
+          items:
+            $ref: '#/components/schemas/BatchUpsertExerciseItem'
+          type: array
+          title: Exercises
+      type: object
+      title: BatchUpsertExercisesRequest
     ColumnContext:
       properties:
         start:
@@ -584,6 +712,15 @@ components:
       required:
         - exercise
       title: KnowledgeGraphExerciseResponse
+    KnowledgeGraphExercisesBatchResponse:
+      properties:
+        exercises:
+          items:
+            $ref: '#/components/schemas/ExerciseRecord'
+          type: array
+          title: Exercises
+      type: object
+      title: KnowledgeGraphExercisesBatchResponse
     KnowledgeGraphReviewResponse:
       properties:
         review:

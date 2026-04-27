@@ -5,8 +5,8 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "code-review-ai-client",
+    "code-review-api-client",
     "import-exercise-batch",
-    "openapi-client",
 ]
 
 [[package]]
@@ -38,28 +38,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "import-exercise-batch"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "code-review-ai-client" },
-    { name = "openapi-client" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "python-dotenv" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "code-review-ai-client", editable = "libs/clients/codereviewai" },
-    { name = "openapi-client", editable = "libs/clients/codereview" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
-    { name = "python-dotenv", specifier = ">=1.0" },
-]
-
-[[package]]
-name = "openapi-client"
+name = "code-review-api-client"
 version = "1.0.0"
-source = { editable = "libs/clients/codereview" }
+source = { editable = "libs/clients/codereviewapi" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
@@ -73,6 +54,25 @@ requires-dist = [
     { name = "python-dateutil", specifier = ">=2.8.2" },
     { name = "typing-extensions", specifier = ">=4.7.1" },
     { name = "urllib3", specifier = ">=2.1.0,<3.0.0" },
+]
+
+[[package]]
+name = "import-exercise-batch"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "code-review-ai-client" },
+    { name = "code-review-api-client" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "python-dotenv" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "code-review-ai-client", editable = "libs/clients/codereviewai" },
+    { name = "code-review-api-client", editable = "libs/clients/codereviewapi" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "python-dotenv", specifier = ">=1.0" },
 ]
 
 [[package]]

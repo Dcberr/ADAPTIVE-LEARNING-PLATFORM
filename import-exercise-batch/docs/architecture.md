@@ -29,7 +29,7 @@ Important modules:
 
 ### Generated Client Code
 
-Generated OpenAPI client code lives in [`libs/clients/codereview`](</Users/thaibao/projects/review-code-app/import-exercise-batch/libs/clients/codereview>).
+Generated OpenAPI client code lives in [`libs/clients/codereviewapi`](</Users/thaibao/projects/review-code-app/import-exercise-batch/libs/clients/codereviewapi>).
 
 This location was chosen so generated code is separated from handwritten application code.
 
@@ -51,7 +51,7 @@ We do not place generated client code inside `src/import_exercise_batch` because
 Rule of thumb:
 
 - `src/import_exercise_batch` is for code we own
-- `libs/clients/codereview` is for code generated from the backend OpenAPI spec
+- `libs/clients/codereviewapi` is for code generated from the backend OpenAPI spec
 
 ## UV Workspace Setup
 
@@ -60,17 +60,17 @@ The root project uses `uv` workspace configuration in [`pyproject.toml`](</Users
 Current setup:
 
 - root package: `import-exercise-batch`
-- local workspace member: `libs/clients/codereview`
-- dependency name used by the root app: `openapi-client`
+- local workspace member: `libs/clients/codereviewapi`
+- dependency name used by the root app: `code_review_api_client`
 
 This allows code in `src/` to import the generated package after syncing the environment.
 
 Example import:
 
 ```python
-import openapi_client
-from openapi_client import ApiClient, Configuration
-from openapi_client.api.problem_api import ProblemApi
+import code_review_api_client
+from code_review_api_client import ApiClient, Configuration
+from code_review_api_client.api.problem_api import ProblemApi
 ```
 
 ## Recommended Usage Pattern
@@ -79,7 +79,7 @@ Application code should not spread direct generated-client calls everywhere.
 
 Recommended layering:
 
-1. keep generated code in `libs/clients/codereview`
+1. keep generated code in `libs/clients/codereviewapi`
 2. add thin wrappers or adapters in `src/import_exercise_batch`
 3. let subprocess classes call those wrappers
 
@@ -93,12 +93,12 @@ When the backend OpenAPI spec changes, regenerate the client into the same folde
 npx @openapitools/openapi-generator-cli generate \
   -i /Users/thaibao/projects/review-code-app/code-review-backend/api-docs/api-docs.yaml \
   -g python \
-  -o /Users/thaibao/projects/review-code-app/import-exercise-batch/libs/clients/codereview
+  -o /Users/thaibao/projects/review-code-app/import-exercise-batch/libs/clients/codereviewapi
 ```
 
 ### Important Rules
 
-- do not hand-edit generated files in `libs/clients/codereview`
+- do not hand-edit generated files in `libs/clients/codereviewapi`
 - keep custom behavior in `src/import_exercise_batch`
 - review the diff after regeneration
 - if the generated package metadata changes, refresh the environment
@@ -117,10 +117,10 @@ Usually:
 - The batch job is class-based.
 - `MainProcess` coordinates multiple subprocess classes.
 - The model layer is separated into a `model/` package.
-- The generated backend client is stored in `libs/clients/codereview`.
+- The generated backend client is stored in `libs/clients/codereviewapi`.
 - The root project depends on the generated client through the `uv` workspace.
 
 ## Notes
 
-- The IDE may still show old files from `clients/codereview`, but the active generated client location is now `libs/clients/codereview`.
+- The IDE may still show old files from `clients/codereviewapi`, but the active generated client location is now `libs/clients/codereviewapi`.
 - There is still an empty `clients/` directory in the repo. It is not used by the current architecture and can be removed later if desired.
