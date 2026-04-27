@@ -9,6 +9,7 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except ModuleNotFoundError:
+
     def load_dotenv() -> bool:
         dotenv_path = Path(__file__).resolve().parents[2] / ".env"
         if not dotenv_path.is_file():
@@ -21,11 +22,7 @@ except ModuleNotFoundError:
             key, value = line.split("=", 1)
             key = key.strip()
             value = value.strip()
-            if (
-                len(value) >= 2
-                and value[0] == value[-1]
-                and value[0] in {'"', "'"}
-            ):
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
                 value = value[1:-1]
             os.environ.setdefault(key, value)
         return True
@@ -65,7 +62,9 @@ class LeetCodeSettings:
     @classmethod
     def from_env(cls) -> "LeetCodeSettings":
         return cls(
-            graphql_url=os.getenv("LEETCODE_GRAPHQL_URL", "https://leetcode.com/graphql"),
+            graphql_url=os.getenv(
+                "LEETCODE_GRAPHQL_URL", "https://leetcode.com/graphql"
+            ),
             session=os.getenv("LEETCODE_SESSION", ""),
             csrf_token=os.getenv("CSRFTOKEN", ""),
             request_timeout_seconds=int(os.getenv("REQUEST_TIMEOUT_SECONDS", "30")),
@@ -85,15 +84,15 @@ class CodeReviewApiSettings:
 
 
 @dataclass(frozen=True)
-class ReviewAgentApiSettings:
+class CodeReviewAiApiSettings:
     base_url: str
     max_workers: int
 
     @classmethod
-    def from_env(cls) -> "ReviewAgentApiSettings":
+    def from_env(cls) -> "CodeReviewAiApiSettings":
         return cls(
-            base_url=os.getenv("REVIEW_AGENT_API_BASE_URL", ""),
-            max_workers=max(1, int(os.getenv("REVIEW_AGENT_API_MAX_WORKERS", "8"))),
+            base_url=os.getenv("CODE_REVIEW_AI_BASE_URL", ""),
+            max_workers=max(1, int(os.getenv("CODE_REVIEW_AI_MAX_WORKERS", "8"))),
         )
 
 
@@ -124,7 +123,7 @@ class ImportExercisesSettings:
     database: DatabaseSettings
     leetcode: LeetCodeSettings
     code_review_api: CodeReviewApiSettings
-    review_agent_api: ReviewAgentApiSettings
+    code_review_ai_api: CodeReviewAiApiSettings
     tags: list[TagConfig]
 
     @classmethod
@@ -133,19 +132,19 @@ class ImportExercisesSettings:
             database=DatabaseSettings.from_env(),
             leetcode=LeetCodeSettings.from_env(),
             code_review_api=CodeReviewApiSettings.from_env(),
-            review_agent_api=ReviewAgentApiSettings.from_env(),
+            code_review_ai_api=CodeReviewAiApiSettings.from_env(),
             tags=load_tags_config(),
         )
 
 
 @dataclass(frozen=True)
 class ImportTopicsSettings:
-    review_agent_api: ReviewAgentApiSettings
+    code_review_ai_api: CodeReviewAiApiSettings
     tags: list[TagConfig]
 
     @classmethod
     def from_env(cls) -> "ImportTopicsSettings":
         return cls(
-            review_agent_api=ReviewAgentApiSettings.from_env(),
+            code_review_ai_api=CodeReviewAiApiSettings.from_env(),
             tags=load_tags_config(),
         )

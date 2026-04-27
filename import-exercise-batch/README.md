@@ -16,7 +16,7 @@ Python batch job that:
 uv run import-exercise-batch
 ```
 
-Set `REVIEW_AGENT_API_MAX_WORKERS` to control the review-agent thread pool size used by both
+Set `CODEREVIEWAI_API_MAX_WORKERS` to control the CodeReviewAI thread pool size used by both
 `import_exercise` and `import_topic` batches. The default is `8`.
 
 ## Build wheel

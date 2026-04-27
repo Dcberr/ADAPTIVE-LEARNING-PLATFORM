@@ -7,8 +7,8 @@ from import_exercise_batch.model import LeetCodeProblemChange
 from import_exercise_batch.config import ImportExercisesSettings
 from import_exercise_batch.process.main_processes.base import BaseMainProcess
 from import_exercise_batch.process.subprocess.api import (
+    CodeReviewAiSubProcess,
     CodeReviewSubProcess,
-    ReviewAgentSubProcess,
 )
 from import_exercise_batch.process.subprocess.csv import ExerciseCsvSubProcess
 from import_exercise_batch.process.subprocess.database import ExerciseDatabaseSubProcess
@@ -24,9 +24,9 @@ class ImportExercisesMainProcess(BaseMainProcess):
         self.csv_subprocess = ExerciseCsvSubProcess(settings.database.import_csv_path)
         self.leetcode_subprocess = LeetCodeFetchSubProcess(settings.leetcode)
         self.code_review_subprocess = CodeReviewSubProcess(settings.code_review_api.base_url)
-        self.review_agent_subprocess = ReviewAgentSubProcess(
-            settings.review_agent_api.base_url,
-            settings.review_agent_api.max_workers,
+        self.code_review_ai_subprocess = CodeReviewAiSubProcess(
+            settings.code_review_ai_api.base_url,
+            settings.code_review_ai_api.max_workers,
         )
 
     def run(self) -> None:
@@ -77,16 +77,16 @@ class ImportExercisesMainProcess(BaseMainProcess):
                 no_diff_count,
             )
             changed_exercises = self.code_review_subprocess.import_exercise(exercise_changes)
-            self.review_agent_subprocess.import_exercises(changed_exercises)
-            self.patch_review_agent_relations(changed_exercises)
+            self.code_review_ai_subprocess.import_exercises(changed_exercises)
+            self.patch_code_review_ai_relations(changed_exercises)
             self.database_subprocess.upsert_latest_exercises(connection, changed_exercises)
             self.logger.info(
                 "Finished import exercises batch with %s changed exercises persisted",
                 len(changed_exercises),
             )
 
-    def patch_review_agent_relations(
+    def patch_code_review_ai_relations(
         self,
         exercises: Iterable[LeetCodeProblemChange],
     ) -> None:
-        self.review_agent_subprocess.patch_exercise_relations_batch(exercises)
+        self.code_review_ai_subprocess.patch_exercise_relations_batch(exercises)
