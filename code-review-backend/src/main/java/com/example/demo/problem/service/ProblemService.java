@@ -1,8 +1,10 @@
 package com.example.demo.problem.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.example.demo.problem.dto.CreateProblemRequest;
+import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
@@ -21,5 +23,9 @@ public interface ProblemService {
      * Update problem starter code templates
      */
     ProblemResponse updateProblemTemplate(UpdateProblemTemplateRequest request);
+
+    public ProblemResponse createManualProblem(CreateProblemRequest request);
+
+    public void batchInsertLeetCode(List<LeetCodeImportRequest> requests);
 
 }

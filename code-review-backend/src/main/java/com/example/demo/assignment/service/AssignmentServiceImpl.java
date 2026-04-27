@@ -53,15 +53,17 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         CreateAssignmentRequest.ProblemRequest problemReq = request.getProblem();
 
-        ProblemResponse problem = problemService.createProblem(
+        ProblemResponse problem = problemService.createManualProblem(
                 CreateProblemRequest.builder()
                         .description(problemReq.getDescription())
                         .assignmentId(assignment.getId())
                         .starterCodes(problemReq.getStarterCodes())
-                        .leetCodeCodeSnippet(problemReq.getLeetCodeCodeSnippet())
-                        .leetCodeLanguage(problemReq.getLeetCodeLanguage())
+                        // .leetCodeCodeSnippet(problemReq.getLeetCodeCodeSnippet())
+                        // .leetCodeLanguage(problemReq.getLeetCodeLanguage())
                         .problemConstraint(problemReq.getProblemConstraint())
                         .testcases(problemReq.getTestcases())
+                        .title(assignment.getTitle())
+                        .difficulty(assignment.getDifficulty().toString())
                         .build()
         );
 
