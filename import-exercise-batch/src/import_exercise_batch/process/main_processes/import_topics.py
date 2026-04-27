@@ -12,7 +12,10 @@ class ImportTopicsMainProcess(BaseMainProcess):
 
     def __init__(self, settings: ImportTopicsSettings) -> None:
         self.settings = settings
-        self.review_agent_subprocess = ReviewAgentSubProcess(settings.review_agent_api.base_url)
+        self.review_agent_subprocess = ReviewAgentSubProcess(
+            settings.review_agent_api.base_url,
+            settings.review_agent_api.max_workers,
+        )
 
     def run(self) -> None:
         enabled_topics = [tag for tag in self.settings.tags if tag.enable]

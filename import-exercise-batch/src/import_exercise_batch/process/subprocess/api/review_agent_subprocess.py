@@ -20,10 +20,10 @@ from reviewagent_client.api.default_api import DefaultApi
 
 class ReviewAgentSubProcess(BaseSubProcess):
     logger = logging.getLogger(__name__)
-    max_workers = 8
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, max_workers: int) -> None:
         self.base_url = base_url
+        self.max_workers = max_workers
 
     def import_exercises(self, exercises: Iterable[LeetCodeProblemChange]) -> None:
         exercise_list = list(exercises)

@@ -87,10 +87,14 @@ class CodeReviewApiSettings:
 @dataclass(frozen=True)
 class ReviewAgentApiSettings:
     base_url: str
+    max_workers: int
 
     @classmethod
     def from_env(cls) -> "ReviewAgentApiSettings":
-        return cls(base_url=os.getenv("REVIEW_AGENT_API_BASE_URL", ""))
+        return cls(
+            base_url=os.getenv("REVIEW_AGENT_API_BASE_URL", ""),
+            max_workers=max(1, int(os.getenv("REVIEW_AGENT_API_MAX_WORKERS", "8"))),
+        )
 
 
 @dataclass(frozen=True)
