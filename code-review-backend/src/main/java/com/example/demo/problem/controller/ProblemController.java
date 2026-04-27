@@ -71,11 +71,10 @@ public class ProblemController {
 
     @Operation(summary = "Batch import LeetCode problems")
     @PostMapping("/leetcode/batch")
-    public ApiResponse<String> importLeetCodeProblems(
+    public ApiResponse<List<ProblemResponse>> importLeetCodeProblems(
             @RequestBody List<LeetCodeImportRequest> requests
     ) {
-        problemService.batchInsertLeetCode(requests);
-        return ApiResponse.success("Imported successfully");
+        return ApiResponse.success(problemService.batchInsertLeetCode(requests));
     }
 
     @Operation(summary = "Get problem by assignment ID")

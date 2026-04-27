@@ -157,14 +157,22 @@ public class ProblemServiceImpl implements ProblemService {
             });
         }
 
+        List<String> similarIds = Optional.ofNullable(problem.getSimilarProblems())
+            .orElse(Collections.emptySet())
+            .stream()
+            .map(Problem::getExternalId)
+            .toList();
+
         return ProblemResponse.builder()
                 .id(problem.getId())
                 .title(problem.getTitle())
                 .description(problem.getDescription())
                 .difficulty(problem.getDifficulty())
                 .problemConstraint(problem.getProblemConstraint())
+                .externalId(problem.getExternalId())
                 .type(problem.getType())
                 .functionSkeletons(functionSkeletons)
+                .similarQuestionIds(similarIds)
                 .testcases(testcases)
                 .build();
     }
@@ -197,39 +205,37 @@ public class ProblemServiceImpl implements ProblemService {
 
     @Transactional
     @Override
-    public void batchInsertLeetCode(List<LeetCodeImportRequest> requests) {
+    public List<ProblemResponse> batchInsertLeetCode(List<LeetCodeImportRequest> requests) {
 
         Map<String, Problem> cache = new HashMap<>();
 
         // =========================
-        // PHASE 1: INSERT PROBLEMS
+        // PHASE 1: INSERT / GET
         // =========================
         for (LeetCodeImportRequest req : requests) {
 
-            Optional<Problem> existing =
-                    problemRepository.findBySourceAndExternalId("LEETCODE", req.getExternalId());
+            Problem problem = problemRepository
+                    .findBySourceAndExternalId("LEETCODE", req.getExternalId())
+                    .orElseGet(() -> {
 
-            Problem problem;
+                        Problem newProblem = Problem.builder()
+                                .title(req.getTitle())
+                                .description(req.getDescription())
+                                .difficulty(req.getDifficulty())
+                                .problemConstraint(req.getConstraints())
+                                .starterCodes(req.getStarterCodes())
+                                .type(ProblemType.LEETCODE)
+                                .source("LEETCODE")
+                                .externalId(req.getExternalId())
+                                .createdAt(Instant.now())
+                                .build();
 
-            if (existing.isPresent()) {
-                problem = existing.get();
-            } else {
-                problem = Problem.builder()
-                        .title(req.getTitle())
-                        .description(req.getDescription())
-                        .difficulty(req.getDifficulty())
-                        .problemConstraint(req.getConstraints())
-                        .starterCodes(req.getStarterCodes())
-                        .type(ProblemType.LEETCODE)
-                        .source("LEETCODE")
-                        .externalId(req.getExternalId())
-                        .createdAt(Instant.now())
-                        .build();
+                        problemRepository.save(newProblem);
 
-                problemRepository.save(problem);
+                        saveTestcases(newProblem.getId(), req.getTestcases());
 
-                saveTestcases(problem.getId(), req.getTestcases());
-            }
+                        return newProblem;
+                    });
 
             cache.put(req.getExternalId(), problem);
         }
@@ -253,13 +259,28 @@ public class ProblemServiceImpl implements ProblemService {
 
                     current.getSimilarProblems().add(similar);
 
-                    // OPTIONAL: 2 chiều
+                    // optional: bidirectional
                     similar.getSimilarProblems().add(current);
                 }
             }
-
-            problemRepository.save(current);
         }
+
+        // =========================
+        // SAVE ALL (flush)
+        // =========================
+        problemRepository.saveAll(cache.values());
+
+        // =========================
+        // BUILD RESPONSE
+        // =========================
+        return cache.values().stream()
+                .map(problem -> {
+                    List<TestcaseResponse> testcases =
+                            testcaseService.getTestcasesByProblem(problem.getId());
+
+                    return map(problem, testcases);
+                })
+                .toList();
     }
 
     private void saveTestcases(UUID problemId, List<TestcaseDto> testcases) {

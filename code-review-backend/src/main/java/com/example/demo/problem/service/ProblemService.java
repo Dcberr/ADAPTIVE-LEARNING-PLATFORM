@@ -26,6 +26,6 @@ public interface ProblemService {
 
     public ProblemResponse createManualProblem(CreateProblemRequest request);
 
-    public void batchInsertLeetCode(List<LeetCodeImportRequest> requests);
+    public List<ProblemResponse> batchInsertLeetCode(List<LeetCodeImportRequest> requests);
 
 }

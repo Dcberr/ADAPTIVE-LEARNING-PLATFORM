@@ -15,6 +15,8 @@ public class ProblemResponse {
 
     private UUID id;
 
+    private String externalId;
+
     private String title;
 
     private String description;
