@@ -15,6 +15,8 @@ public interface TestcaseRepository
 
     List<Testcase> findByProblemId(UUID problemId);
 
+    void deleteByProblemId(UUID problemId);
+
 
     @Query("""
             SELECT t FROM Testcase t

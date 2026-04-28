@@ -28,4 +28,6 @@ public interface ProblemService {
 
     public List<ProblemResponse> batchInsertLeetCode(List<LeetCodeImportRequest> requests);
 
+    public List<ProblemResponse> batchUpdateLeetCode(List<LeetCodeImportRequest> requests);
+
 }

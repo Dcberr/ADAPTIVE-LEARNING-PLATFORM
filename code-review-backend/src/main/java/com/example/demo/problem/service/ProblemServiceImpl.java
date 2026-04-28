@@ -283,6 +283,71 @@ public class ProblemServiceImpl implements ProblemService {
                 .toList();
     }
 
+    @Transactional
+    @Override
+    public List<ProblemResponse> batchUpdateLeetCode(List<LeetCodeImportRequest> requests) {
+
+        Map<String, Problem> cache = new HashMap<>();
+
+        for (LeetCodeImportRequest req : requests) {
+            Problem problem = problemRepository
+                    .findBySourceAndExternalId("LEETCODE", req.getExternalId())
+                    .orElseGet(() -> Problem.builder()
+                            .type(ProblemType.LEETCODE)
+                            .source("LEETCODE")
+                            .externalId(req.getExternalId())
+                            .createdAt(Instant.now())
+                            .build());
+
+            problem.setTitle(req.getTitle());
+            problem.setDescription(req.getDescription());
+            problem.setDifficulty(req.getDifficulty());
+            problem.setProblemConstraint(req.getConstraints());
+            problem.setStarterCodes(req.getStarterCodes());
+            problem.setType(ProblemType.LEETCODE);
+            problem.setSource("LEETCODE");
+            problem.setExternalId(req.getExternalId());
+            problem.getSimilarProblems().clear();
+
+            problemRepository.save(problem);
+
+            testcaseRepository.deleteByProblemId(problem.getId());
+            saveTestcases(problem.getId(), req.getTestcases());
+
+            cache.put(req.getExternalId(), problem);
+        }
+
+        for (LeetCodeImportRequest req : requests) {
+
+            Problem current = cache.get(req.getExternalId());
+
+            if (req.getSimilarQuestionIds() == null) continue;
+
+            for (String similarId : req.getSimilarQuestionIds()) {
+
+                Problem similar = problemRepository
+                        .findBySourceAndExternalId("LEETCODE", similarId)
+                        .orElse(null);
+
+                if (similar != null && !similar.getId().equals(current.getId())) {
+                    current.getSimilarProblems().add(similar);
+                    similar.getSimilarProblems().add(current);
+                }
+            }
+        }
+
+        problemRepository.saveAll(cache.values());
+
+        return cache.values().stream()
+                .map(problem -> {
+                    List<TestcaseResponse> testcases =
+                            testcaseService.getTestcasesByProblem(problem.getId());
+
+                    return map(problem, testcases);
+                })
+                .toList();
+    }
+
     private void saveTestcases(UUID problemId, List<TestcaseDto> testcases) {
 
         if (testcases == null) return;

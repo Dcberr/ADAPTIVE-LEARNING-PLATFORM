@@ -77,6 +77,14 @@ public class ProblemController {
         return ApiResponse.success(problemService.batchInsertLeetCode(requests));
     }
 
+    @Operation(summary = "Batch update LeetCode problems")
+    @PutMapping("/leetcode/batch")
+    public ApiResponse<List<ProblemResponse>> updateLeetCodeProblems(
+            @RequestBody List<LeetCodeImportRequest> requests
+    ) {
+        return ApiResponse.success(problemService.batchUpdateLeetCode(requests));
+    }
+
     @Operation(summary = "Get problem by assignment ID")
         @GetMapping("/assignment/{assignmentId}")       
         public ApiResponse<ProblemResponse> getProblemByAssignmentId(
