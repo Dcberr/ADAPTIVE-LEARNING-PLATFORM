@@ -10,9 +10,11 @@ from uuid import uuid4
 import urllib3
 from code_review_api_client import (
     ApiClient,
+    ApiResponseListProblemResponse,
     Configuration,
     LeetCodeImportRequest,
     ProblemApi,
+    ProblemResponse,
     TestcaseDto,
 )
 from code_review_api_client.exceptions import ApiException
@@ -24,6 +26,7 @@ class CodeReviewSubProcess(BaseSubProcess):
     logger = logging.getLogger(__name__)
     constraints_separator = "<p><strong>Constraints:</strong></p>"
     _ChunkItem = TypeVar("_ChunkItem")
+    _ReturnValue = TypeVar("_ReturnValue")
 
     def __init__(
         self,
@@ -107,13 +110,19 @@ class CodeReviewSubProcess(BaseSubProcess):
                 chunk_start,
                 chunk_end,
             )
-            self._call_with_retry(
+            import_response = self._call_with_retry(
                 action_name="batch import leetcode problems",
                 target_identifier=f"chunk={chunk_index}/{total_chunks}",
                 call=lambda request=request: self._call_import_leet_code_problems(
                     configuration,
                     request,
                 ),
+            )
+            processed_exercises[chunk_start - 1 : chunk_end] = (
+                self._merge_import_results(
+                    chunk,
+                    import_response.data or [],
+                )
             )
             success_count += len(chunk)
             self.logger.info(
@@ -196,12 +205,12 @@ class CodeReviewSubProcess(BaseSubProcess):
         self,
         action_name: str,
         target_identifier: str,
-        call: Callable[[], None],
-    ) -> None:
+        call: Callable[[], _ReturnValue],
+    ) -> _ReturnValue:
         last_error: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                call()
+                return call()
                 if attempt > 1:
                     self.logger.info(
                         "Code review API %s succeeded on retry attempt=%s target=%s",
@@ -227,6 +236,41 @@ class CodeReviewSubProcess(BaseSubProcess):
 
         if last_error is not None:
             raise last_error
+        raise RuntimeError(
+            f"Code review API {action_name} failed without returning or raising target={target_identifier}"
+        )
+
+    def _merge_import_results(
+        self,
+        exercises: list[LeetCodeProblemChange],
+        imported_problems: list[ProblemResponse],
+    ) -> list[LeetCodeProblemChange]:
+        imported_ids_by_slug: dict[str, str] = {}
+        for problem in imported_problems:
+            if problem.external_id is None or problem.id is None:
+                raise ValueError(
+                    "Code review API import response must include externalId and id for every problem"
+                )
+            imported_ids_by_slug[problem.external_id] = str(problem.id)
+
+        missing_slugs = [
+            exercise.question_slug
+            for exercise in exercises
+            if exercise.question_slug not in imported_ids_by_slug
+        ]
+        if missing_slugs:
+            raise ValueError(
+                "Code review API import response missing problems for slugs: "
+                + ", ".join(missing_slugs)
+            )
+
+        return [
+            replace(
+                exercise,
+                exercise_id=imported_ids_by_slug[exercise.question_slug],
+            )
+            for exercise in exercises
+        ]
 
     @staticmethod
     def _should_retry_error(error: Exception) -> bool:
@@ -239,7 +283,7 @@ class CodeReviewSubProcess(BaseSubProcess):
     def _call_import_leet_code_problems(
         configuration: Configuration,
         request: list[LeetCodeImportRequest],
-    ) -> None:
+    ) -> ApiResponseListProblemResponse:
         with ApiClient(configuration) as api_client:
             api = ProblemApi(api_client)
-            api.import_leet_code_problems(leet_code_import_request=request)
+            return api.import_leet_code_problems(leet_code_import_request=request)

@@ -157,8 +157,6 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
                             {
                                 "weight": 0.7,
                                 "relation_type": "SIMILAR_PRACTICE",
-                                "target_concept_id": "concept-1",
-                                "shared_concept_ids": ["concept-1"],
                                 "difficulty_gap": 0.0,
                                 "progression_score": 0.7,
                                 "similarity_score": 0.8,

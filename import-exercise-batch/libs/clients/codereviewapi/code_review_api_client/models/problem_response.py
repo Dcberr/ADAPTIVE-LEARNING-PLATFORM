@@ -17,9 +17,10 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from code_review_api_client.models.testcase_response import TestcaseResponse
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
@@ -29,9 +30,26 @@ class ProblemResponse(BaseModel):
     ProblemResponse
     """ # noqa: E501
     id: Optional[UUID] = None
+    external_id: Optional[StrictStr] = Field(default=None, alias="externalId")
+    title: Optional[StrictStr] = None
     description: Optional[StrictStr] = None
+    difficulty: Optional[StrictStr] = None
     problem_constraint: Optional[StrictStr] = Field(default=None, alias="problemConstraint")
-    __properties: ClassVar[List[str]] = ["id", "description", "problemConstraint"]
+    type: Optional[StrictStr] = None
+    function_skeletons: Optional[Dict[str, StrictStr]] = Field(default=None, alias="functionSkeletons")
+    testcases: Optional[List[TestcaseResponse]] = None
+    similar_question_ids: Optional[List[StrictStr]] = Field(default=None, alias="similarQuestionIds")
+    __properties: ClassVar[List[str]] = ["id", "externalId", "title", "description", "difficulty", "problemConstraint", "type", "functionSkeletons", "testcases", "similarQuestionIds"]
+
+    @field_validator('type')
+    def type_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['MANUAL', 'LEETCODE']):
+            raise ValueError("must be one of enum values ('MANUAL', 'LEETCODE')")
+        return value
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -72,6 +90,13 @@ class ProblemResponse(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in testcases (list)
+        _items = []
+        if self.testcases:
+            for _item_testcases in self.testcases:
+                if _item_testcases:
+                    _items.append(_item_testcases.to_dict())
+            _dict['testcases'] = _items
         return _dict
 
     @classmethod
@@ -85,8 +110,15 @@ class ProblemResponse(BaseModel):
 
         _obj = cls.model_validate({
             "id": obj.get("id"),
+            "externalId": obj.get("externalId"),
+            "title": obj.get("title"),
             "description": obj.get("description"),
-            "problemConstraint": obj.get("problemConstraint")
+            "difficulty": obj.get("difficulty"),
+            "problemConstraint": obj.get("problemConstraint"),
+            "type": obj.get("type"),
+            "functionSkeletons": obj.get("functionSkeletons"),
+            "testcases": [TestcaseResponse.from_dict(_item) for _item in obj["testcases"]] if obj.get("testcases") is not None else None,
+            "similarQuestionIds": obj.get("similarQuestionIds")
         })
         return _obj
 

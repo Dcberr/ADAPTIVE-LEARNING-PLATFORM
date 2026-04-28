@@ -17,7 +17,8 @@ class ImportTopicsMainProcess(BaseMainProcess):
             settings.code_review_ai_api.max_workers,
             settings.code_review_ai_api.max_retries,
             settings.code_review_ai_api.backoff_seconds,
-            settings.code_review_ai_api.batch_upsert_chunk_size,
+            settings.code_review_ai_api.put_exercise_chunk_size,
+            settings.code_review_ai_api.patch_exercise_relations_chunk_size,
         )
 
     def run(self) -> None:

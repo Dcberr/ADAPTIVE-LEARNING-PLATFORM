@@ -103,7 +103,8 @@ class CodeReviewAiApiSettings:
     max_workers: int
     max_retries: int
     backoff_seconds: float
-    batch_upsert_chunk_size: int
+    put_exercise_chunk_size: int
+    patch_exercise_relations_chunk_size: int
 
     @classmethod
     def from_env(cls) -> "CodeReviewAiApiSettings":
@@ -112,8 +113,17 @@ class CodeReviewAiApiSettings:
             max_workers=max(1, int(os.getenv("CODE_REVIEW_AI_MAX_WORKERS", "8"))),
             max_retries=max(1, int(os.getenv("CODE_REVIEW_AI_MAX_RETRIES", "3"))),
             backoff_seconds=float(os.getenv("CODE_REVIEW_AI_BACKOFF_SECONDS", "1.5")),
-            batch_upsert_chunk_size=max(
-                1, int(os.getenv("CODE_REVIEW_AI_BATCH_UPSERT_CHUNK_SIZE", "100"))
+            put_exercise_chunk_size=max(
+                1, int(os.getenv("CODE_REVIEW_AI_PUT_EXERCISE_CHUNK_SIZE", "100"))
+            ),
+            patch_exercise_relations_chunk_size=max(
+                1,
+                int(
+                    os.getenv(
+                        "CODE_REVIEW_AI_PATCH_EXERCISE_RELATIONS_CHUNK_SIZE",
+                        "8",
+                    )
+                ),
             ),
         )
 

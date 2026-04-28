@@ -136,6 +136,7 @@ Class | Method | HTTP request | Description
  - [ApiResponseListAssignmentResponse](docs/ApiResponseListAssignmentResponse.md)
  - [ApiResponseListClassOverviewResponse](docs/ApiResponseListClassOverviewResponse.md)
  - [ApiResponseListDocumentResponse](docs/ApiResponseListDocumentResponse.md)
+ - [ApiResponseListProblemResponse](docs/ApiResponseListProblemResponse.md)
  - [ApiResponseListReviewResponse](docs/ApiResponseListReviewResponse.md)
  - [ApiResponseListSubmissionOverviewResponse](docs/ApiResponseListSubmissionOverviewResponse.md)
  - [ApiResponseListTestcaseResponse](docs/ApiResponseListTestcaseResponse.md)

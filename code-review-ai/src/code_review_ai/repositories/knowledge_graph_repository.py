@@ -946,8 +946,6 @@ class KnowledgeGraphRepository:
                         "related_exercise_id": related_exercise.exercise_id,
                         "weight": relation_config.get("weight", 1.0),
                         "relation_type": relation_config.get("relation_type", ""),
-                        "target_concept_id": relation_config.get("target_concept_id", ""),
-                        "shared_concept_ids": relation_config.get("shared_concept_ids", []),
                         "difficulty_gap": relation_config.get("difficulty_gap", 0.0),
                         "progression_score": relation_config.get("progression_score", 0.0),
                         "similarity_score": relation_config.get("similarity_score", 0.0),
@@ -972,8 +970,6 @@ class KnowledgeGraphRepository:
                     MERGE (main)-[r:RELATED_TO]->(related)
                     SET r.weight = row.weight,
                         r.relation_type = row.relation_type,
-                        r.target_concept_id = row.target_concept_id,
-                        r.shared_concept_ids = row.shared_concept_ids,
                         r.difficulty_gap = row.difficulty_gap,
                         r.progression_score = row.progression_score,
                         r.similarity_score = row.similarity_score

@@ -3,13 +3,13 @@
     "name": "Array",
     "slug": "array",
     "enable": true,
-    "limit": 100,
+    "limit": 10,
     "prerequisite_slugs": []
   },
   {
     "name": "String",
     "slug": "string",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array"
@@ -18,7 +18,7 @@
   {
     "name": "Hash Table",
     "slug": "hash-table",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array"
@@ -27,14 +27,14 @@
   {
     "name": "Math",
     "slug": "math",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": []
   },
   {
     "name": "Sorting",
     "slug": "sorting",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array"
@@ -43,7 +43,7 @@
   {
     "name": "Matrix",
     "slug": "matrix",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array"
@@ -52,7 +52,7 @@
   {
     "name": "Simulation",
     "slug": "simulation",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array",
@@ -62,7 +62,7 @@
   {
     "name": "Counting",
     "slug": "counting",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array",
@@ -72,7 +72,7 @@
   {
     "name": "Stack",
     "slug": "stack",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array",
@@ -82,7 +82,7 @@
   {
     "name": "Linked List",
     "slug": "linked-list",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array"
@@ -91,7 +91,7 @@
   {
     "name": "Queue",
     "slug": "queue",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": [
       "array",
@@ -101,7 +101,7 @@
   {
     "name": "Recursion",
     "slug": "recursion",
-    "enable": true,
+    "enable": false,
     "limit": 100,
     "prerequisite_slugs": []
   }

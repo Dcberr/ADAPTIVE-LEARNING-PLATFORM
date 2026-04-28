@@ -6,8 +6,15 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **id** | **UUID** |  | [optional] 
+**external_id** | **str** |  | [optional] 
+**title** | **str** |  | [optional] 
 **description** | **str** |  | [optional] 
+**difficulty** | **str** |  | [optional] 
 **problem_constraint** | **str** |  | [optional] 
+**type** | **str** |  | [optional] 
+**function_skeletons** | **Dict[str, str]** |  | [optional] 
+**testcases** | [**List[TestcaseResponse]**](TestcaseResponse.md) |  | [optional] 
+**similar_question_ids** | **List[str]** |  | [optional] 
 
 ## Example
 
