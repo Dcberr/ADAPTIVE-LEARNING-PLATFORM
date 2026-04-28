@@ -8,12 +8,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.entity.AssignmentProblem;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
+import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.client.LeetCodeClient;
 import com.example.demo.problem.dto.CreateProblemRequest;
 // import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
@@ -124,6 +127,29 @@ public class ProblemServiceImpl implements ProblemService {
 
         return map(problemRepository.findById(problem.getProblemId())
                 .orElseThrow(), testcases);
+    }
+
+    @Override
+    public PageResponse<ProblemResponse> getAllLeetCodeProblems(int page, int size) {
+        Page<Problem> problemPage = problemRepository.findAllBySourceOrderByCreatedAtDesc(
+                "LEETCODE",
+                PageRequest.of(page, size)
+        );
+
+        List<ProblemResponse> content = problemPage.getContent().stream()
+                .map(problem -> map(
+                    problem,
+                    testcaseService.getTestcasesByProblem(problem.getId())
+                ))
+                .toList();
+
+        return PageResponse.<ProblemResponse>builder()
+                .content(content)
+                .page(problemPage.getNumber())
+                .size(problemPage.getSize())
+                .totalElements(problemPage.getTotalElements())
+                .totalPages(problemPage.getTotalPages())
+                .build();
     }
 
     @Override
