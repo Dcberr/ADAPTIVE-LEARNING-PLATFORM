@@ -7,13 +7,21 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.assignment.dto.AssignmentResponse;
+import com.example.demo.assignment.entity.AssigmentDifficulty;
 import com.example.demo.assignment.entity.Assignment;
+import com.example.demo.assignment.entity.AssignmentProblem;
+import com.example.demo.assignment.entity.AssignmentStatus;
+import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.assignment.service.AssignmentService;
+import com.example.demo.common.exception.AppException;
+import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.document.dto.DocumentResponse;
-import com.example.demo.document.entity.Document;
-import com.example.demo.document.repository.DocumentRepository;
 import com.example.demo.document.service.DocumentService;
+import com.example.demo.problem.entity.Problem;
+import com.example.demo.problem.entity.ProblemType;
+import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.topic.dto.AddLeetCodeProblemToTopicRequest;
 import com.example.demo.topic.dto.CreateTopicRequest;
 import com.example.demo.topic.dto.TopicDetailResponse;
 import com.example.demo.topic.dto.TopicOverviewResponse;
@@ -28,8 +36,9 @@ import lombok.RequiredArgsConstructor;
 public class TopicServiceImpl implements TopicService {
 
     private final TopicRepository topicRepository;
-//     private final AssignmentRepository assignmentRepository;
-//     private final DocumentRepository documentRepository;
+    private final AssignmentRepository assignmentRepository;
+    private final AssignmentProblemRepository assignmentProblemRepository;
+    private final ProblemRepository problemRepository;
     private final AssignmentService assignmentService;
     private final DocumentService documentService;   
 
@@ -94,6 +103,75 @@ public class TopicServiceImpl implements TopicService {
         return TopicOverviewResponse.builder()
                 .ids(topics.stream().map(Topic::getId).toList())
                 .build();
+    }
+
+    @Override
+    public AssignmentResponse addLeetCodeProblemToTopic(UUID topicId, AddLeetCodeProblemToTopicRequest request) {
+
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
+
+        Problem problem = problemRepository.findById(request.getProblemId())
+                .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
+
+        if (problem.getType() != ProblemType.LEETCODE || !"LEETCODE".equals(problem.getSource())) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        Assignment assignment = Assignment.builder()
+                .topicId(topic.getId())
+                .title(resolveAssignmentTitle(request, problem))
+                .startTime(request.getStartTime())
+                .deadline(request.getDeadline())
+                .timeLimit(request.getTimeLimit())
+                .maxScore(request.getMaxScore())
+                .maxSubmission(request.getMaxSubmission())
+                .tags(request.getTags())
+                .createdAt(Instant.now())
+                .difficulty(resolveDifficulty(problem.getDifficulty()))
+                .status(AssignmentStatus.PENDING)
+                .build();
+
+        assignmentRepository.save(assignment);
+
+        assignmentProblemRepository.save(
+                AssignmentProblem.builder()
+                        .assignmentId(assignment.getId())
+                        .problemId(problem.getId())
+                        .build()
+        );
+
+        return AssignmentResponse.builder()
+                .id(assignment.getId())
+                .title(assignment.getTitle())
+                .deadline(assignment.getDeadline())
+                .difficulty(assignment.getDifficulty())
+                .startTime(assignment.getStartTime())
+                .timeLimit(assignment.getTimeLimit())
+                .maxScore(assignment.getMaxScore())
+                .maxSubmission(assignment.getMaxSubmission())
+                .tags(assignment.getTags())
+                .status(assignment.getStatus())
+                .build();
+    }
+
+    private String resolveAssignmentTitle(AddLeetCodeProblemToTopicRequest request, Problem problem) {
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            return request.getTitle();
+        }
+        return problem.getTitle();
+    }
+
+    private AssigmentDifficulty resolveDifficulty(String difficulty) {
+        if (difficulty == null || difficulty.isBlank()) {
+            return AssigmentDifficulty.MEDIUM;
+        }
+
+        try {
+            return AssigmentDifficulty.valueOf(difficulty.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return AssigmentDifficulty.MEDIUM;
+        }
     }
 
 }

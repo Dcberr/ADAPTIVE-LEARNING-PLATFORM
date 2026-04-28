@@ -18,4 +18,6 @@ public interface AssignmentService {
 
     void addProblemToAssignment(UUID assignmentId, UUID problemId);
 
+    AssignmentResponse addLeetCodeProblemToAssignment(UUID topicId, UUID assignmentId, UUID problemId);
+
 }

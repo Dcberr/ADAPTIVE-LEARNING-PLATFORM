@@ -18,7 +18,12 @@ import com.example.demo.assignment.entity.AssignmentStatus;
 import com.example.demo.assignment.mapper.AssignmentMapper;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.assignment.repository.AssignmentRepository;
+import com.example.demo.common.exception.AppException;
+import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.problem.dto.CreateProblemRequest;
+import com.example.demo.problem.entity.Problem;
+import com.example.demo.problem.entity.ProblemType;
+import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.service.ProblemService;
 
@@ -28,6 +33,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final AssignmentProblemRepository assignmentProblemRepository;
+    private final ProblemRepository problemRepository;
     private final ProblemService problemService;
     private final AssignmentMapper assignmentMapper;
 
@@ -124,5 +130,34 @@ public class AssignmentServiceImpl implements AssignmentService {
                         .build();
 
         assignmentProblemRepository.save(mapping);
+    }
+
+    @Override
+    public AssignmentResponse addLeetCodeProblemToAssignment(UUID topicId, UUID assignmentId, UUID problemId) {
+
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+
+        if (!assignment.getTopicId().equals(topicId)) {
+            throw new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND);
+        }
+
+        Problem problem = problemRepository.findById(problemId)
+                .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
+
+        if (problem.getType() != ProblemType.LEETCODE || !"LEETCODE".equals(problem.getSource())) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        if (!assignmentProblemRepository.existsByAssignmentIdAndProblemId(assignmentId, problemId)) {
+            assignmentProblemRepository.save(
+                    AssignmentProblem.builder()
+                            .assignmentId(assignmentId)
+                            .problemId(problemId)
+                            .build()
+            );
+        }
+
+        return mapAssignment(assignment);
     }
 }
