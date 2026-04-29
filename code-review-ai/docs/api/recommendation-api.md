@@ -56,8 +56,6 @@ Use this API when:
     "current_concept_weight": 1.0,
     "best_path_weight": 0.91,
     "best_related_exercise_weight": 0.86,
-    "latest_review_improvement_signal": 0.42,
-    "latest_review_severity_change": -0.25,
     "latest_submission_improvement_ratio": 0.35,
     "latest_submission_regression_ratio": 0.0
   },

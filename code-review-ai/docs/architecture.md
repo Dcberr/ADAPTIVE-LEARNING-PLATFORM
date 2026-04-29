@@ -16,7 +16,7 @@ The recommendation input is no longer required to carry the full review payload.
 
 The latest review context, student profile, and exercise concept are loaded from Neo4j during the recommendation flow.
 
-The recommendation path is decided internally through LLM path selection over graph-backed context. The client does not choose `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+The recommendation path is decided internally through LLM path selection over graph-backed context. The client does not choose `REINFORCE` or `IMPROVE`.
 
 The recommendation runtime is now split into subgraphs with explicit fallback nodes. Each LLM-heavy phase first tries the model-driven branch and then routes to a deterministic fallback when parsing or validation fails. The context planner also performs one bounded JSON-repair retry before it gives up and routes to fallback.
 
@@ -49,10 +49,6 @@ Client
 Client
   -> PUT /api/v1/knowledgegraph/reviews/{review_id}
   -> Neo4j review upsert
-
-Client
-  -> GET /api/v1/knowledgegraph
-  -> Neo4j graph snapshot
 ```
 
 ```text
@@ -146,7 +142,6 @@ Current endpoints:
 - `PUT /api/v1/knowledgegraph/students/{student_id}`
 - `PUT /api/v1/knowledgegraph/submissions/{submission_id}`
 - `PUT /api/v1/knowledgegraph/reviews/{review_id}`
-- `GET /api/v1/knowledgegraph`
 
 ## Review Architecture
 
@@ -232,11 +227,9 @@ Responsibilities:
 - link each new review to the previous review for the same student
 - recalculate or create the student profile from each stored review
 - retrieve recommendation context by `student_id` and `exercise_id`
-- retrieve next concepts from Neo4j
 - retrieve recommendation candidates from Neo4j for GraphRAG
 - exclude previously attempted or assigned exercises for the same student
 - persist assigned roadmap links after recommendation
-- return a graph snapshot for inspection
 
 Prompt builders for knowledge-graph weighting now live under:
 
@@ -263,21 +256,20 @@ Exercise write API:
 
 Exercise payload:
 
+- `slug`
 - `title`
 - `description`
 - `content`
 - `difficulty`
-- `tags`
-- `concept_ids`
-- `related_exercise_ids`
+- `concept_slugs`
 
 Exercise write behavior:
 
-- the client provides exercise metadata plus related entity ids
-- the API validates that relation ids already exist in Neo4j before writing
+- the exercise upsert API writes the exercise node plus exercise-to-concept relations
+- the API validates that `concept_slugs` already exist in Neo4j before writing
 - the knowledge-graph LLM evaluates `TESTS.weight`
 - the knowledge-graph LLM chooses `RECOMMENDED_FOR.path` and `RECOMMENDED_FOR.weight`
-- the knowledge-graph LLM evaluates `RELATED_TO` metadata including weight, relation type, shared concepts, and progression/similarity signals
+- exercise-to-exercise relations are updated separately through the exercise relation patch endpoint
 
 Student write API:
 
@@ -305,7 +297,8 @@ Submission write behavior:
 - validates that `Student` and `Exercise` already exist
 - refreshes `SUBMITTED` and `FOR_EXERCISE`
 - refreshes adjacent attempt links on the same exercise with `NEXT_ATTEMPT`
-- computes `improvement_ratio` and `regression_ratio` from testcase outputs
+- stores testcase outputs on each `Submission`
+- computes `improvement_ratio` and `regression_ratio` later at read time from adjacent submissions
 
 Review write API:
 
@@ -327,11 +320,6 @@ Review write behavior:
 - overwrites the stored review fields from the request
 - refreshes `Student -> Review`, `Submission -> Review`, `Review -> Submission`, and `Review -> Exercise`
 - rebuilds adjacent `NEXT_REVIEW_OF` links with `same_concept`, `improvement_signal`, and `severity_change`
-
-Graph read API:
-
-- file: [app/api/knowledge_graph_route.py](/Users/thaibao/projects/review-code-app/codereviewai/app/api/knowledge_graph_route.py)
-- endpoint: `GET /api/v1/knowledgegraph`
 
 ## Recommendation Architecture
 
@@ -382,7 +370,7 @@ The recommendation workflow still returns a framework object for roadmap assignm
 Framework intent:
 
 - `risk_level`: how cautious the roadmap should be before the student advances
-- `readiness_level`: whether the student should reinforce, improve, or move to a next concept
+- `readiness_level`: whether the student should reinforce or improve within the current concept
 
 This framework is now decided during the LLM path-decision step and returned with the roadmap.
 
@@ -416,7 +404,6 @@ The recommendation workflow uses `StateGraph(RecommendationState)` with these no
   - `review_trend`
   - `submission_trend`
   - `exercise_graph`
-  - `concept_progression`
   - `student_history`
 - does not generate raw Cypher
 
@@ -430,7 +417,6 @@ The recommendation workflow uses `StateGraph(RecommendationState)` with these no
 - uses the LLM to choose one path from:
   - `REINFORCE`
   - `IMPROVE`
-  - `NEXT_CONCEPT`
 - also chooses the focus concept and returns `risk_level`, `readiness_level`, and an explanation
 
 `CandidateRetriever`
@@ -522,7 +508,6 @@ Important models:
 - `ExerciseConceptLink`
 - `ExercisePathLink`
 - `ExerciseRelation`
-- `KnowledgeGraphDocument`
 - `StudentRecord`
 
 ## End-to-End Flow

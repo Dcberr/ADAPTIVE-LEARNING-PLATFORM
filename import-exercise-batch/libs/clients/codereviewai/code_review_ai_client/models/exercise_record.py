@@ -33,8 +33,8 @@ class ExerciseRecord(BaseModel):
     description: StrictStr
     content: StrictStr
     difficulty: StrictStr
-    tags: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["exercise_id", "slug", "title", "description", "content", "difficulty", "tags"]
+    concept_slugs: Optional[List[StrictStr]] = None
+    __properties: ClassVar[List[str]] = ["exercise_id", "slug", "title", "description", "content", "difficulty", "concept_slugs"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -93,7 +93,7 @@ class ExerciseRecord(BaseModel):
             "description": obj.get("description"),
             "content": obj.get("content"),
             "difficulty": obj.get("difficulty"),
-            "tags": obj.get("tags")
+            "concept_slugs": obj.get("concept_slugs")
         })
         return _obj
 

@@ -23,7 +23,7 @@ class ModelConfigOverrideTests(unittest.TestCase):
         review_link_stage = config.get_stage_config("review", "review_link")
         scoring_stage = config.get_stage_config("review", "scoring")
 
-        self.assertEqual(logic_stage.model_name, "fireworks/kimi-k2p5")
+        self.assertEqual(logic_stage.model_name, "fireworks/deepseek-v3p2")
         self.assertEqual(logic_stage.temperature, 0.1)
         self.assertEqual(logic_stage.max_tokens, 2200)
 
@@ -67,8 +67,8 @@ class ModelConfigOverrideTests(unittest.TestCase):
 
         self.assertEqual(logic_stage.model_name, "fireworks/test-review-model")
         self.assertEqual(scoring_stage.model_name, "fireworks/test-review-model")
-        self.assertEqual(logic_stage.max_tokens, 1800)
-        self.assertEqual(scoring_stage.max_tokens, 1600)
+        self.assertEqual(logic_stage.max_tokens, 2200)
+        self.assertEqual(scoring_stage.max_tokens, 1800)
 
     def test_stage_specific_override_wins_over_feature_level_model(self):
         config = build_env_config(
@@ -87,6 +87,20 @@ class ModelConfigOverrideTests(unittest.TestCase):
         self.assertEqual(roadmap_stage.model_name, "fireworks/roadmap-builder-override")
         self.assertEqual(explanation_stage.model_name, "fireworks/recommendation-default")
 
+    def test_recommendation_candidate_reranker_stage_can_be_overridden(self):
+        config = build_env_config(
+            {
+                "FIREWORKS_API_KEY": "test-key",
+                "RECOMMENDATION_CANDIDATE_RERANKER_MODEL": "fireworks/test-reranker",
+                "RECOMMENDATION_CANDIDATE_RERANKER_TEMPERATURE": "0.0",
+                "RECOMMENDATION_CANDIDATE_RERANKER_MAX_TOKENS": "555",
+            }
+        )
+
+        stage = config.get_stage_config("recommendation", "candidate_reranker")
+        self.assertEqual(stage.model_name, "fireworks/test-reranker")
+        self.assertEqual(stage.temperature, 0.0)
+        self.assertEqual(stage.max_tokens, 555)
 
 if __name__ == "__main__":
     unittest.main()

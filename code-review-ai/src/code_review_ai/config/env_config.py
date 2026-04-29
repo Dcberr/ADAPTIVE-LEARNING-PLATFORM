@@ -24,6 +24,8 @@ class EnvConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     uvicorn_reload: bool = False
+    log_level: str = "INFO"
+    exercise_embedding_model: str = "fireworks/qwen3-embedding-8b"
 
     fireworks_api_key: str
     fireworks_base_url: str = DEFAULT_FIREWORKS_BASE_URL
@@ -34,7 +36,9 @@ class EnvConfig(BaseModel):
 
     fireworks_stage_configs: FireworksFeatureConfig
 
-    def get_stage_config(self, feature: str, stage: str = "default") -> FireworksStageConfig:
+    def get_stage_config(
+        self, feature: str, stage: str = "default"
+    ) -> FireworksStageConfig:
         feature_map = self.fireworks_stage_configs.get_feature_map(feature)
         return feature_map.get(stage) or feature_map["default"]
 
@@ -59,6 +63,12 @@ def build_env_config(env_values: dict[str, object] | None = None) -> EnvConfig:
         port=int(resolved_values.get("PORT", 8000)),
         uvicorn_reload=str(resolved_values.get("UVICORN_RELOAD", "false")).lower()
         == "true",
+        log_level=str(resolved_values.get("LOG_LEVEL", "INFO")).upper(),
+        exercise_embedding_model=str(
+            resolved_values.get(
+                "EXERCISE_EMBEDDING_MODEL", "fireworks/qwen3-embedding-8b"
+            )
+        ),
         fireworks_api_key=str(resolved_values.get("FIREWORKS_API_KEY", "")),
         fireworks_base_url=str(
             resolved_values.get("FIREWORKS_BASE_URL", DEFAULT_FIREWORKS_BASE_URL)
@@ -78,9 +88,7 @@ def clear_env_config_cache() -> None:
     get_env_config.cache_clear()
 
 
-def _build_stage_configs(
-    env_values: dict[str, object]
-) -> FireworksFeatureConfig:
+def _build_stage_configs(env_values: dict[str, object]) -> FireworksFeatureConfig:
     defaults = FireworksFeatureConfig()
     feature_maps = {
         "review": defaults.review.as_stage_map(),
@@ -129,9 +137,7 @@ def _build_stage_configs(
     )
 
 
-def _build_review_model_config(
-    stage_configs: dict[str, FireworksStageConfig]
-):
+def _build_review_model_config(stage_configs: dict[str, FireworksStageConfig]):
     return ReviewModelConfig(
         logic=stage_configs["logic"],
         fix_hint=stage_configs["fix_hint"],
@@ -143,9 +149,7 @@ def _build_review_model_config(
     )
 
 
-def _build_knowledge_graph_model_config(
-    stage_configs: dict[str, FireworksStageConfig]
-):
+def _build_knowledge_graph_model_config(stage_configs: dict[str, FireworksStageConfig]):
     return KnowledgeGraphModelConfig(
         prerequisite_weight=stage_configs["prerequisite_weight"],
         exercise_weight=stage_configs["exercise_weight"],
@@ -153,9 +157,7 @@ def _build_knowledge_graph_model_config(
     )
 
 
-def _build_recommendation_model_config(
-    stage_configs: dict[str, FireworksStageConfig]
-):
+def _build_recommendation_model_config(stage_configs: dict[str, FireworksStageConfig]):
     return RecommendationModelConfig(
         context_planner=stage_configs["context_planner"],
         path_decider=stage_configs["path_decider"],

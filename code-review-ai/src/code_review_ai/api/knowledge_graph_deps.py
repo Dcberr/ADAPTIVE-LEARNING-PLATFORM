@@ -1,16 +1,17 @@
 from fastapi import Depends, HTTPException, Request
 from neo4j import Driver, GraphDatabase
-from openai import OpenAI
 
-from code_review_ai.agents.exercise_weight_agent import ExerciseWeightAgent
 from code_review_ai.agents.prerequisite_weight_agent import PrerequisiteWeightAgent
-from code_review_ai.api.review_code_deps import (
-    get_fireworks_client,
-    get_settings_dependency,
-    get_stage_model_config,
-)
+from code_review_ai.api.review_code_deps import get_settings_dependency
 from code_review_ai.config import EnvConfig, get_env_config
 from code_review_ai.repositories.knowledge_graph_repository import KnowledgeGraphRepository
+from code_review_ai.services.exercise_embedding_service import (
+    ExerciseEmbeddingService,
+)
+from code_review_ai.services.exercise_relation_scoring_service import (
+    ExerciseRelationScoringService,
+)
+from code_review_ai.utils.fireworks_embedding_client import FireworksEmbeddingClient
 
 
 def get_neo4j_driver(request: Request) -> Driver:
@@ -45,31 +46,21 @@ def _initialize_neo4j_driver(request: Request) -> Driver:
     return driver
 
 
-def get_prerequisite_weight_agent(
-    client: OpenAI = Depends(get_fireworks_client),
-    settings: EnvConfig = Depends(get_settings_dependency),
-) -> PrerequisiteWeightAgent:
-    config = get_stage_model_config(
-        "knowledge_graph", "prerequisite_weight", settings=settings
-    )
-    return PrerequisiteWeightAgent(
-        client=client,
-        model_name=config.model_name,
-        temperature=config.temperature,
-        max_tokens=config.max_tokens,
-    )
+def get_prerequisite_weight_agent() -> PrerequisiteWeightAgent:
+    return PrerequisiteWeightAgent()
 
 
-def get_exercise_weight_agent(
-    client: OpenAI = Depends(get_fireworks_client),
+def get_exercise_relation_scoring_service() -> ExerciseRelationScoringService:
+    return ExerciseRelationScoringService()
+
+
+def get_exercise_embedding_service(
     settings: EnvConfig = Depends(get_settings_dependency),
-) -> ExerciseWeightAgent:
-    config = get_stage_model_config(
-        "knowledge_graph", "exercise_weight", settings=settings
-    )
-    return ExerciseWeightAgent(
-        client=client,
-        model_name=config.model_name,
-        temperature=config.temperature,
-        max_tokens=config.max_tokens,
+) -> ExerciseEmbeddingService:
+    return ExerciseEmbeddingService(
+        client=FireworksEmbeddingClient(
+            api_key=settings.fireworks_api_key,
+            base_url=settings.fireworks_base_url,
+        ),
+        model_name=settings.exercise_embedding_model,
     )

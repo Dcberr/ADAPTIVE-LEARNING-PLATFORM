@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 **description** | **str** |  | 
 **content** | **str** |  | 
 **difficulty** | **str** |  | 
-**tags** | **List[str]** |  | [optional] 
+**concept_slugs** | **List[str]** |  | [optional] 
 
 ## Example
 

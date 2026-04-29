@@ -5,7 +5,6 @@ from code_review_ai.models.exercise_record import ExerciseRecord
 from code_review_ai.models.knowledge_graph import AssignedPath
 from code_review_ai.models.recommendation_framework import RecommendationScoringFramework
 from code_review_ai.models.review_record import ReviewRecord
-from code_review_ai.models.student_profile import StudentProfileScoring
 from code_review_ai.models.submission_record import SubmissionRecord
 
 
@@ -22,19 +21,16 @@ class RecommendationState(TypedDict):
     review: ReviewResponse | None
     review_record: ReviewRecord | None
     review_history: list[ReviewRecord]
-    student_profile: StudentProfileScoring | None
     latest_submission: SubmissionRecord | None
     previous_review_payload: dict | None
     previous_submission_payload: dict | None
     mastered_concepts: list[str]
     attempted_exercise_ids: list[str]
+    assigned_exercise_ids: list[str]
     critical_errors: int
-    latest_review_improvement_signal: float
-    latest_review_severity_change: float
     latest_submission_improvement_ratio: float
     latest_submission_regression_ratio: float
     exercise_graph: dict
-    concept_progression: list[dict]
     assigned_path: AssignedPath
     path_decision_valid: bool
     path_decision_confidence: float
@@ -45,6 +41,7 @@ class RecommendationState(TypedDict):
     framework: RecommendationScoringFramework
     graph_summary: dict
     retrieved_candidates: list[dict]
+    reranked_candidates: list[dict]
     roadmap_selection_valid: bool
     selected_candidates: list[dict]
     selected_exercises: list[ExerciseRecord]

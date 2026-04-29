@@ -9,10 +9,13 @@ from .config import get_env_config
 from .api.knowledge_graph_route import router as knowledge_graph_router
 from .api.recommendation_route import router as recommendation_router
 from .api.review_code_route import router as review_router
+from .config import get_env_config
+
+settings = get_env_config()
 
 # Configure root logger
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, settings.log_level, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 

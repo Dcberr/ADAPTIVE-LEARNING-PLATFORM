@@ -1,15 +1,4 @@
-import logging
-from typing import Any
-
-from openai import OpenAI
-
 from code_review_ai.models.knowledge_graph import ConceptRecord
-from code_review_ai.prompts.knowledge_graph.prerequisite_weight import (
-    build_prerequisite_weight_messages,
-)
-from code_review_ai.utils.parse_json_response import safe_parse_json_response
-
-logger = logging.getLogger(__name__)
 
 
 class PrerequisiteWeightAgent:
@@ -18,27 +7,10 @@ class PrerequisiteWeightAgent:
     VALID_STRENGTHS = {1.0, 0.6, 0.3}
     DEFAULT_STRENGTH = 0.6
 
-    def __init__(
-        self,
-        client: OpenAI,
-        model_name: str,
-        temperature: float = 0.1,
-        max_tokens: int = 1200,
-    ):
-        self.client = client
-        self.model_name = model_name
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-
-    def _normalize_strength(self, value: Any) -> float:
-        try:
-            numeric = float(value)
-        except (TypeError, ValueError):
-            return self.DEFAULT_STRENGTH
-
-        if numeric >= 0.8:
+    def _normalize_strength(self, value: float) -> float:
+        if value >= 0.8:
             return 1.0
-        if numeric >= 0.45:
+        if value >= 0.45:
             return 0.6
         return 0.3
 
@@ -51,27 +23,63 @@ class PrerequisiteWeightAgent:
         if not prerequisites:
             return {}
 
-        messages = build_prerequisite_weight_messages(main_concept, prerequisites)
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
-            parsed = safe_parse_json_response(response.choices[0].message.content)
-            rows = parsed.get("prerequisites", [])
-            strengths = {
-                str(row.get("concept_id")): self._normalize_strength(row.get("strength"))
-                for row in rows
-                if row.get("concept_id")
-            }
-        except Exception:
-            logger.exception("PrerequisiteWeightAgent failed; falling back to default strengths")
-            strengths = {}
-
         return {
-            concept.concept_id: strengths.get(concept.concept_id, self.DEFAULT_STRENGTH)
+            concept.concept_id: self._score_prerequisite(
+                main_concept=main_concept,
+                prerequisite=concept,
+            )
             for concept in prerequisites
+        }
+
+    def _score_prerequisite(
+        self,
+        *,
+        main_concept: ConceptRecord,
+        prerequisite: ConceptRecord,
+    ) -> float:
+        difficulty_gap = max(0, main_concept.difficulty - prerequisite.difficulty)
+        difficulty_fit = 1.0 if difficulty_gap >= 1 else 0.7 if difficulty_gap == 0 else 0.3
+        lexical_overlap = self._token_overlap(main_concept, prerequisite)
+        name_overlap = self._name_overlap(main_concept, prerequisite)
+        raw_strength = min(
+            1.0,
+            0.50 * difficulty_fit + 0.30 * lexical_overlap + 0.20 * name_overlap,
+        )
+        if prerequisite.difficulty > main_concept.difficulty:
+            raw_strength = min(raw_strength, 0.3)
+        return self._normalize_strength(raw_strength)
+
+    @staticmethod
+    def _token_overlap(main_concept: ConceptRecord, prerequisite: ConceptRecord) -> float:
+        main_tokens = PrerequisiteWeightAgent._tokens(
+            f"{main_concept.name} {main_concept.description}"
+        )
+        prerequisite_tokens = PrerequisiteWeightAgent._tokens(
+            f"{prerequisite.name} {prerequisite.description}"
+        )
+        if not main_tokens or not prerequisite_tokens:
+            return 0.0
+        union = main_tokens | prerequisite_tokens
+        if not union:
+            return 0.0
+        return len(main_tokens & prerequisite_tokens) / len(union)
+
+    @staticmethod
+    def _name_overlap(main_concept: ConceptRecord, prerequisite: ConceptRecord) -> float:
+        main_name = main_concept.name.strip().lower()
+        prerequisite_name = prerequisite.name.strip().lower()
+        if not main_name or not prerequisite_name:
+            return 0.0
+        if main_name == prerequisite_name:
+            return 1.0
+        if prerequisite_name in main_name or main_name in prerequisite_name:
+            return 0.7
+        return 0.0
+
+    @staticmethod
+    def _tokens(value: str) -> set[str]:
+        return {
+            token
+            for token in value.lower().replace("-", " ").replace("_", " ").split()
+            if len(token) >= 3
         }

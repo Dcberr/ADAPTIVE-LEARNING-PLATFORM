@@ -29,6 +29,9 @@ def get_recommendation_service(
             "path_decider": get_stage_model_config(
                 "recommendation", "path_decider", settings=settings
             ),
+            "candidate_reranker": get_stage_model_config(
+                "recommendation", "candidate_reranker", settings=settings
+            ),
             "roadmap_builder": get_stage_model_config(
                 "recommendation", "roadmap_builder", settings=settings
             ),

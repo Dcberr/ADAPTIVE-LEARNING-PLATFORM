@@ -3,7 +3,7 @@
     "name": "Array",
     "slug": "array",
     "enable": true,
-    "limit": 10,
+    "limit": 1,
     "prerequisite_slugs": []
   },
   {

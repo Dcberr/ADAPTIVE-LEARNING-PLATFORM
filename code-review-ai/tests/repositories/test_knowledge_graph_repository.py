@@ -9,6 +9,69 @@ from code_review_ai.repositories.knowledge_graph_repository import (
 
 
 class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
+    def test_upsert_concepts_uses_single_unwind_query(self):
+        session = MagicMock()
+        session.__enter__.return_value = session
+        session.__exit__.return_value = None
+        driver = MagicMock()
+        driver.session.return_value = session
+
+        repository = KnowledgeGraphRepository(driver=driver)
+        concepts = [
+            ConceptRecord(
+                concept_id="concept-1",
+                slug="arrays",
+                name="Arrays",
+                description="Array basics",
+                difficulty=1,
+            ),
+            ConceptRecord(
+                concept_id="concept-2",
+                slug="loops",
+                name="Loops",
+                description="Loop basics",
+                difficulty=1,
+            ),
+        ]
+
+        result = repository.upsert_concepts(concepts)
+
+        self.assertEqual(result, concepts)
+        session.run.assert_called_once()
+        query = session.run.call_args.args[0]
+        self.assertIn("UNWIND $rows AS row", query)
+
+    def test_replace_concept_prerequisites_batch_uses_unwind_query(self):
+        session = MagicMock()
+        session.__enter__.return_value = session
+        session.__exit__.return_value = None
+        driver = MagicMock()
+        driver.session.return_value = session
+
+        repository = KnowledgeGraphRepository(driver=driver)
+        prerequisite = ConceptRecord(
+            concept_id="concept-1",
+            slug="arrays",
+            name="Arrays",
+            description="Array basics",
+            difficulty=1,
+        )
+
+        repository.replace_concept_prerequisites_batch(
+            [
+                {
+                    "concept_slug": "loops",
+                    "prerequisites": [(prerequisite, 0.6)],
+                }
+            ]
+        )
+
+        self.assertEqual(session.run.call_count, 2)
+        delete_query = session.run.call_args_list[0].args[0]
+        create_query = session.run.call_args_list[1].args[0]
+        self.assertIn("WHERE c.slug IN $concept_slugs", delete_query)
+        self.assertIn("UNWIND $rows AS row", create_query)
+
     def test_upsert_exercises_uses_single_unwind_query(self):
         session = MagicMock()
         session.__enter__.return_value = session
@@ -25,7 +88,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
                 description="Add two numbers",
                 content="Read and print the sum",
                 difficulty="easy",
-                tags=["math"],
+                concept_slugs=["math"],
             ),
             ExerciseRecord(
                 exercise_id="exercise-2",
@@ -34,7 +97,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
                 description="Add three numbers",
                 content="Read and print the total",
                 difficulty="easy",
-                tags=["math", "loops"],
+                concept_slugs=["math", "loops"],
             ),
         ]
 
@@ -56,7 +119,10 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
                     "description": "Add two numbers",
                     "content": "Read and print the sum",
                     "difficulty": "easy",
-                    "tags": ["math"],
+                    "concept_slugs": ["math"],
+                    "embedding": [],
+                    "embedding_model": "",
+                    "content_hash": "",
                 },
                 {
                     "exercise_id": "exercise-2",
@@ -65,7 +131,10 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
                     "description": "Add three numbers",
                     "content": "Read and print the total",
                     "difficulty": "easy",
-                    "tags": ["math", "loops"],
+                    "concept_slugs": ["math", "loops"],
+                    "embedding": [],
+                    "embedding_model": "",
+                    "content_hash": "",
                 },
             ],
         )
@@ -79,7 +148,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
             description="Add two numbers",
             content="Read and print the sum",
             difficulty="easy",
-            tags=["math"],
+            concept_slugs=["math"],
         )
         repository.upsert_exercises = MagicMock(return_value=[exercise])
 
@@ -144,7 +213,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
             description="Add three numbers",
             content="Read and add three values",
             difficulty="easy",
-            tags=["math"],
+            concept_slugs=["math"],
         )
 
         repository.replace_exercise_related_exercises_batch(

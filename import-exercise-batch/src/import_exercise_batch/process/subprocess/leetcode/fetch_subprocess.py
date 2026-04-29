@@ -72,6 +72,10 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
 
     def __init__(self, settings: LeetCodeSettings) -> None:
         self.settings = settings
+        self.allowed_topic_tag_slugs: set[str] | None = None
+
+    def set_allowed_topic_tag_slugs(self, allowed_topic_tag_slugs: set[str]) -> None:
+        self.allowed_topic_tag_slugs = set(allowed_topic_tag_slugs)
 
     def get_exercises_by_tag(self, tag: str, limit: int) -> list[LeetCodeProblem]:
         self.logger.info("Fetching LeetCode exercises for tag=%s limit=%s", tag, limit)
@@ -182,11 +186,25 @@ class LeetCodeFetchSubProcess(BaseSubProcess):
             sample_test_case=self._normalize_text(question.get("sampleTestCase")),
             code_snippet=self._extract_cpp_code_snippet(question.get("codeSnippets")),
             difficulty=question["difficulty"].strip(),
-            topic_tag_slugs=self._extract_topic_tag_slugs(question.get("topicTags")),
+            topic_tag_slugs=self._filter_allowed_topic_tag_slugs(
+                self._extract_topic_tag_slugs(question.get("topicTags"))
+            ),
             similar_question_slugs=self._extract_similar_question_slugs(
                 question.get("similarQuestions")
             ),
         )
+
+    def _filter_allowed_topic_tag_slugs(
+        self,
+        topic_tag_slugs: list[str],
+    ) -> list[str]:
+        if self.allowed_topic_tag_slugs is None:
+            return topic_tag_slugs
+        return [
+            topic_tag_slug
+            for topic_tag_slug in topic_tag_slugs
+            if topic_tag_slug in self.allowed_topic_tag_slugs
+        ]
 
     def _expand_similar_exercises(
         self,

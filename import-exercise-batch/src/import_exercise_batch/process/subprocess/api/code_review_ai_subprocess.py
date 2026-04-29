@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TypeVar
 
 import urllib3
+from code_review_ai_client.models import concept_relation
 from import_exercise_batch.config import TagConfig
 from import_exercise_batch.model import LeetCodeProblemChange
 from import_exercise_batch.process.subprocess.base import BaseSubProcess
@@ -42,9 +43,7 @@ class CodeReviewAiSubProcess(BaseSubProcess):
         self.max_retries = max_retries
         self.backoff_seconds = backoff_seconds
         self.put_exercise_chunk_size = put_exercise_chunk_size
-        self.patch_exercise_relations_chunk_size = (
-            patch_exercise_relations_chunk_size
-        )
+        self.patch_exercise_relations_chunk_size = patch_exercise_relations_chunk_size
 
     def import_exercises(self, exercises: Iterable[LeetCodeProblemChange]) -> None:
         exercise_list = list(exercises)
@@ -354,7 +353,7 @@ class CodeReviewAiSubProcess(BaseSubProcess):
             description=exercise.content,
             content=exercise.content,
             difficulty=exercise.difficulty,
-            tags=exercise.topic_tag_slugs,
+            concept_slugs=exercise.topic_tag_slugs,
         )
 
     @staticmethod

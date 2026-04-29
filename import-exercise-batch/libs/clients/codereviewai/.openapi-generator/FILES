@@ -129,9 +129,4 @@ setup.cfg
 setup.py
 test-requirements.txt
 test/__init__.py
-test/test_batch_patch_exercise_relations_item.py
-test/test_batch_patch_exercise_relations_request.py
-test/test_batch_upsert_exercise_item.py
-test/test_batch_upsert_exercises_request.py
-test/test_knowledge_graph_exercises_batch_response.py
 tox.ini

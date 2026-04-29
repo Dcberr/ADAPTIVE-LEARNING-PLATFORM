@@ -7,6 +7,7 @@ from code_review_ai.models.review_state import LogicIssue, ReviewState
 from code_review_ai.prompts.review.review_link import build_review_link_messages
 from code_review_ai.utils.code_diff import build_changed_line_summary
 from code_review_ai.utils.debug_logging import summarize_state, truncate_text
+from code_review_ai.utils.fireworks_client import create_chat_completion_with_retry
 from code_review_ai.utils.history_matcher import find_first_failed_history_match
 from code_review_ai.utils.review_output_tools import parse_review_json_with_repair
 from code_review_ai.utils.snippet_tools import extract_related_snippets
@@ -177,7 +178,8 @@ class ReviewLinkAgent:
         ):
             try:
                 messages = self.generate_messages(current_code, batch_candidates)
-                response = self.client.chat.completions.create(
+                response = create_chat_completion_with_retry(
+                    self.client,
                     model=self.model_name,
                     messages=messages,
                     temperature=self.temperature,

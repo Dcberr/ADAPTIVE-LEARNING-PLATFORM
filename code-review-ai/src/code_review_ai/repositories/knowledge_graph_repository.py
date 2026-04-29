@@ -9,18 +9,9 @@ from code_review_ai.models.exercise_record import ExerciseRecord
 from code_review_ai.models.knowledge_graph import (
     AssignedPath,
     ConceptRecord,
-    ConceptRelation,
-    ExerciseConceptLink,
-    ExerciseRelation,
-    ExercisePathLink,
-    KnowledgeGraphDocument,
-    ReviewRelation,
-    SubmissionRelation,
 )
 from code_review_ai.models.review_record import ReviewRecord
-from code_review_ai.models.student_profile import StudentProfileScoring
 from code_review_ai.models.submission_record import SubmissionRecord
-from code_review_ai.models.student_record import StudentRecord
 
 
 class KnowledgeGraphRepository:
@@ -72,62 +63,6 @@ class KnowledgeGraphRepository:
             min(1.0, 0.5 * max(-score_delta, 0.0) + 0.5 * broken_ratio),
         )
         return improvement_ratio, regression_ratio
-
-    @staticmethod
-    def _scorecard_average(scorecard: dict) -> float:
-        scores: list[float] = []
-        for item in scorecard.values():
-            if not isinstance(item, dict):
-                continue
-            raw_score = item.get("score")
-            if raw_score is None:
-                continue
-            try:
-                score = float(raw_score)
-            except (TypeError, ValueError):
-                continue
-            scores.append(max(1.0, min(5.0, score)))
-        return sum(scores) / len(scores) if scores else 0.0
-
-    @staticmethod
-    def _review_severity(review_items: list[dict]) -> float:
-        if not review_items:
-            return 0.0
-
-        severity_by_type = {
-            "Error": 1.0,
-            "Warning": 0.5,
-        }
-        severities = [
-            severity_by_type.get(str(item.get("type", "")).strip(), 0.25)
-            for item in review_items
-        ]
-        return sum(severities) / len(severities) if severities else 0.0
-
-    def _calculate_review_transition_scores(
-        self,
-        previous_scorecard: dict,
-        current_scorecard: dict,
-        previous_review_items: list[dict],
-        current_review_items: list[dict],
-    ) -> tuple[float, float]:
-        previous_average = self._scorecard_average(previous_scorecard)
-        current_average = self._scorecard_average(current_scorecard)
-        normalized_score_delta = (current_average - previous_average) / 4.0
-
-        previous_severity = self._review_severity(previous_review_items)
-        current_severity = self._review_severity(current_review_items)
-        severity_change = max(-1.0, min(1.0, current_severity - previous_severity))
-
-        improvement_signal = max(
-            0.0,
-            min(
-                1.0,
-                0.6 * max(normalized_score_delta, 0.0)
-                + 0.4 * max(previous_severity - current_severity, 0.0),
-            ),
-        )
-        return improvement_signal, severity_change
 
     def get_concepts_by_ids(self, concept_ids: list[str]) -> dict[str, ConceptRecord]:
         unique_ids = list(dict.fromkeys(concept_ids))
@@ -211,7 +146,10 @@ class KnowledgeGraphRepository:
                        coalesce(e.description, '') AS description,
                        coalesce(e.content, '') AS content,
                        coalesce(e.difficulty, '') AS difficulty,
-                       coalesce(e.tags, []) AS tags
+                       coalesce(e.concept_slugs, []) AS concept_slugs,
+                       coalesce(e.embedding, []) AS embedding,
+                       coalesce(e.embedding_model, '') AS embedding_model,
+                       coalesce(e.content_hash, '') AS content_hash
                 """,
                 exercise_ids=unique_ids,
             )
@@ -223,7 +161,10 @@ class KnowledgeGraphRepository:
                     description=record["description"],
                     content=record["content"],
                     difficulty=record["difficulty"],
-                    tags=record["tags"] or [],
+                    concept_slugs=record["concept_slugs"] or [],
+                    embedding=record["embedding"] or [],
+                    embedding_model=record["embedding_model"] or "",
+                    content_hash=record["content_hash"] or "",
                 )
                 for record in rows
             }
@@ -246,7 +187,10 @@ class KnowledgeGraphRepository:
                        coalesce(e.description, '') AS description,
                        coalesce(e.content, '') AS content,
                        coalesce(e.difficulty, '') AS difficulty,
-                       coalesce(e.tags, []) AS tags
+                       coalesce(e.concept_slugs, []) AS concept_slugs,
+                       coalesce(e.embedding, []) AS embedding,
+                       coalesce(e.embedding_model, '') AS embedding_model,
+                       coalesce(e.content_hash, '') AS content_hash
                 ORDER BY slug ASC, exercise_id ASC
                 """,
                 exercise_slugs=unique_slugs,
@@ -264,7 +208,10 @@ class KnowledgeGraphRepository:
                         description=record["description"],
                         content=record["content"],
                         difficulty=record["difficulty"],
-                        tags=record["tags"] or [],
+                        concept_slugs=record["concept_slugs"] or [],
+                        embedding=record["embedding"] or [],
+                        embedding_model=record["embedding_model"] or "",
+                        content_hash=record["content_hash"] or "",
                     )
                 )
             return exercise_map
@@ -335,17 +282,15 @@ class KnowledgeGraphRepository:
                     exercise_id=exercise_id,
                 )
             ]
-            recommended_paths = [
+            recommended_concepts = [
                 {
                     "concept_id": record["concept_id"],
-                    "path": record["path"],
                     "weight": float(record["weight"] or 0.0),
                 }
                 for record in session.run(
                     """
                     MATCH (:Exercise {exercise_id: $exercise_id})-[r:RECOMMENDED_FOR]->(c:Concept)
                     RETURN c.concept_id AS concept_id,
-                           r.path AS path,
                            coalesce(r.weight, 1.0) AS weight
                     ORDER BY weight DESC, c.concept_id ASC
                     """,
@@ -358,14 +303,7 @@ class KnowledgeGraphRepository:
                 OPTIONAL MATCH (s)-[:MASTERED]->(mastered:Concept)
                 WITH s, collect(DISTINCT mastered.concept_id) AS mastered_concepts
                 OPTIONAL MATCH (s)-[:ATTEMPTED]->(attempted:Exercise)
-                RETURN coalesce(s.concept_mastery, 0.5) AS concept_mastery,
-                       coalesce(s.implementation_consistency, 0.5) AS implementation_consistency,
-                       coalesce(s.debugging_independence, 0.5) AS debugging_independence,
-                       coalesce(s.efficiency_awareness, 0.5) AS efficiency_awareness,
-                       coalesce(s.concept_transfer, 0.5) AS concept_transfer,
-                       coalesce(s.learning_velocity, 0.5) AS learning_velocity,
-                       coalesce(s.profile_notes, '') AS profile_notes,
-                       mastered_concepts AS mastered_concepts,
+                RETURN mastered_concepts AS mastered_concepts,
                        collect(DISTINCT attempted.exercise_id) AS attempted_exercise_ids
                 LIMIT 1
                 """,
@@ -459,18 +397,9 @@ class KnowledgeGraphRepository:
         return {
             "exercise": exercise,
             "tested_concepts": tested_concepts,
-            "recommended_paths": recommended_paths,
+                "recommended_concepts": recommended_concepts,
             "review": review,
             "review_record": review_record,
-            "student_profile": StudentProfileScoring(
-                concept_mastery=student_record["concept_mastery"],
-                implementation_consistency=student_record["implementation_consistency"],
-                debugging_independence=student_record["debugging_independence"],
-                efficiency_awareness=student_record["efficiency_awareness"],
-                concept_transfer=student_record["concept_transfer"],
-                learning_velocity=student_record["learning_velocity"],
-                notes=student_record["profile_notes"],
-            ),
             "latest_submission": latest_submission,
             "current_concept": current_concept,
             "current_concept_weight": current_concept_weight,
@@ -518,29 +447,10 @@ class KnowledgeGraphRepository:
                     history_limit=history_limit,
                 )
             ]
-            latest_transition = session.run(
-                """
-                MATCH (prev:Review)-[rel:NEXT_REVIEW_OF]->(curr:Review {review_id: $review_id})
-                RETURN prev.review_id AS previous_review_id,
-                       coalesce(rel.improvement_signal, 0.0) AS improvement_signal,
-                       coalesce(rel.severity_change, 0.0) AS severity_change
-                ORDER BY coalesce(rel.linked_at, '') DESC
-                LIMIT 1
-                """,
-                review_id=review_id,
-            ).single()
 
         return {
             "review_history": review_history,
-            "latest_review_improvement_signal": float(
-                latest_transition["improvement_signal"] if latest_transition else 0.0
-            ),
-            "latest_review_severity_change": float(
-                latest_transition["severity_change"] if latest_transition else 0.0
-            ),
-            "previous_review_id": (
-                str(latest_transition["previous_review_id"]) if latest_transition else ""
-            ),
+            "previous_review_id": review_history[0].review_id if review_history else "",
         }
 
     def fetch_submission_trend_context(self, *, submission_id: str) -> dict:
@@ -549,23 +459,33 @@ class KnowledgeGraphRepository:
                 """
                 MATCH (prev:Submission)-[rel:NEXT_ATTEMPT]->(curr:Submission {submission_id: $submission_id})
                 RETURN prev.submission_id AS previous_submission_id,
-                       coalesce(rel.improvement_ratio, 0.0) AS improvement_ratio,
-                       coalesce(rel.regression_ratio, 0.0) AS regression_ratio
+                       coalesce(prev.testcase_outputs_json, '[]') AS previous_testcase_outputs_json,
+                       coalesce(curr.testcase_outputs_json, '[]') AS current_testcase_outputs_json
                 ORDER BY coalesce(rel.linked_at, '') DESC
                 LIMIT 1
                 """,
                 submission_id=submission_id,
             ).single()
+
+        improvement_ratio = 0.0
+        regression_ratio = 0.0
+        previous_submission_id = ""
+        if latest_transition is not None:
+            previous_submission_id = str(latest_transition["previous_submission_id"] or "")
+            previous_outputs = json.loads(
+                latest_transition["previous_testcase_outputs_json"] or "[]"
+            )
+            current_outputs = json.loads(
+                latest_transition["current_testcase_outputs_json"] or "[]"
+            )
+            improvement_ratio, regression_ratio = self._calculate_attempt_transition_scores(
+                previous_outputs=previous_outputs,
+                current_outputs=current_outputs,
+            )
         return {
-            "latest_submission_improvement_ratio": float(
-                latest_transition["improvement_ratio"] if latest_transition else 0.0
-            ),
-            "latest_submission_regression_ratio": float(
-                latest_transition["regression_ratio"] if latest_transition else 0.0
-            ),
-            "previous_submission_id": (
-                str(latest_transition["previous_submission_id"]) if latest_transition else ""
-            ),
+            "latest_submission_improvement_ratio": float(improvement_ratio),
+            "latest_submission_regression_ratio": float(regression_ratio),
+            "previous_submission_id": previous_submission_id,
         }
 
     def fetch_exercise_graph_context(
@@ -582,8 +502,6 @@ class KnowledgeGraphRepository:
                     "title": record["title"],
                     "weight": float(record["weight"] or 0.0),
                     "relation_type": record["relation_type"] or "",
-                    "target_concept_id": record["target_concept_id"] or "",
-                    "shared_concept_ids": record["shared_concept_ids"] or [],
                     "difficulty_gap": float(record["difficulty_gap"] or 0.0),
                     "progression_score": float(record["progression_score"] or 0.0),
                     "similarity_score": float(record["similarity_score"] or 0.0),
@@ -595,8 +513,6 @@ class KnowledgeGraphRepository:
                            coalesce(e.title, '') AS title,
                            coalesce(r.weight, 1.0) AS weight,
                            coalesce(r.relation_type, '') AS relation_type,
-                           coalesce(r.target_concept_id, '') AS target_concept_id,
-                           coalesce(r.shared_concept_ids, []) AS shared_concept_ids,
                            coalesce(r.difficulty_gap, 0.0) AS difficulty_gap,
                            coalesce(r.progression_score, 0.0) AS progression_score,
                            coalesce(r.similarity_score, 0.0) AS similarity_score
@@ -607,10 +523,9 @@ class KnowledgeGraphRepository:
                     limit=limit,
                 )
             ]
-            path_links = [
+            recommended_links = [
                 {
                     "concept_id": record["concept_id"],
-                    "path": record["path"],
                     "weight": float(record["weight"] or 0.0),
                 }
                 for record in session.run(
@@ -618,7 +533,6 @@ class KnowledgeGraphRepository:
                     MATCH (:Exercise {exercise_id: $exercise_id})-[r:RECOMMENDED_FOR]->(c:Concept)
                     WHERE $focus_concept_id = '' OR c.concept_id = $focus_concept_id
                     RETURN c.concept_id AS concept_id,
-                           r.path AS path,
                            coalesce(r.weight, 1.0) AS weight
                     ORDER BY weight DESC, c.concept_id ASC
                     """,
@@ -628,23 +542,12 @@ class KnowledgeGraphRepository:
             ]
         return {
             "related_exercises": related_exercises,
-            "path_links": path_links,
+            "recommended_links": recommended_links,
+            "best_recommended_weight": max(
+                (link["weight"] for link in recommended_links),
+                default=0.0,
+            ),
         }
-
-    def fetch_concept_progression_context(
-        self,
-        *,
-        current_concept: str,
-        attempted_exercise_ids: list[str],
-        mastered_concepts: list[str],
-        limit: int = 5,
-    ) -> list[dict]:
-        return self.get_next_concept_candidates(
-            current_concept=current_concept,
-            attempted_exercise_ids=attempted_exercise_ids,
-            mastered_concepts=mastered_concepts,
-            limit=limit,
-        )
 
     def fetch_student_history_context(self, *, student_id: str) -> dict:
         with self.driver.session() as session:
@@ -737,23 +640,39 @@ class KnowledgeGraphRepository:
         self,
         concept: ConceptRecord,
     ) -> ConceptRecord:
+        self.upsert_concepts([concept])
+        return concept
+
+    def upsert_concepts(
+        self,
+        concepts: list[ConceptRecord],
+    ) -> list[ConceptRecord]:
+        if not concepts:
+            return []
+
         with self.driver.session() as session:
             session.run(
                 """
-                MERGE (c:Concept {slug: $slug})
-                SET c.concept_id = $concept_id,
-                    c.slug = $slug,
-                    c.name = $name,
-                    c.description = $description,
-                    c.difficulty = $difficulty
+                UNWIND $rows AS row
+                MERGE (c:Concept {slug: row.slug})
+                SET c.concept_id = row.concept_id,
+                    c.slug = row.slug,
+                    c.name = row.name,
+                    c.description = row.description,
+                    c.difficulty = row.difficulty
                 """,
-                concept_id=concept.concept_id,
-                slug=concept.slug,
-                name=concept.name,
-                description=concept.description,
-                difficulty=concept.difficulty,
+                rows=[
+                    {
+                        "concept_id": concept.concept_id,
+                        "slug": concept.slug,
+                        "name": concept.name,
+                        "description": concept.description,
+                        "difficulty": concept.difficulty,
+                    }
+                    for concept in concepts
+                ],
             )
-        return concept
+        return concepts
 
     def replace_concept_prerequisites(
         self,
@@ -761,26 +680,56 @@ class KnowledgeGraphRepository:
         concept_slug: str,
         prerequisites: list[tuple[ConceptRecord, float]],
     ) -> None:
+        self.replace_concept_prerequisites_batch(
+            [
+                {
+                    "concept_slug": concept_slug,
+                    "prerequisites": prerequisites,
+                }
+            ]
+        )
+
+    def replace_concept_prerequisites_batch(
+        self,
+        items: list[dict],
+    ) -> None:
+        if not items:
+            return
+
+        concept_slugs = list(
+            dict.fromkeys(str(item["concept_slug"]) for item in items if item.get("concept_slug"))
+        )
+        rows: list[dict] = []
+        for item in items:
+            concept_slug = str(item["concept_slug"])
+            for prerequisite, strength in item.get("prerequisites", []):
+                rows.append(
+                    {
+                        "concept_slug": concept_slug,
+                        "prerequisite_slug": prerequisite.slug,
+                        "strength": strength,
+                    }
+                )
+
         with self.driver.session() as session:
             session.run(
                 """
-                MATCH (:Concept)-[r:PREREQUISITE_OF]->(c:Concept {slug: $concept_slug})
+                MATCH (:Concept)-[r:PREREQUISITE_OF]->(c:Concept)
+                WHERE c.slug IN $concept_slugs
                 DELETE r
                 """,
-                concept_slug=concept_slug,
+                concept_slugs=concept_slugs,
             )
-
-            for prerequisite, strength in prerequisites:
+            if rows:
                 session.run(
                     """
-                    MATCH (p:Concept {slug: $prerequisite_slug})
-                    MATCH (c:Concept {slug: $concept_slug})
+                    UNWIND $rows AS row
+                    MATCH (p:Concept {slug: row.prerequisite_slug})
+                    MATCH (c:Concept {slug: row.concept_slug})
                     MERGE (p)-[r:PREREQUISITE_OF]->(c)
-                    SET r.strength = $strength
+                    SET r.strength = row.strength
                     """,
-                    prerequisite_slug=prerequisite.slug,
-                    concept_slug=concept_slug,
-                    strength=strength,
+                    rows=rows,
                 )
 
     def upsert_exercise(
@@ -807,7 +756,10 @@ class KnowledgeGraphRepository:
                     e.description = row.description,
                     e.content = row.content,
                     e.difficulty = row.difficulty,
-                    e.tags = row.tags
+                    e.concept_slugs = row.concept_slugs,
+                    e.embedding = row.embedding,
+                    e.embedding_model = row.embedding_model,
+                    e.content_hash = row.content_hash
                 """,
                 rows=[
                     {
@@ -817,7 +769,18 @@ class KnowledgeGraphRepository:
                         "description": exercise.description,
                         "content": exercise.content,
                         "difficulty": exercise.difficulty,
-                        "tags": exercise.tags,
+                        "concept_slugs": list(
+                            dict.fromkeys(
+                                [
+                                    item.strip()
+                                    for item in exercise.concept_slugs
+                                    if item.strip()
+                                ]
+                            )
+                        ),
+                        "embedding": exercise.embedding,
+                        "embedding_model": exercise.embedding_model,
+                        "content_hash": exercise.content_hash,
                     }
                     for exercise in exercises
                 ],
@@ -828,7 +791,7 @@ class KnowledgeGraphRepository:
         self,
         *,
         exercise_id: str,
-        concepts: list[tuple[ConceptRecord, float, list[dict]]],
+        concepts: list[tuple[ConceptRecord, float, float]],
     ) -> None:
         self.replace_exercise_concepts_batch(
             [
@@ -853,7 +816,7 @@ class KnowledgeGraphRepository:
         recommended_rows: list[dict] = []
         for item in items:
             exercise_id = str(item["exercise_id"])
-            for concept, weight, recommended_paths in item.get("concepts", []):
+            for concept, weight, recommended_weight in item.get("concepts", []):
                 tests_rows.append(
                     {
                         "exercise_id": exercise_id,
@@ -861,15 +824,13 @@ class KnowledgeGraphRepository:
                         "weight": weight,
                     }
                 )
-                for path_config in recommended_paths:
-                    recommended_rows.append(
-                        {
-                            "exercise_id": exercise_id,
-                            "concept_id": concept.concept_id,
-                            "path": path_config["path"],
-                            "weight": path_config.get("weight", 1.0),
-                        }
-                    )
+                recommended_rows.append(
+                    {
+                        "exercise_id": exercise_id,
+                        "concept_id": concept.concept_id,
+                        "weight": recommended_weight,
+                    }
+                )
 
         with self.driver.session() as session:
             session.run(
@@ -905,7 +866,7 @@ class KnowledgeGraphRepository:
                     UNWIND $rows AS row
                     MATCH (e:Exercise {exercise_id: row.exercise_id})
                     MATCH (c:Concept {concept_id: row.concept_id})
-                    MERGE (e)-[r:RECOMMENDED_FOR {path: row.path}]->(c)
+                    MERGE (e)-[r:RECOMMENDED_FOR]->(c)
                     SET r.weight = row.weight
                     """,
                     rows=recommended_rows,
@@ -981,32 +942,16 @@ class KnowledgeGraphRepository:
         self,
         *,
         student_id: str,
-        student_profile: StudentProfileScoring,
-    ) -> StudentProfileScoring:
+    ) -> None:
         with self.driver.session() as session:
             session.run(
                 """
                 MERGE (s:Student {student_id: $student_id})
                 SET s.current_concept = coalesce(s.current_concept, ''),
-                    s.notes = coalesce(s.notes, ''),
-                    s.concept_mastery = $concept_mastery,
-                    s.implementation_consistency = $implementation_consistency,
-                    s.debugging_independence = $debugging_independence,
-                    s.efficiency_awareness = $efficiency_awareness,
-                    s.concept_transfer = $concept_transfer,
-                    s.learning_velocity = $learning_velocity,
-                    s.profile_notes = $profile_notes
+                    s.notes = coalesce(s.notes, '')
                 """,
                 student_id=student_id,
-                concept_mastery=student_profile.concept_mastery,
-                implementation_consistency=student_profile.implementation_consistency,
-                debugging_independence=student_profile.debugging_independence,
-                efficiency_awareness=student_profile.efficiency_awareness,
-                concept_transfer=student_profile.concept_transfer,
-                learning_velocity=student_profile.learning_velocity,
-                profile_notes=student_profile.notes,
             )
-        return student_profile
 
     def upsert_submission(
         self,
@@ -1088,8 +1033,7 @@ class KnowledgeGraphRepository:
             current_submission = session.run(
                 """
                 MATCH (sub:Submission {submission_id: $submission_id})
-                RETURN coalesce(sub.created_at, '') AS created_at,
-                       coalesce(sub.testcase_outputs_json, '[]') AS testcase_outputs_json
+                RETURN coalesce(sub.created_at, '') AS created_at
                 LIMIT 1
                 """,
                 submission_id=submission_id,
@@ -1118,7 +1062,6 @@ class KnowledgeGraphRepository:
                   AND coalesce(prev.exercise_id, '') = $exercise_id
                   AND coalesce(prev.created_at, '') < $current_created_at
                 RETURN prev.submission_id AS submission_id,
-                       coalesce(prev.testcase_outputs_json, '[]') AS testcase_outputs_json,
                        coalesce(prev.created_at, '') AS created_at
                 ORDER BY prev.created_at DESC, prev.submission_id DESC
                 LIMIT 1
@@ -1136,7 +1079,6 @@ class KnowledgeGraphRepository:
                   AND coalesce(next.exercise_id, '') = $exercise_id
                   AND coalesce(next.created_at, '') > $current_created_at
                 RETURN next.submission_id AS submission_id,
-                       coalesce(next.testcase_outputs_json, '[]') AS testcase_outputs_json,
                        coalesce(next.created_at, '') AS created_at
                 ORDER BY next.created_at ASC, next.submission_id ASC
                 LIMIT 1
@@ -1148,15 +1090,6 @@ class KnowledgeGraphRepository:
             ).single()
 
             if previous_submission is not None:
-                previous_outputs = json.loads(
-                    previous_submission["testcase_outputs_json"] or "[]"
-                )
-                improvement_ratio, regression_ratio = (
-                    self._calculate_attempt_transition_scores(
-                        previous_outputs=previous_outputs,
-                        current_outputs=testcase_outputs,
-                    )
-                )
                 session.run(
                     """
                     MATCH (prev:Submission {submission_id: $previous_submission_id})
@@ -1164,26 +1097,15 @@ class KnowledgeGraphRepository:
                     MERGE (prev)-[r:NEXT_ATTEMPT]->(curr)
                     SET r.student_id = $student_id,
                         r.linked_at = $linked_at,
-                        r.same_exercise = true,
-                        r.improvement_ratio = $improvement_ratio,
-                        r.regression_ratio = $regression_ratio
+                        r.same_exercise = true
                     """,
                     previous_submission_id=previous_submission["submission_id"],
                     submission_id=submission_id,
                     student_id=student_id,
                     linked_at=created_at,
-                    improvement_ratio=improvement_ratio,
-                    regression_ratio=regression_ratio,
                 )
 
             if next_submission is not None:
-                next_outputs = json.loads(next_submission["testcase_outputs_json"] or "[]")
-                improvement_ratio, regression_ratio = (
-                    self._calculate_attempt_transition_scores(
-                        previous_outputs=testcase_outputs,
-                        current_outputs=next_outputs,
-                    )
-                )
                 session.run(
                     """
                     MATCH (curr:Submission {submission_id: $submission_id})
@@ -1191,16 +1113,12 @@ class KnowledgeGraphRepository:
                     MERGE (curr)-[r:NEXT_ATTEMPT]->(next)
                     SET r.student_id = $student_id,
                         r.linked_at = $linked_at,
-                        r.same_exercise = true,
-                        r.improvement_ratio = $improvement_ratio,
-                        r.regression_ratio = $regression_ratio
+                        r.same_exercise = true
                     """,
                     submission_id=submission_id,
                     next_submission_id=next_submission["submission_id"],
                     student_id=student_id,
                     linked_at=created_at,
-                    improvement_ratio=improvement_ratio,
-                    regression_ratio=regression_ratio,
                 )
 
             stored = session.run(
@@ -1349,8 +1267,6 @@ class KnowledgeGraphRepository:
                 """
                 MATCH (review:Review {review_id: $review_id})
                 RETURN coalesce(review.created_at, '') AS created_at,
-                       coalesce(review.review_items_json, '[]') AS review_items_json,
-                       coalesce(review.scorecard_json, '{}') AS scorecard_json,
                        coalesce(review.current_concept, '') AS current_concept
                 LIMIT 1
                 """,
@@ -1364,10 +1280,7 @@ class KnowledgeGraphRepository:
                 WHERE prev.review_id <> $review_id
                   AND coalesce(prev.created_at, '') < $current_created_at
                 RETURN prev.review_id AS review_id,
-                       coalesce(prev.created_at, '') AS created_at,
-                       coalesce(prev.current_concept, '') AS current_concept,
-                       coalesce(prev.review_items_json, '[]') AS review_items_json,
-                       coalesce(prev.scorecard_json, '{}') AS scorecard_json
+                       coalesce(prev.current_concept, '') AS current_concept
                 ORDER BY prev.created_at DESC, prev.review_id DESC
                 LIMIT 1
                 """,
@@ -1382,10 +1295,7 @@ class KnowledgeGraphRepository:
                 WHERE next.review_id <> $review_id
                   AND coalesce(next.created_at, '') > $current_created_at
                 RETURN next.review_id AS review_id,
-                       coalesce(next.created_at, '') AS created_at,
-                       coalesce(next.current_concept, '') AS current_concept,
-                       coalesce(next.review_items_json, '[]') AS review_items_json,
-                       coalesce(next.scorecard_json, '{}') AS scorecard_json
+                       coalesce(next.current_concept, '') AS current_concept
                 ORDER BY next.created_at ASC, next.review_id ASC
                 LIMIT 1
                 """,
@@ -1394,31 +1304,11 @@ class KnowledgeGraphRepository:
                 current_created_at=current_created_at,
             ).single()
 
-            current_review_items = json.loads(
-                (current_review["review_items_json"] if current_review else "[]") or "[]"
-            )
-            current_scorecard = json.loads(
-                (current_review["scorecard_json"] if current_review else "{}") or "{}"
-            )
             current_concept_value = (
                 current_review["current_concept"] if current_review else current_concept
             ) or ""
 
             if previous_review is not None:
-                previous_review_items = json.loads(
-                    previous_review["review_items_json"] or "[]"
-                )
-                previous_scorecard = json.loads(
-                    previous_review["scorecard_json"] or "{}"
-                )
-                improvement_signal, severity_change = (
-                    self._calculate_review_transition_scores(
-                        previous_scorecard=previous_scorecard,
-                        current_scorecard=current_scorecard,
-                        previous_review_items=previous_review_items,
-                        current_review_items=current_review_items,
-                    )
-                )
                 session.run(
                     """
                     MATCH (prev:Review {review_id: $previous_review_id})
@@ -1426,9 +1316,7 @@ class KnowledgeGraphRepository:
                     MERGE (prev)-[rel:NEXT_REVIEW_OF]->(curr)
                     SET rel.student_id = $student_id,
                         rel.linked_at = $linked_at,
-                        rel.same_concept = $same_concept,
-                        rel.improvement_signal = $improvement_signal,
-                        rel.severity_change = $severity_change
+                        rel.same_concept = $same_concept
                     """,
                     previous_review_id=previous_review["review_id"],
                     review_id=review_id,
@@ -1436,21 +1324,9 @@ class KnowledgeGraphRepository:
                     linked_at=created_at,
                     same_concept=(previous_review["current_concept"] or "")
                     == current_concept_value,
-                    improvement_signal=improvement_signal,
-                    severity_change=severity_change,
                 )
 
             if next_review is not None:
-                next_review_items = json.loads(next_review["review_items_json"] or "[]")
-                next_scorecard = json.loads(next_review["scorecard_json"] or "{}")
-                improvement_signal, severity_change = (
-                    self._calculate_review_transition_scores(
-                        previous_scorecard=current_scorecard,
-                        current_scorecard=next_scorecard,
-                        previous_review_items=current_review_items,
-                        current_review_items=next_review_items,
-                    )
-                )
                 session.run(
                     """
                     MATCH (curr:Review {review_id: $review_id})
@@ -1458,17 +1334,13 @@ class KnowledgeGraphRepository:
                     MERGE (curr)-[rel:NEXT_REVIEW_OF]->(next)
                     SET rel.student_id = $student_id,
                         rel.linked_at = $linked_at,
-                        rel.same_concept = $same_concept,
-                        rel.improvement_signal = $improvement_signal,
-                        rel.severity_change = $severity_change
+                        rel.same_concept = $same_concept
                     """,
                     review_id=review_id,
                     next_review_id=next_review["review_id"],
                     student_id=student_id,
                     linked_at=created_at,
                     same_concept=current_concept_value == (next_review["current_concept"] or ""),
-                    improvement_signal=improvement_signal,
-                    severity_change=severity_change,
                 )
 
             stored = session.run(
@@ -1496,65 +1368,6 @@ class KnowledgeGraphRepository:
             summary=stored["summary"],
             detail=stored["detail"],
         )
-
-    def recalculate_student_profile_from_review(
-        self,
-        *,
-        student_id: str,
-        exercise_id: str,
-        current_concept: str,
-        scorecard: dict,
-    ) -> StudentProfileScoring:
-        derived_profile = self._derive_profile_from_scorecard(scorecard)
-        with self.driver.session() as session:
-            existing = session.run(
-                """
-                MATCH (s:Student {student_id: $student_id})
-                RETURN s.concept_mastery AS concept_mastery,
-                       s.implementation_consistency AS implementation_consistency,
-                       s.debugging_independence AS debugging_independence,
-                       s.efficiency_awareness AS efficiency_awareness,
-                       s.concept_transfer AS concept_transfer,
-                       s.learning_velocity AS learning_velocity,
-                       coalesce(s.profile_notes, '') AS profile_notes
-                """,
-                student_id=student_id,
-            ).single()
-
-            blended_profile = self._blend_student_profile(existing, derived_profile)
-            session.run(
-                """
-                MERGE (s:Student {student_id: $student_id})
-                SET s.current_concept = $current_concept,
-                    s.notes = coalesce(s.notes, ''),
-                    s.concept_mastery = $concept_mastery,
-                    s.implementation_consistency = $implementation_consistency,
-                    s.debugging_independence = $debugging_independence,
-                    s.efficiency_awareness = $efficiency_awareness,
-                    s.concept_transfer = $concept_transfer,
-                    s.learning_velocity = $learning_velocity,
-                    s.profile_notes = $profile_notes
-                """,
-                student_id=student_id,
-                current_concept=current_concept,
-                concept_mastery=blended_profile.concept_mastery,
-                implementation_consistency=blended_profile.implementation_consistency,
-                debugging_independence=blended_profile.debugging_independence,
-                efficiency_awareness=blended_profile.efficiency_awareness,
-                concept_transfer=blended_profile.concept_transfer,
-                learning_velocity=blended_profile.learning_velocity,
-                profile_notes=blended_profile.notes,
-            )
-            session.run(
-                """
-                MATCH (s:Student {student_id: $student_id})
-                MATCH (e:Exercise {exercise_id: $exercise_id})
-                MERGE (s)-[:ATTEMPTED]->(e)
-                """,
-                student_id=student_id,
-                exercise_id=exercise_id,
-            )
-        return blended_profile
 
     def get_recommendation_context(
         self,
@@ -1596,15 +1409,7 @@ class KnowledgeGraphRepository:
                            ),
                            1.0
                        ) AS current_concept_weight,
-                       coalesce(r.exercise_id, $exercise_id) AS stored_exercise_id,
                        coalesce(r.submission_id, '') AS submission_id,
-                       coalesce(s.concept_mastery, 0.5) AS concept_mastery,
-                       coalesce(s.implementation_consistency, 0.5) AS implementation_consistency,
-                       coalesce(s.debugging_independence, 0.5) AS debugging_independence,
-                       coalesce(s.efficiency_awareness, 0.5) AS efficiency_awareness,
-                       coalesce(s.concept_transfer, 0.5) AS concept_transfer,
-                       coalesce(s.learning_velocity, 0.5) AS learning_velocity,
-                       coalesce(s.profile_notes, '') AS profile_notes,
                        mastered_concepts AS mastered_concepts,
                        attempted_exercise_ids AS attempted_exercise_ids
                 ORDER BY r.created_at DESC
@@ -1668,39 +1473,35 @@ class KnowledgeGraphRepository:
                 )
             ]
 
-            student_profile = StudentProfileScoring(
-                concept_mastery=latest_record["concept_mastery"],
-                implementation_consistency=latest_record["implementation_consistency"],
-                debugging_independence=latest_record["debugging_independence"],
-                efficiency_awareness=latest_record["efficiency_awareness"],
-                concept_transfer=latest_record["concept_transfer"],
-                learning_velocity=latest_record["learning_velocity"],
-                notes=latest_record["profile_notes"],
-            )
-
-            latest_review_transition = session.run(
-                """
-                MATCH (prev:Review)-[rel:NEXT_REVIEW_OF]->(curr:Review {review_id: $review_id})
-                RETURN coalesce(rel.improvement_signal, 0.0) AS improvement_signal,
-                       coalesce(rel.severity_change, 0.0) AS severity_change
-                ORDER BY coalesce(rel.linked_at, '') DESC
-                LIMIT 1
-                """,
-                review_id=review.review_id,
-            ).single()
-
             latest_submission_transition = None
             if latest_record["submission_id"]:
                 latest_submission_transition = session.run(
                     """
                     MATCH (prev:Submission)-[rel:NEXT_ATTEMPT]->(curr:Submission {submission_id: $submission_id})
-                    RETURN coalesce(rel.improvement_ratio, 0.0) AS improvement_ratio,
-                           coalesce(rel.regression_ratio, 0.0) AS regression_ratio
+                    RETURN coalesce(prev.testcase_outputs_json, '[]') AS previous_testcase_outputs_json,
+                           coalesce(curr.testcase_outputs_json, '[]') AS current_testcase_outputs_json
                     ORDER BY coalesce(rel.linked_at, '') DESC
                     LIMIT 1
                     """,
                     submission_id=latest_record["submission_id"],
                 ).single()
+
+            latest_submission_improvement_ratio = 0.0
+            latest_submission_regression_ratio = 0.0
+            if latest_submission_transition is not None:
+                previous_outputs = json.loads(
+                    latest_submission_transition["previous_testcase_outputs_json"] or "[]"
+                )
+                current_outputs = json.loads(
+                    latest_submission_transition["current_testcase_outputs_json"] or "[]"
+                )
+                (
+                    latest_submission_improvement_ratio,
+                    latest_submission_regression_ratio,
+                ) = self._calculate_attempt_transition_scores(
+                    previous_outputs=previous_outputs,
+                    current_outputs=current_outputs,
+                )
 
             return {
                 "current_concept": current_concept,
@@ -1709,28 +1510,13 @@ class KnowledgeGraphRepository:
                 ),
                 "review": review,
                 "review_history": review_history,
-                "student_profile": student_profile,
                 "mastered_concepts": latest_record["mastered_concepts"] or [],
                 "attempted_exercise_ids": latest_record["attempted_exercise_ids"] or [],
-                "latest_review_improvement_signal": float(
-                    latest_review_transition["improvement_signal"]
-                    if latest_review_transition is not None
-                    else 0.0
-                ),
-                "latest_review_severity_change": float(
-                    latest_review_transition["severity_change"]
-                    if latest_review_transition is not None
-                    else 0.0
-                ),
                 "latest_submission_improvement_ratio": float(
-                    latest_submission_transition["improvement_ratio"]
-                    if latest_submission_transition is not None
-                    else 0.0
+                    latest_submission_improvement_ratio
                 ),
                 "latest_submission_regression_ratio": float(
-                    latest_submission_transition["regression_ratio"]
-                    if latest_submission_transition is not None
-                    else 0.0
+                    latest_submission_regression_ratio
                 ),
             }
 
@@ -1813,76 +1599,6 @@ class KnowledgeGraphRepository:
             ]
             return review, history
 
-    def get_next_concepts(self, concept_id: str) -> list[ConceptRecord]:
-        with self.driver.session() as session:
-            result = session.run(
-                """
-                MATCH (:Concept {concept_id: $concept_id})-[:PREREQUISITE_OF]->(next:Concept)
-                RETURN next.concept_id AS concept_id,
-                       coalesce(next.slug, next.concept_id) AS slug,
-                       next.name AS name,
-                       coalesce(next.description, '') AS description,
-                       coalesce(next.difficulty, 1) AS difficulty
-                ORDER BY next.difficulty ASC, next.name ASC
-                """,
-                concept_id=concept_id,
-            )
-            return [
-                ConceptRecord(
-                    concept_id=record["concept_id"],
-                    slug=record["slug"],
-                    name=record["name"] or record["concept_id"],
-                    description=record["description"],
-                    difficulty=record["difficulty"],
-                )
-                for record in result
-            ]
-
-    def get_next_concept_candidates(
-        self,
-        *,
-        current_concept: str,
-        attempted_exercise_ids: list[str],
-        mastered_concepts: list[str],
-        limit: int = 5,
-    ) -> list[dict]:
-        with self.driver.session() as session:
-            result = session.run(
-                """
-                MATCH (:Concept {concept_id: $current_concept})-[pre:PREREQUISITE_OF]->(target:Concept)
-                WHERE NOT target.concept_id IN $mastered_concepts
-                OPTIONAL MATCH (e:Exercise)-[tests:TESTS]->(target)
-                OPTIONAL MATCH (e)-[path_rel:RECOMMENDED_FOR {path: 'NEXT_CONCEPT'}]->(target)
-                WHERE e IS NULL OR NOT e.exercise_id IN $attempted_exercise_ids
-                WITH target, pre, e, tests, path_rel
-                RETURN target.concept_id AS concept_id,
-                       coalesce(target.name, target.concept_id) AS name,
-                       coalesce(target.description, '') AS description,
-                       coalesce(target.difficulty, 1) AS difficulty,
-                       coalesce(pre.strength, 1.0) AS prerequisite_strength,
-                       coalesce(max(path_rel.weight), 0.0) AS best_path_weight,
-                       coalesce(max(tests.weight), 0.0) AS best_tests_weight
-                ORDER BY prerequisite_strength DESC, best_path_weight DESC, best_tests_weight DESC, difficulty ASC
-                LIMIT $limit
-                """,
-                current_concept=current_concept,
-                attempted_exercise_ids=attempted_exercise_ids,
-                mastered_concepts=mastered_concepts,
-                limit=limit,
-            )
-            return [
-                {
-                    "concept_id": record["concept_id"],
-                    "name": record["name"],
-                    "description": record["description"],
-                    "difficulty": record["difficulty"],
-                    "prerequisite_strength": float(record["prerequisite_strength"] or 0.0),
-                    "best_path_weight": float(record["best_path_weight"] or 0.0),
-                    "best_tests_weight": float(record["best_tests_weight"] or 0.0),
-                }
-                for record in result
-            ]
-
     def retrieve_candidates(
         self,
         *,
@@ -1890,17 +1606,15 @@ class KnowledgeGraphRepository:
         current_exercise_id: str,
         current_concept: str,
         target_concept: str,
-        assigned_path: AssignedPath,
         attempted_exercise_ids: list[str],
         limit: int = 5,
     ) -> list[dict]:
-        query = self._candidate_query(assigned_path)
+        query = self._candidate_query()
         params = {
             "student_id": student_id,
             "current_exercise_id": current_exercise_id,
             "current_concept": current_concept,
             "target_concept": target_concept,
-            "assigned_path": assigned_path,
             "attempted_exercise_ids": attempted_exercise_ids,
             "limit": limit,
         }
@@ -1913,7 +1627,9 @@ class KnowledgeGraphRepository:
                         "target_concept": record["target_concept"],
                         "concept_name": record["concept_name"],
                         "concept_description": record["concept_description"],
-                        "path_weight": float(record["path_weight"] or 0.0),
+                        "recommended_weight": float(
+                            record["recommended_weight"] or 0.0
+                        ),
                         "tests_weight": float(record["tests_weight"] or 0.0),
                         "related_weight": float(record["related_weight"] or 0.0),
                         "relation_type": record["relation_type"] or "",
@@ -1927,259 +1643,11 @@ class KnowledgeGraphRepository:
                             description=record["description"],
                             content=record["content"],
                             difficulty=record["difficulty"],
-                            tags=record["tags"] or [],
+                            concept_slugs=record["concept_slugs"] or [],
                         ),
                     }
                 )
             return rows
-
-    def get_graph_snapshot(self) -> KnowledgeGraphDocument:
-        with self.driver.session() as session:
-            concepts = [
-                ConceptRecord(
-                    concept_id=record["concept_id"],
-                    slug=record["slug"] or record["concept_id"],
-                    name=record["name"] or record["concept_id"],
-                    description=record["description"],
-                    difficulty=record["difficulty"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (c:Concept)
-                    RETURN c.concept_id AS concept_id,
-                           coalesce(c.slug, c.concept_id) AS slug,
-                           c.name AS name,
-                           coalesce(c.description, '') AS description,
-                           coalesce(c.difficulty, 1) AS difficulty
-                    ORDER BY c.name ASC
-                    """
-                )
-            ]
-            relations = [
-                ConceptRelation(
-                    prerequisite_id=record["prerequisite_id"],
-                    concept_id=record["concept_id"],
-                    strength=record["strength"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (p:Concept)-[r:PREREQUISITE_OF]->(c:Concept)
-                    RETURN p.concept_id AS prerequisite_id,
-                           c.concept_id AS concept_id,
-                           coalesce(r.strength, 1.0) AS strength
-                    """
-                )
-            ]
-            exercises = [
-                ExerciseRecord(
-                    exercise_id=record["exercise_id"],
-                    slug=record["slug"] or "",
-                    title=record["title"],
-                    description=record["description"],
-                    content=record["content"],
-                    difficulty=record["difficulty"],
-                    tags=record["tags"] or [],
-                )
-                for record in session.run(
-                    """
-                    MATCH (e:Exercise)
-                    RETURN e.exercise_id AS exercise_id,
-                           coalesce(e.slug, '') AS slug,
-                           e.title AS title,
-                           coalesce(e.description, '') AS description,
-                           coalesce(e.content, '') AS content,
-                           e.difficulty AS difficulty,
-                           coalesce(e.tags, []) AS tags
-                    ORDER BY e.title ASC
-                    """
-                )
-            ]
-            exercise_concept_links = [
-                ExerciseConceptLink(
-                    exercise_id=record["exercise_id"],
-                    concept_id=record["concept_id"],
-                    weight=record["weight"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (e:Exercise)-[r:TESTS]->(c:Concept)
-                    RETURN e.exercise_id AS exercise_id,
-                           c.concept_id AS concept_id,
-                           coalesce(r.weight, 1.0) AS weight
-                    """
-                )
-            ]
-            exercise_path_links = [
-                ExercisePathLink(
-                    exercise_id=record["exercise_id"],
-                    concept_id=record["concept_id"],
-                    path=record["path"],
-                    weight=record["weight"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (e:Exercise)-[r:RECOMMENDED_FOR]->(c:Concept)
-                    RETURN e.exercise_id AS exercise_id,
-                           c.concept_id AS concept_id,
-                           r.path AS path,
-                           coalesce(r.weight, 1.0) AS weight
-                    """
-                )
-            ]
-            exercise_relations = [
-                ExerciseRelation(
-                    exercise_id=record["exercise_id"],
-                    related_exercise_id=record["related_exercise_id"],
-                    weight=record["weight"],
-                    relation_type=record["relation_type"],
-                    target_concept_id=record["target_concept_id"],
-                    shared_concept_ids=record["shared_concept_ids"] or [],
-                    difficulty_gap=record["difficulty_gap"],
-                    progression_score=record["progression_score"],
-                    similarity_score=record["similarity_score"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (e:Exercise)-[r:RELATED_TO]->(related:Exercise)
-                    RETURN e.exercise_id AS exercise_id,
-                           related.exercise_id AS related_exercise_id,
-                           coalesce(r.weight, 1.0) AS weight,
-                           coalesce(r.relation_type, '') AS relation_type,
-                           coalesce(r.target_concept_id, '') AS target_concept_id,
-                           coalesce(r.shared_concept_ids, []) AS shared_concept_ids,
-                           coalesce(r.difficulty_gap, 0.0) AS difficulty_gap,
-                           coalesce(r.progression_score, 0.0) AS progression_score,
-                           coalesce(r.similarity_score, 0.0) AS similarity_score
-                    """
-                )
-            ]
-            students = [
-                StudentRecord(
-                    student_id=record["student_id"],
-                    current_concept=record["current_concept"],
-                    notes=record["notes"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (s:Student)
-                    RETURN s.student_id AS student_id,
-                           coalesce(s.current_concept, '') AS current_concept,
-                           coalesce(s.notes, '') AS notes
-                    ORDER BY s.student_id ASC
-                    """
-                )
-            ]
-            submissions = [
-                SubmissionRecord(
-                    submission_id=record["submission_id"],
-                    student_id=record["student_id"],
-                    exercise_id=record["exercise_id"],
-                    code=record["code"],
-                    testcase_outputs=json.loads(
-                        record["testcase_outputs_json"] or "[]"
-                    ),
-                    created_at=record["created_at"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (s:Student)-[:SUBMITTED]->(sub:Submission)
-                    OPTIONAL MATCH (sub)-[:FOR_EXERCISE]->(e:Exercise)
-                    RETURN sub.submission_id AS submission_id,
-                           s.student_id AS student_id,
-                           coalesce(e.exercise_id, coalesce(sub.exercise_id, '')) AS exercise_id,
-                           coalesce(sub.code, '') AS code,
-                           coalesce(sub.testcase_outputs_json, '[]') AS testcase_outputs_json,
-                           coalesce(sub.created_at, '') AS created_at
-                    ORDER BY sub.created_at DESC, sub.submission_id ASC
-                    """
-                )
-            ]
-            submission_relations = [
-                SubmissionRelation(
-                    previous_submission_id=record["previous_submission_id"],
-                    next_submission_id=record["next_submission_id"],
-                    student_id=record["student_id"],
-                    linked_at=record["linked_at"],
-                    same_exercise=record["same_exercise"],
-                    improvement_ratio=record["improvement_ratio"],
-                    regression_ratio=record["regression_ratio"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (prev:Submission)-[r:NEXT_ATTEMPT]->(curr:Submission)
-                    RETURN prev.submission_id AS previous_submission_id,
-                           curr.submission_id AS next_submission_id,
-                           coalesce(r.student_id, '') AS student_id,
-                           coalesce(r.linked_at, '') AS linked_at,
-                           coalesce(r.same_exercise, true) AS same_exercise,
-                           coalesce(r.improvement_ratio, 0.0) AS improvement_ratio,
-                           coalesce(r.regression_ratio, 0.0) AS regression_ratio
-                    """
-                )
-            ]
-            reviews = [
-                ReviewRecord(
-                    review_id=record["review_id"],
-                    student_id=record["student_id"],
-                    exercise_id=record["exercise_id"],
-                    submission_id=record["submission_id"],
-                    current_concept=record["current_concept"],
-                    created_at=record["created_at"],
-                    summary=record["summary"],
-                    detail=record["detail"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (s:Student)-[:RECEIVED_REVIEW]->(r:Review)
-                    RETURN r.review_id AS review_id,
-                           s.student_id AS student_id,
-                           coalesce(r.exercise_id, '') AS exercise_id,
-                           coalesce(r.submission_id, '') AS submission_id,
-                           coalesce(r.current_concept, '') AS current_concept,
-                           coalesce(r.created_at, '') AS created_at,
-                           coalesce(r.summary, '') AS summary,
-                           coalesce(r.detail, '') AS detail
-                    ORDER BY r.created_at DESC, r.review_id ASC
-                    """
-                )
-            ]
-            review_relations = [
-                ReviewRelation(
-                    previous_review_id=record["previous_review_id"],
-                    next_review_id=record["next_review_id"],
-                    student_id=record["student_id"],
-                    linked_at=record["linked_at"],
-                    same_concept=record["same_concept"],
-                    improvement_signal=record["improvement_signal"],
-                    severity_change=record["severity_change"],
-                )
-                for record in session.run(
-                    """
-                    MATCH (prev:Review)-[r:NEXT_REVIEW_OF]->(next:Review)
-                    RETURN prev.review_id AS previous_review_id,
-                           next.review_id AS next_review_id,
-                           coalesce(r.student_id, '') AS student_id,
-                           coalesce(r.linked_at, '') AS linked_at,
-                           coalesce(r.same_concept, false) AS same_concept,
-                           coalesce(r.improvement_signal, 0.0) AS improvement_signal,
-                           coalesce(r.severity_change, 0.0) AS severity_change
-                    """
-                )
-            ]
-
-        return KnowledgeGraphDocument(
-            concepts=concepts,
-            concept_relations=relations,
-            exercises=exercises,
-            exercise_concept_links=exercise_concept_links,
-            exercise_path_links=exercise_path_links,
-            exercise_relations=exercise_relations,
-            students=students,
-            submissions=submissions,
-            submission_relations=submission_relations,
-            reviews=reviews,
-            review_relations=review_relations,
-        )
 
     def store_recommendation_roadmap(
         self,
@@ -2233,41 +1701,11 @@ class KnowledgeGraphRepository:
                         sequence=order,
                     )
 
-    def _candidate_query(self, assigned_path: AssignedPath) -> str:
-        if assigned_path == "NEXT_CONCEPT":
-            return """
-                MATCH (:Concept {concept_id: $current_concept})-[pre:PREREQUISITE_OF]->(target:Concept {concept_id: $target_concept})
-                MATCH (e:Exercise)-[tests:TESTS]->(target)
-                MATCH (e)-[path_rel:RECOMMENDED_FOR {path: $assigned_path}]->(target)
-                OPTIONAL MATCH (current:Exercise {exercise_id: $current_exercise_id})-[related:RELATED_TO]->(e)
-                WHERE NOT e.exercise_id IN $attempted_exercise_ids
-                  AND NOT EXISTS {
-                    MATCH (:Student {student_id: $student_id})-[:ATTEMPTED|ASSIGNED]->(e)
-                  }
-                RETURN target.concept_id AS target_concept,
-                       target.name AS concept_name,
-                       coalesce(target.description, '') AS concept_description,
-                       coalesce(path_rel.weight, 0.0) AS path_weight,
-                       coalesce(tests.weight, 0.0) AS tests_weight,
-                       coalesce(related.weight, 0.0) AS related_weight,
-                       coalesce(related.relation_type, '') AS relation_type,
-                       coalesce(related.difficulty_gap, 0.0) AS difficulty_gap,
-                       coalesce(related.progression_score, coalesce(pre.strength, 0.0)) AS progression_score,
-                       coalesce(related.similarity_score, 0.0) AS similarity_score,
-                       e.exercise_id AS exercise_id,
-                       e.title AS title,
-                       coalesce(e.description, '') AS description,
-                       coalesce(e.content, '') AS content,
-                       e.difficulty AS difficulty,
-                       coalesce(e.tags, []) AS tags
-                ORDER BY path_weight DESC, tests_weight DESC, progression_score DESC, related_weight DESC, e.title ASC
-                LIMIT $limit
-            """
-
+    def _candidate_query(self) -> str:
         return """
             MATCH (target:Concept {concept_id: $target_concept})
             MATCH (e:Exercise)-[tests:TESTS]->(target)
-            MATCH (e)-[path_rel:RECOMMENDED_FOR {path: $assigned_path}]->(target)
+            MATCH (e)-[recommended_rel:RECOMMENDED_FOR]->(target)
             OPTIONAL MATCH (current:Exercise {exercise_id: $current_exercise_id})-[related:RELATED_TO]->(e)
             WHERE NOT e.exercise_id IN $attempted_exercise_ids
               AND NOT EXISTS {
@@ -2276,7 +1714,7 @@ class KnowledgeGraphRepository:
             RETURN target.concept_id AS target_concept,
                    target.name AS concept_name,
                    coalesce(target.description, '') AS concept_description,
-                   coalesce(path_rel.weight, 0.0) AS path_weight,
+                   coalesce(recommended_rel.weight, 0.0) AS recommended_weight,
                    coalesce(tests.weight, 0.0) AS tests_weight,
                    coalesce(related.weight, 0.0) AS related_weight,
                    coalesce(related.relation_type, '') AS relation_type,
@@ -2288,84 +1726,7 @@ class KnowledgeGraphRepository:
                    coalesce(e.description, '') AS description,
                    coalesce(e.content, '') AS content,
                    e.difficulty AS difficulty,
-                   coalesce(e.tags, []) AS tags
-            ORDER BY path_weight DESC, tests_weight DESC, related_weight DESC, progression_score DESC, e.title ASC
+                   coalesce(e.concept_slugs, []) AS concept_slugs
+            ORDER BY recommended_weight DESC, tests_weight DESC, related_weight DESC, progression_score DESC, e.title ASC
             LIMIT $limit
         """
-
-    @staticmethod
-    def _derive_profile_from_scorecard(scorecard: dict) -> StudentProfileScoring:
-        def score(name: str) -> float:
-            raw_score = float(scorecard.get(name, {}).get("score", 3))
-            return max(0.0, min(1.0, (raw_score - 1.0) / 4.0))
-
-        def average(*values: float) -> float:
-            return round(max(0.0, min(1.0, sum(values) / len(values))), 4)
-
-        return StudentProfileScoring(
-            concept_mastery=average(
-                score("logic_traceability"),
-                score("control_flow_understanding"),
-                score("input_output_awareness"),
-                score("edge_case_awareness"),
-            ),
-            implementation_consistency=average(
-                score("construct_appropriateness"),
-                score("variable_understanding"),
-                score("logic_traceability"),
-            ),
-            debugging_independence=average(
-                score("self_correction_path"),
-                score("debugging_readiness"),
-            ),
-            efficiency_awareness=average(
-                score("construct_appropriateness"),
-                score("generalization_score"),
-            ),
-            concept_transfer=average(
-                score("generalization_score"),
-                score("problem_solving_creativity"),
-            ),
-            learning_velocity=average(
-                score("self_correction_path"),
-                score("problem_solving_creativity"),
-                score("debugging_readiness"),
-            ),
-            notes="Auto-derived from stored review scorecards.",
-        )
-
-    def _blend_student_profile(
-        self, existing: object, derived: StudentProfileScoring
-    ) -> StudentProfileScoring:
-        if existing is None:
-            return derived
-
-        def blended(field_name: str, incoming: float) -> float:
-            existing_value = getattr(existing, "get", None)
-            previous = existing.get(field_name) if callable(existing_value) else None
-            if previous is None:
-                return incoming
-            return round(max(0.0, min(1.0, previous * 0.4 + incoming * 0.6)), 4)
-
-        notes = "Blended from the latest stored review and previous student profile."
-        return StudentProfileScoring(
-            concept_mastery=blended("concept_mastery", derived.concept_mastery),
-            implementation_consistency=blended(
-                "implementation_consistency",
-                derived.implementation_consistency,
-            ),
-            debugging_independence=blended(
-                "debugging_independence",
-                derived.debugging_independence,
-            ),
-            efficiency_awareness=blended(
-                "efficiency_awareness",
-                derived.efficiency_awareness,
-            ),
-            concept_transfer=blended("concept_transfer", derived.concept_transfer),
-            learning_velocity=blended(
-                "learning_velocity",
-                derived.learning_velocity,
-            ),
-            notes=notes,
-        )
