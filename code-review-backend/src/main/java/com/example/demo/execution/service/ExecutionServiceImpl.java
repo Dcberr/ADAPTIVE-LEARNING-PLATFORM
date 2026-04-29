@@ -21,6 +21,7 @@ import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.utils.CodeExtractor;
+import com.example.demo.problem.utils.LeetCodeStarterCodeGenerator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class ExecutionServiceImpl implements ExecutionService {
     private final JobeClient jobeClient;
     private final TestcaseRepository testcaseRepository;
     private final ProblemRepository problemRepository;
+    private final LeetCodeStarterCodeGenerator leetCodeStarterCodeGenerator;
 
     private final ExecutorService executor =
             Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -196,13 +198,51 @@ public class ExecutionServiceImpl implements ExecutionService {
      * Get template from problem
      */
     private String getTemplate(Problem problem, String language) {
-        if (problem.getStarterCodes() != null && 
+        if (problem.getStarterCodes() != null &&
             problem.getStarterCodes().containsKey(language)) {
-            return problem.getStarterCodes().get(language);
+            String template = problem.getStarterCodes().get(language);
+            if ("cpp".equalsIgnoreCase(language)) {
+                template = repairCppTemplate(template);
+            }
+            return template;
         }
+
 
         throw new RuntimeException("No starter code template found for language: " + language);
     }
+
+
+    /**
+     * Repairs stale C++ templates stored in the database:
+     * 1. If the template is a bare class without main(), regenerate it fully using
+     *    LeetCodeStarterCodeGenerator so that includes, support functions, and main() are added.
+     * 2. Fixes the old parseVectorInt omission bug where vector<int> parameters were assigned
+     *    directly from readLineOrDefault() without parsing.
+     */
+    private String repairCppTemplate(String template) {
+        if (template == null) {
+            return null;
+        }
+
+
+        // If the template lacks a main() function it is a bare class skeleton stored before
+        // full template generation was implemented. Regenerate it so the code is runnable.
+        if (!template.contains("int main(")) {
+            log.info("C++ template missing main() — regenerating full runnable template");
+            template = leetCodeStarterCodeGenerator.generateCppTemplatePublic(template);
+        }
+
+
+        // Fix old bug: vector<int> param assigned from readLineOrDefault() without parseVectorInt()
+        template = template.replaceAll(
+            "(vector<int>\\s+\\w+\\s*=\\s*)(readLineOrDefault\\([^)]+\\))(;)",
+            "$1parseVectorInt($2)$3"
+        );
+
+
+        return template;
+    }
+
 
     @Override
     public RunCodeResponse runByCustomInput(RunCodeRequest request) {

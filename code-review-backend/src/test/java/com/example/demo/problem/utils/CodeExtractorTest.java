@@ -40,6 +40,15 @@ class CodeExtractorTest {
                 }
             }""";
 
+    private static final String PYTHON_TEMPLATE = """
+            class Solution:
+                def twoSum(self, nums: List[int], target: int) -> List[int]:
+                    //STUDENT_CODE_HERE
+
+            if __name__ == "__main__":
+                pass
+            """;
+
     @Test
     @DisplayName("Should extract C++ function skeleton")
     void shouldExtractCppFunctionSkeleton() {
@@ -99,5 +108,35 @@ class CodeExtractorTest {
         assertNotNull(signature);
         // Should contain the signature without placeholder
         assertTrue(signature.contains("int solve(int n)") || signature.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should preserve Python indentation when combining student code")
+    void shouldPreservePythonIndentationWhenCombiningStudentCode() {
+        String studentCode = """
+                seen = {}
+                for index, value in enumerate(nums):
+                    diff = target - value
+                    if diff in seen:
+                        return [seen[diff], index]
+                    seen[value] = index
+                return []
+                """;
+
+        String combined = CodeExtractor.combineWithStudentCode(PYTHON_TEMPLATE, studentCode);
+
+        assertTrue(combined.contains("        seen = {}"));
+        assertTrue(combined.contains("                return [seen[diff], index]"));
+        assertFalse(combined.contains("//STUDENT_CODE_HERE"));
+    }
+
+    @Test
+    @DisplayName("Should extract Python function skeleton")
+    void shouldExtractPythonFunctionSkeleton() {
+        String skeleton = CodeExtractor.extractFunctionSkeleton(PYTHON_TEMPLATE);
+
+        assertTrue(skeleton.contains("def twoSum"));
+        assertTrue(skeleton.contains("//STUDENT_CODE_HERE"));
+        assertFalse(skeleton.contains("__main__"));
     }
 }

@@ -55,7 +55,7 @@ public class ProblemServiceImpl implements ProblemService {
                 // .title(request.getTitle())
                 .description(request.getDescription())
                 .problemConstraint(request.getProblemConstraint())
-                .starterCodes(request.getStarterCodes())
+                .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
                 // .difficulty(request.getDifficulty())
                 // .source(request.getSource())
                 .createdAt(Instant.now())
@@ -163,7 +163,7 @@ public class ProblemServiceImpl implements ProblemService {
         Problem problem = problemRepository.findById(request.getProblemId())
                 .orElseThrow(() -> new RuntimeException("Problem not found"));
 
-        problem.setStarterCodes(request.getStarterCodes());
+        problem.setStarterCodes(normalizeStarterCodes(request.getStarterCodes()));
         
         problemRepository.save(problem);
 
@@ -211,7 +211,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .description(request.getDescription())
                 .difficulty(request.getDifficulty())
                 .problemConstraint(request.getProblemConstraint())
-                .starterCodes(request.getStarterCodes())
+                .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
                 .type(ProblemType.MANUAL)
                 .source("SYSTEM")
                 .createdAt(Instant.now())
@@ -249,7 +249,7 @@ public class ProblemServiceImpl implements ProblemService {
                                 .description(req.getDescription())
                                 .difficulty(req.getDifficulty())
                                 .problemConstraint(req.getConstraints())
-                                .starterCodes(req.getStarterCodes())
+                                .starterCodes(normalizeStarterCodes(req.getStarterCodes()))
                                 .type(ProblemType.LEETCODE)
                                 .source("LEETCODE")
                                 .externalId(req.getExternalId())
@@ -329,7 +329,7 @@ public class ProblemServiceImpl implements ProblemService {
             problem.setDescription(req.getDescription());
             problem.setDifficulty(req.getDifficulty());
             problem.setProblemConstraint(req.getConstraints());
-            problem.setStarterCodes(req.getStarterCodes());
+            problem.setStarterCodes(normalizeStarterCodes(req.getStarterCodes()));
             problem.setType(ProblemType.LEETCODE);
             problem.setSource("LEETCODE");
             problem.setExternalId(req.getExternalId());
@@ -389,6 +389,10 @@ public class ProblemServiceImpl implements ProblemService {
                             .build()
             );
         }
+    }
+
+    private Map<String, String> normalizeStarterCodes(Map<String, String> starterCodes) {
+        return leetCodeStarterCodeGenerator.normalizeStarterCodes(starterCodes);
     }
     
 }
