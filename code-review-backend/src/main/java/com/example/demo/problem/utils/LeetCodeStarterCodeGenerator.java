@@ -14,6 +14,32 @@ import org.springframework.stereotype.Component;
 public class LeetCodeStarterCodeGenerator {
 
     private static final String STUDENT_CODE_PLACEHOLDER = "//STUDENT_CODE_HERE";
+        private static final String CPP_DEFAULT_INCLUDES = """
+                        #include <algorithm>
+                        #include <cctype>
+                        #include <cmath>
+                        #include <deque>
+                        #include <functional>
+                        #include <iomanip>
+                        #include <iostream>
+                        #include <limits>
+                        #include <map>
+                        #include <numeric>
+                        #include <queue>
+                        #include <set>
+                        #include <sstream>
+                        #include <stack>
+                        #include <string>
+                        #include <unordered_map>
+                        #include <unordered_set>
+                        #include <utility>
+                        #include <vector>
+                        """;
+
+
+
+
+
     private static final Pattern CPP_METHOD_PATTERN = Pattern.compile(
             "([a-zA-Z_][\\w:<>,\\s&*]*?)\\s+([a-zA-Z_][\\w]*)\\s*\\(([^)]*)\\)\\s*\\{"
     );
@@ -124,8 +150,8 @@ public class LeetCodeStarterCodeGenerator {
         String solutionClass = replaceBraceBody(snippet, STUDENT_CODE_PLACEHOLDER).trim();
         CppFunctionSignature signature = parseCppSignature(solutionClass);
 
-        if (!snippet.contains("#include <bits/stdc++.h>")) {
-            builder.append("#include <bits/stdc++.h>\n");
+        if (!containsCppIncludes(snippet)) {
+            builder.append(CPP_DEFAULT_INCLUDES);
         }
         if (!snippet.contains("using namespace std;")) {
             builder.append("using namespace std;\n");
@@ -157,6 +183,10 @@ public class LeetCodeStarterCodeGenerator {
         }
 
         return builder.toString();
+    }
+
+    private boolean containsCppIncludes(String snippet) {
+        return snippet.contains("#include <") || snippet.contains("#include\"");
     }
 
     private String generateJavaTemplate(String snippet) {
