@@ -14,7 +14,7 @@ from code_review_ai.models.review_record import ReviewRecord
 from code_review_ai.models.submission_record import SubmissionRecord
 
 
-class KnowledgeGraphRepository:
+class Neo4jRepository:
     """Neo4j-backed repository for GraphRAG recommendation data."""
 
     def __init__(self, driver: Driver):
@@ -488,6 +488,45 @@ class KnowledgeGraphRepository:
             "previous_submission_id": previous_submission_id,
         }
 
+    def fetch_submission_history_context(
+        self,
+        *,
+        submission_id: str,
+        history_limit: int = 3,
+    ) -> dict:
+        with self.driver.session() as session:
+            submission_history = [
+                SubmissionRecord.model_validate(
+                    {
+                        "submission_id": record["submission_id"],
+                        "student_id": record["student_id"],
+                        "exercise_id": record["exercise_id"],
+                        "code": record["code"],
+                        "testcase_outputs": json.loads(
+                            record["testcase_outputs_json"] or "[]"
+                        ),
+                        "created_at": record["created_at"],
+                    }
+                )
+                for record in session.run(
+                    """
+                    MATCH path = (prev:Submission)-[:NEXT_ATTEMPT*1..5]->(current:Submission {submission_id: $submission_id})
+                    RETURN prev.submission_id AS submission_id,
+                           coalesce(prev.student_id, '') AS student_id,
+                           coalesce(prev.exercise_id, '') AS exercise_id,
+                           coalesce(prev.code, '') AS code,
+                           coalesce(prev.testcase_outputs_json, '[]') AS testcase_outputs_json,
+                           coalesce(prev.created_at, '') AS created_at,
+                           length(path) AS depth
+                    ORDER BY depth ASC, prev.created_at DESC
+                    LIMIT $history_limit
+                    """,
+                    submission_id=submission_id,
+                    history_limit=history_limit,
+                )
+            ]
+        return {"submission_history": submission_history}
+
     def fetch_exercise_graph_context(
         self,
         *,
@@ -543,6 +582,10 @@ class KnowledgeGraphRepository:
         return {
             "related_exercises": related_exercises,
             "recommended_links": recommended_links,
+            "best_related_exercise_weight": max(
+                (exercise["weight"] for exercise in related_exercises),
+                default=0.0,
+            ),
             "best_recommended_weight": max(
                 (link["weight"] for link in recommended_links),
                 default=0.0,
@@ -1607,15 +1650,18 @@ class KnowledgeGraphRepository:
         current_concept: str,
         target_concept: str,
         attempted_exercise_ids: list[str],
+        candidate_exercise_ids: list[str] | None = None,
         limit: int = 5,
+        allow_indirect_paths: bool = False,
     ) -> list[dict]:
-        query = self._candidate_query()
+        query = self._candidate_query(allow_indirect_paths=allow_indirect_paths)
         params = {
             "student_id": student_id,
             "current_exercise_id": current_exercise_id,
             "current_concept": current_concept,
             "target_concept": target_concept,
             "attempted_exercise_ids": attempted_exercise_ids,
+            "candidate_exercise_ids": candidate_exercise_ids or [],
             "limit": limit,
         }
         with self.driver.session() as session:
@@ -1636,6 +1682,13 @@ class KnowledgeGraphRepository:
                         "difficulty_gap": float(record["difficulty_gap"] or 0.0),
                         "progression_score": float(record["progression_score"] or 0.0),
                         "similarity_score": float(record["similarity_score"] or 0.0),
+                        "root_connection_mode": record["root_connection_mode"]
+                        or "fallback",
+                        "root_connection_weight": float(
+                            record["root_connection_weight"] or 0.0
+                        ),
+                        "root_hop_count": int(record["root_hop_count"] or 0),
+                        "path_relation_types": record["path_relation_types"] or [],
                         "exercise": ExerciseRecord(
                             exercise_id=record["exercise_id"],
                             slug=record["slug"] or "",
@@ -1701,13 +1754,15 @@ class KnowledgeGraphRepository:
                         sequence=order,
                     )
 
-    def _candidate_query(self) -> str:
-        return """
+    def _candidate_query(self, *, allow_indirect_paths: bool) -> str:
+        if not allow_indirect_paths:
+            return """
             MATCH (target:Concept {concept_id: $target_concept})
             MATCH (e:Exercise)-[tests:TESTS]->(target)
             MATCH (e)-[recommended_rel:RECOMMENDED_FOR]->(target)
-            OPTIONAL MATCH (current:Exercise {exercise_id: $current_exercise_id})-[related:RELATED_TO]->(e)
+            OPTIONAL MATCH (current:Exercise {exercise_id: $current_exercise_id})-[direct:RELATED_TO]->(e)
             WHERE NOT e.exercise_id IN $attempted_exercise_ids
+              AND (size($candidate_exercise_ids) = 0 OR e.exercise_id IN $candidate_exercise_ids)
               AND NOT EXISTS {
                 MATCH (:Student {student_id: $student_id})-[:ATTEMPTED|ASSIGNED]->(e)
               }
@@ -1716,11 +1771,137 @@ class KnowledgeGraphRepository:
                    coalesce(target.description, '') AS concept_description,
                    coalesce(recommended_rel.weight, 0.0) AS recommended_weight,
                    coalesce(tests.weight, 0.0) AS tests_weight,
-                   coalesce(related.weight, 0.0) AS related_weight,
-                   coalesce(related.relation_type, '') AS relation_type,
-                   coalesce(related.difficulty_gap, 0.0) AS difficulty_gap,
-                   coalesce(related.progression_score, 0.0) AS progression_score,
-                   coalesce(related.similarity_score, 0.0) AS similarity_score,
+                   coalesce(direct.weight, 0.0) AS related_weight,
+                   coalesce(direct.relation_type, '') AS relation_type,
+                   coalesce(direct.difficulty_gap, 0.0) AS difficulty_gap,
+                   coalesce(direct.progression_score, 0.0) AS progression_score,
+                   coalesce(direct.similarity_score, 0.0) AS similarity_score,
+                   CASE
+                       WHEN direct IS NOT NULL THEN 'direct'
+                       ELSE 'fallback'
+                   END AS root_connection_mode,
+                   coalesce(direct.weight, 0.0) AS root_connection_weight,
+                   CASE
+                       WHEN direct IS NOT NULL THEN 1
+                       ELSE 0
+                   END AS root_hop_count,
+                   CASE
+                       WHEN direct IS NOT NULL THEN [coalesce(direct.relation_type, '')]
+                       ELSE []
+                   END AS path_relation_types,
+                   e.exercise_id AS exercise_id,
+                   e.title AS title,
+                   coalesce(e.description, '') AS description,
+                   coalesce(e.content, '') AS content,
+                   e.difficulty AS difficulty,
+                   coalesce(e.concept_slugs, []) AS concept_slugs
+            ORDER BY recommended_weight DESC, tests_weight DESC, related_weight DESC, progression_score DESC, e.title ASC
+            LIMIT $limit
+        """
+        return """
+            MATCH (target:Concept {concept_id: $target_concept})
+            MATCH (e:Exercise)-[tests:TESTS]->(target)
+            MATCH (e)-[recommended_rel:RECOMMENDED_FOR]->(target)
+            OPTIONAL MATCH (current:Exercise {exercise_id: $current_exercise_id})-[direct:RELATED_TO]->(e)
+            CALL {
+                WITH current, e
+                OPTIONAL MATCH p=(current)-[:RELATED_TO*2..3]->(e)
+                WITH [candidate IN collect(
+                    CASE
+                        WHEN p IS NULL THEN NULL
+                        ELSE {
+                            weight: reduce(
+                                score = 1.0,
+                                rel IN relationships(p) |
+                                score * coalesce(rel.weight, 1.0)
+                            ) * pow(0.9, length(p) - 1),
+                            hop_count: length(p),
+                            relation_types: [rel IN relationships(p) | coalesce(rel.relation_type, '')],
+                            difficulty_gap: reduce(
+                                gap = 0.0,
+                                rel IN relationships(p) |
+                                gap + coalesce(rel.difficulty_gap, 0.0)
+                            ),
+                            progression_score: reduce(
+                                total = 0.0,
+                                rel IN relationships(p) |
+                                total + coalesce(rel.progression_score, 0.0)
+                            ) / toFloat(length(p)),
+                            similarity_score: reduce(
+                                total = 0.0,
+                                rel IN relationships(p) |
+                                total + coalesce(rel.similarity_score, 0.0)
+                            ) / toFloat(length(p))
+                        }
+                    END
+                ) WHERE candidate IS NOT NULL] AS indirect_candidates
+                RETURN CASE
+                    WHEN size(indirect_candidates) = 0 THEN NULL
+                    ELSE reduce(
+                        best = indirect_candidates[0],
+                        candidate IN indirect_candidates[1..] |
+                        CASE
+                            WHEN candidate.weight > best.weight THEN candidate
+                            ELSE best
+                        END
+                    )
+                END AS indirect
+            }
+            WHERE NOT e.exercise_id IN $attempted_exercise_ids
+              AND (size($candidate_exercise_ids) = 0 OR e.exercise_id IN $candidate_exercise_ids)
+              AND NOT EXISTS {
+                MATCH (:Student {student_id: $student_id})-[:ATTEMPTED|ASSIGNED]->(e)
+              }
+            RETURN target.concept_id AS target_concept,
+                   target.name AS concept_name,
+                   coalesce(target.description, '') AS concept_description,
+                   coalesce(recommended_rel.weight, 0.0) AS recommended_weight,
+                   coalesce(tests.weight, 0.0) AS tests_weight,
+                   CASE
+                       WHEN direct IS NOT NULL THEN coalesce(direct.weight, 0.0)
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.weight, 0.0)
+                       ELSE 0.0
+                   END AS related_weight,
+                   CASE
+                       WHEN direct IS NOT NULL THEN coalesce(direct.relation_type, '')
+                       WHEN indirect IS NOT NULL THEN 'INDIRECT_PATH'
+                       ELSE ''
+                   END AS relation_type,
+                   CASE
+                       WHEN direct IS NOT NULL THEN coalesce(direct.difficulty_gap, 0.0)
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.difficulty_gap, 0.0)
+                       ELSE 0.0
+                   END AS difficulty_gap,
+                   CASE
+                       WHEN direct IS NOT NULL THEN coalesce(direct.progression_score, 0.0)
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.progression_score, 0.0)
+                       ELSE 0.0
+                   END AS progression_score,
+                   CASE
+                       WHEN direct IS NOT NULL THEN coalesce(direct.similarity_score, 0.0)
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.similarity_score, 0.0)
+                       ELSE 0.0
+                   END AS similarity_score,
+                   CASE
+                       WHEN direct IS NOT NULL THEN 'direct'
+                       WHEN indirect IS NOT NULL THEN 'indirect'
+                       ELSE 'fallback'
+                   END AS root_connection_mode,
+                   CASE
+                       WHEN direct IS NOT NULL THEN coalesce(direct.weight, 0.0)
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.weight, 0.0)
+                       ELSE 0.0
+                   END AS root_connection_weight,
+                   CASE
+                       WHEN direct IS NOT NULL THEN 1
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.hop_count, 0)
+                       ELSE 0
+                   END AS root_hop_count,
+                   CASE
+                       WHEN direct IS NOT NULL THEN [coalesce(direct.relation_type, '')]
+                       WHEN indirect IS NOT NULL THEN coalesce(indirect.relation_types, [])
+                       ELSE []
+                   END AS path_relation_types,
                    e.exercise_id AS exercise_id,
                    e.title AS title,
                    coalesce(e.description, '') AS description,

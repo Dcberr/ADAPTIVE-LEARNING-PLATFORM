@@ -43,14 +43,14 @@ class ModelConfigOverrideTests(unittest.TestCase):
         config = build_env_config(
             {
                 "FIREWORKS_API_KEY": "test-key",
-                "RECOMMENDATION_CONTEXT_PLANNER_MODEL": "fireworks/test-context-planner",
-                "RECOMMENDATION_CONTEXT_PLANNER_TEMPERATURE": "0.05",
-                "RECOMMENDATION_CONTEXT_PLANNER_MAX_TOKENS": "777",
+                "RECOMMENDATION_RERANKER_MODEL": "accounts/fireworks/models/test-reranker",
+                "RECOMMENDATION_RERANKER_TEMPERATURE": "0.05",
+                "RECOMMENDATION_RERANKER_MAX_TOKENS": "777",
             }
         )
 
-        stage = config.get_stage_config("recommendation", "context_planner")
-        self.assertEqual(stage.model_name, "fireworks/test-context-planner")
+        stage = config.get_stage_config("recommendation", "reranker")
+        self.assertEqual(stage.model_name, "accounts/fireworks/models/test-reranker")
         self.assertEqual(stage.temperature, 0.05)
         self.assertEqual(stage.max_tokens, 777)
 
@@ -75,32 +75,22 @@ class ModelConfigOverrideTests(unittest.TestCase):
             {
                 "FIREWORKS_API_KEY": "test-key",
                 "RECOMMENDATION_MODEL": "fireworks/recommendation-default",
-                "RECOMMENDATION_ROADMAP_BUILDER_MODEL": "fireworks/roadmap-builder-override",
+                "RECOMMENDATION_RERANKER_MODEL": "accounts/fireworks/models/reranker-override",
+                "RECOMMENDATION_EXPLANATION_BUILDER_MODEL": "fireworks/explainer-override",
             }
         )
 
-        roadmap_stage = config.get_stage_config("recommendation", "roadmap_builder")
+        reranker_stage = config.get_stage_config("recommendation", "reranker")
         explanation_stage = config.get_stage_config(
             "recommendation", "explanation_builder"
         )
 
-        self.assertEqual(roadmap_stage.model_name, "fireworks/roadmap-builder-override")
-        self.assertEqual(explanation_stage.model_name, "fireworks/recommendation-default")
-
-    def test_recommendation_candidate_reranker_stage_can_be_overridden(self):
-        config = build_env_config(
-            {
-                "FIREWORKS_API_KEY": "test-key",
-                "RECOMMENDATION_CANDIDATE_RERANKER_MODEL": "fireworks/test-reranker",
-                "RECOMMENDATION_CANDIDATE_RERANKER_TEMPERATURE": "0.0",
-                "RECOMMENDATION_CANDIDATE_RERANKER_MAX_TOKENS": "555",
-            }
+        self.assertEqual(
+            reranker_stage.model_name, "accounts/fireworks/models/reranker-override"
         )
-
-        stage = config.get_stage_config("recommendation", "candidate_reranker")
-        self.assertEqual(stage.model_name, "fireworks/test-reranker")
-        self.assertEqual(stage.temperature, 0.0)
-        self.assertEqual(stage.max_tokens, 555)
+        self.assertEqual(
+            explanation_stage.model_name, "fireworks/explainer-override"
+        )
 
 if __name__ == "__main__":
     unittest.main()

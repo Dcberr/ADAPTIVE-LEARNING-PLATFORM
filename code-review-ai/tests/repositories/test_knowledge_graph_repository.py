@@ -3,12 +3,12 @@ from unittest.mock import MagicMock
 
 from code_review_ai.models.exercise_record import ExerciseRecord
 from code_review_ai.models.knowledge_graph import ConceptRecord
-from code_review_ai.repositories.knowledge_graph_repository import (
-    KnowledgeGraphRepository,
+from code_review_ai.repositories.neo4j_repository import (
+    Neo4jRepository,
 )
 
 
-class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
+class Neo4jRepositoryExerciseBatchTests(unittest.TestCase):
     def test_upsert_concepts_uses_single_unwind_query(self):
         session = MagicMock()
         session.__enter__.return_value = session
@@ -16,7 +16,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
         driver = MagicMock()
         driver.session.return_value = session
 
-        repository = KnowledgeGraphRepository(driver=driver)
+        repository = Neo4jRepository(driver=driver)
         concepts = [
             ConceptRecord(
                 concept_id="concept-1",
@@ -48,7 +48,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
         driver = MagicMock()
         driver.session.return_value = session
 
-        repository = KnowledgeGraphRepository(driver=driver)
+        repository = Neo4jRepository(driver=driver)
         prerequisite = ConceptRecord(
             concept_id="concept-1",
             slug="arrays",
@@ -79,7 +79,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
         driver = MagicMock()
         driver.session.return_value = session
 
-        repository = KnowledgeGraphRepository(driver=driver)
+        repository = Neo4jRepository(driver=driver)
         exercises = [
             ExerciseRecord(
                 exercise_id="exercise-1",
@@ -140,7 +140,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
         )
 
     def test_upsert_exercise_delegates_to_batch_upsert(self):
-        repository = KnowledgeGraphRepository(driver=MagicMock())
+        repository = Neo4jRepository(driver=MagicMock())
         exercise = ExerciseRecord(
             exercise_id="exercise-1",
             slug="two-sum",
@@ -164,7 +164,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
         driver = MagicMock()
         driver.session.return_value = session
 
-        repository = KnowledgeGraphRepository(driver=driver)
+        repository = Neo4jRepository(driver=driver)
         concept = ConceptRecord(
             concept_id="concept-1",
             slug="arrays",
@@ -205,7 +205,7 @@ class KnowledgeGraphRepositoryExerciseBatchTests(unittest.TestCase):
         driver = MagicMock()
         driver.session.return_value = session
 
-        repository = KnowledgeGraphRepository(driver=driver)
+        repository = Neo4jRepository(driver=driver)
         related_exercise = ExerciseRecord(
             exercise_id="exercise-2",
             slug="sum-three",

@@ -34,6 +34,10 @@ class BatchUpsertExercisesRequest(BaseModel):
     exercises: list[BatchUpsertExerciseItem] = Field(default_factory=list)
 
 
+class BatchSyncExercisesToVectorRequest(BaseModel):
+    exercise_ids: list[str] = Field(default_factory=list)
+
+
 class PatchExerciseRelationsRequest(BaseModel):
     concept_slugs: list[str] | None = None
     related_exercise_slugs: list[str] | None = None

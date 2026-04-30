@@ -18,7 +18,6 @@ def build_explanation_builder_system_prompt() -> str:
 def build_explanation_builder_prompt(
     *,
     assigned_path: str,
-    anchor_concept: str,
     focus_concept_id: str,
     path_reason: str,
     selected_exercises: list[dict[str, str]],
@@ -29,7 +28,6 @@ def build_explanation_builder_prompt(
         Explain the roadmap using only the provided refs.
 
         Assigned path: {assigned_path}
-        Anchor concept: {anchor_concept}
         Focus concept: {focus_concept_id}
 
         Path reason:
