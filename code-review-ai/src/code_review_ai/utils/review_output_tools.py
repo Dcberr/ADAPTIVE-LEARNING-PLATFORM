@@ -6,6 +6,7 @@ from code_review_ai.prompts.review.json_repair import (
     build_review_json_repair_prompt,
     build_review_json_repair_system_prompt,
 )
+from code_review_ai.utils.fireworks_client import create_chat_completion_with_retry
 from code_review_ai.utils.parse_json_response import safe_parse_json_response
 
 
@@ -21,7 +22,8 @@ def parse_review_json_with_repair(
     if _matches_expected_shape(parsed, expected_shape):
         return parsed
 
-    repaired_response = client.chat.completions.create(
+    repaired_response = create_chat_completion_with_retry(
+        client,
         model=model_name,
         messages=[
             {

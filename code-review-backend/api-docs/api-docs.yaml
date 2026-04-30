@@ -197,7 +197,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApiResponseString"
+                $ref: "#/components/schemas/ApiResponseListProblemResponse"
   /execution/run:
     post:
       tags:
@@ -761,10 +761,10 @@ components:
           type: string
         expectedOutput:
           type: string
+        isHidden:
+          type: boolean
         explanation:
           type: string
-        sample:
-          type: boolean
     SubmitCodeRequest:
       type: object
       properties:
@@ -889,6 +889,20 @@ components:
         timestamp:
           type: string
           format: date-time
+    ApiResponseListProblemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProblemResponse"
+        timestamp:
+          type: string
+          format: date-time
     ApiResponseString:
       type: object
       properties:
@@ -907,10 +921,33 @@ components:
         id:
           type: string
           format: uuid
+        externalId:
+          type: string
+        title:
+          type: string
         description:
+          type: string
+        difficulty:
           type: string
         problemConstraint:
           type: string
+        type:
+          type: string
+          enum:
+          - MANUAL
+          - LEETCODE
+        functionSkeletons:
+          type: object
+          additionalProperties:
+            type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResponse"
+        similarQuestionIds:
+          type: array
+          items:
+            type: string
     LeetCodeImportRequest:
       type: object
       properties:

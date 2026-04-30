@@ -16,7 +16,6 @@ This folder is organized for coding agents and teammates who need a fast path to
 - [api/exercise-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/exercise-api.md): exercise upsert endpoint
 - [api/student-profile-import-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/student-profile-import-api.md): student profile upsert endpoint
 - [api/review-import-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/review-import-api.md): submission and review upsert endpoints
-- [api/knowledge-graph-snapshot-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/knowledge-graph-snapshot-api.md): graph snapshot endpoint
 
 ## Domain Docs
 

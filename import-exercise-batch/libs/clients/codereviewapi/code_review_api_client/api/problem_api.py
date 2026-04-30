@@ -19,8 +19,8 @@ from pydantic import Field
 from typing import List
 from typing_extensions import Annotated
 from uuid import UUID
+from code_review_api_client.models.api_response_list_problem_response import ApiResponseListProblemResponse
 from code_review_api_client.models.api_response_problem_response import ApiResponseProblemResponse
-from code_review_api_client.models.api_response_string import ApiResponseString
 from code_review_api_client.models.create_problem_request import CreateProblemRequest
 from code_review_api_client.models.leet_code_import_request import LeetCodeImportRequest
 
@@ -587,7 +587,7 @@ class ProblemApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponseString:
+    ) -> ApiResponseListProblemResponse:
         """Batch import LeetCode problems
 
 
@@ -624,7 +624,7 @@ class ProblemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "ApiResponseString",
+            '200': "ApiResponseListProblemResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -653,7 +653,7 @@ class ProblemApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[ApiResponseString]:
+    ) -> ApiResponse[ApiResponseListProblemResponse]:
         """Batch import LeetCode problems
 
 
@@ -690,7 +690,7 @@ class ProblemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "ApiResponseString",
+            '200': "ApiResponseListProblemResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -756,7 +756,7 @@ class ProblemApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "ApiResponseString",
+            '200': "ApiResponseListProblemResponse",
         }
         response_data = self.api_client.call_api(
             *_param,

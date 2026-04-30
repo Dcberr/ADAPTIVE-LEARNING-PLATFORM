@@ -28,10 +28,9 @@ class BatchPatchExerciseRelationsItem(BaseModel):
     BatchPatchExerciseRelationsItem
     """ # noqa: E501
     concept_slugs: Optional[List[StrictStr]] = None
-    related_exercise_ids: Optional[List[StrictStr]] = None
     related_exercise_slugs: Optional[List[StrictStr]] = None
     exercise_id: StrictStr
-    __properties: ClassVar[List[str]] = ["concept_slugs", "related_exercise_ids", "related_exercise_slugs", "exercise_id"]
+    __properties: ClassVar[List[str]] = ["concept_slugs", "related_exercise_slugs", "exercise_id"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -77,11 +76,6 @@ class BatchPatchExerciseRelationsItem(BaseModel):
         if self.concept_slugs is None and "concept_slugs" in self.model_fields_set:
             _dict['concept_slugs'] = None
 
-        # set to None if related_exercise_ids (nullable) is None
-        # and model_fields_set contains the field
-        if self.related_exercise_ids is None and "related_exercise_ids" in self.model_fields_set:
-            _dict['related_exercise_ids'] = None
-
         # set to None if related_exercise_slugs (nullable) is None
         # and model_fields_set contains the field
         if self.related_exercise_slugs is None and "related_exercise_slugs" in self.model_fields_set:
@@ -100,7 +94,6 @@ class BatchPatchExerciseRelationsItem(BaseModel):
 
         _obj = cls.model_validate({
             "concept_slugs": obj.get("concept_slugs"),
-            "related_exercise_ids": obj.get("related_exercise_ids"),
             "related_exercise_slugs": obj.get("related_exercise_slugs"),
             "exercise_id": obj.get("exercise_id")
         })

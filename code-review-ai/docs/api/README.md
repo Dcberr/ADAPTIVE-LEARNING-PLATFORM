@@ -13,7 +13,6 @@ This folder contains endpoint-level contracts.
 - [exercise-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/exercise-api.md)
 - [student-profile-import-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/student-profile-import-api.md)
 - [review-import-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/review-import-api.md)
-- [knowledge-graph-snapshot-api.md](/Users/thaibao/projects/review-code-app/codereviewai/docs/api/knowledge-graph-snapshot-api.md)
 
 ## How To Use
 

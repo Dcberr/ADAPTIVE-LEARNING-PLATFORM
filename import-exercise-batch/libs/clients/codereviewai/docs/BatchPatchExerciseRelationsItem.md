@@ -6,7 +6,6 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **concept_slugs** | **List[str]** |  | [optional] 
-**related_exercise_ids** | **List[str]** |  | [optional] 
 **related_exercise_slugs** | **List[str]** |  | [optional] 
 **exercise_id** | **str** |  | 
 

@@ -18,7 +18,7 @@ Prompt generation for recommendation stages is centralized under `app/prompts/re
 
 1. The client calls `POST /api/v1/recommendation`.
 2. `context_subgraph` loads the minimum stable context and expands it conditionally.
-3. `path_subgraph` decides `REINFORCE`, `IMPROVE`, or `NEXT_CONCEPT`.
+3. `path_subgraph` decides `REINFORCE` or `IMPROVE`.
 4. `roadmap_subgraph` queries weighted graph candidates and selects the final roadmap.
 5. `explanation_subgraph` generates explanation blocks with structured refs.
 6. The service stores `ASSIGNED` and `RECOMMENDS` relations for the final roadmap.
@@ -191,9 +191,8 @@ The decision is constrained to:
 
 - `REINFORCE`
 - `IMPROVE`
-- `NEXT_CONCEPT`
 
-If the LLM output is invalid, `PathDeciderFallback` uses current errors, attempt regression, review improvement, and available next concepts to choose a safe default path.
+If the LLM output is invalid, `PathDeciderFallback` uses current errors, attempt regression, and review improvement to choose a safe default path.
 
 ### 5. ExerciseCandidateRetriever
 

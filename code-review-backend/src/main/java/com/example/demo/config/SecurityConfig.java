@@ -42,7 +42,8 @@ public class SecurityConfig {
                             "/swagger-ui/**",
                              "/v3/api-docs/**",
                              "/v3/api-docs.yaml/**",
-                             "/execution/run"
+                             "/execution/run",
+                             "/problems/leetcode/batch"
                     ).permitAll()
                     .anyRequest().authenticated()
             )

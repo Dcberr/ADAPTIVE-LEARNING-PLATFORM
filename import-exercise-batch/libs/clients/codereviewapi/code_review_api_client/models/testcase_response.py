@@ -32,9 +32,9 @@ class TestcaseResponse(BaseModel):
     problem_id: Optional[UUID] = Field(default=None, alias="problemId")
     input: Optional[StrictStr] = None
     expected_output: Optional[StrictStr] = Field(default=None, alias="expectedOutput")
+    is_hidden: Optional[StrictBool] = Field(default=None, alias="isHidden")
     explanation: Optional[StrictStr] = None
-    sample: Optional[StrictBool] = None
-    __properties: ClassVar[List[str]] = ["id", "problemId", "input", "expectedOutput", "explanation", "sample"]
+    __properties: ClassVar[List[str]] = ["id", "problemId", "input", "expectedOutput", "isHidden", "explanation"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -91,8 +91,8 @@ class TestcaseResponse(BaseModel):
             "problemId": obj.get("problemId"),
             "input": obj.get("input"),
             "expectedOutput": obj.get("expectedOutput"),
-            "explanation": obj.get("explanation"),
-            "sample": obj.get("sample")
+            "isHidden": obj.get("isHidden"),
+            "explanation": obj.get("explanation")
         })
         return _obj
 

@@ -8,4 +8,7 @@ class ExerciseRecord(BaseModel):
     description: str
     content: str
     difficulty: str
-    tags: list[str] = Field(default_factory=list)
+    concept_slugs: list[str] = Field(default_factory=list)
+    embedding: list[float] = Field(default_factory=list, exclude=True)
+    embedding_model: str = Field(default="", exclude=True)
+    content_hash: str = Field(default="", exclude=True)

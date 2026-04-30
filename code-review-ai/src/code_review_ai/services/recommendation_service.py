@@ -23,6 +23,10 @@ from code_review_ai.prompts.recommendation.context_planner import (
     build_context_planner_prompt,
     build_context_planner_system_prompt,
 )
+from code_review_ai.prompts.recommendation.candidate_reranker import (
+    build_candidate_reranker_prompt,
+    build_candidate_reranker_system_prompt,
+)
 from code_review_ai.prompts.recommendation.explanation_builder import (
     build_explanation_builder_prompt,
     build_explanation_builder_system_prompt,
@@ -40,6 +44,7 @@ from code_review_ai.prompts.recommendation.roadmap_builder import (
     build_roadmap_builder_system_prompt,
 )
 from code_review_ai.repositories.knowledge_graph_repository import KnowledgeGraphRepository
+from code_review_ai.utils.fireworks_client import create_chat_completion_with_retry
 from code_review_ai.utils.parse_json_response import safe_parse_json_response
 
 
@@ -50,7 +55,6 @@ class RecommendationService:
         "review_trend",
         "submission_trend",
         "exercise_graph",
-        "concept_progression",
         "student_history",
     }
 
@@ -85,19 +89,16 @@ class RecommendationService:
             "review": None,
             "review_record": None,
             "review_history": [],
-            "student_profile": None,
             "latest_submission": None,
             "previous_review_payload": None,
             "previous_submission_payload": None,
             "mastered_concepts": [],
             "attempted_exercise_ids": [],
+            "assigned_exercise_ids": [],
             "critical_errors": 0,
-            "latest_review_improvement_signal": 0.0,
-            "latest_review_severity_change": 0.0,
             "latest_submission_improvement_ratio": 0.0,
             "latest_submission_regression_ratio": 0.0,
             "exercise_graph": {},
-            "concept_progression": [],
             "assigned_path": "IMPROVE",
             "path_decision_valid": False,
             "path_decision_confidence": 0.0,
@@ -112,6 +113,7 @@ class RecommendationService:
             ),
             "graph_summary": {},
             "retrieved_candidates": [],
+            "reranked_candidates": [],
             "roadmap_selection_valid": False,
             "selected_candidates": [],
             "selected_exercises": [],
@@ -218,10 +220,12 @@ class RecommendationService:
     def _build_roadmap_subgraph(self):
         workflow = StateGraph(RecommendationState)
         workflow.add_node("candidate_retriever", self._candidate_retriever)
+        workflow.add_node("candidate_reranker", self._candidate_reranker)
         workflow.add_node("roadmap_builder", self._roadmap_builder)
         workflow.add_node("roadmap_builder_fallback", self._roadmap_builder_fallback)
         workflow.set_entry_point("candidate_retriever")
-        workflow.add_edge("candidate_retriever", "roadmap_builder")
+        workflow.add_edge("candidate_retriever", "candidate_reranker")
+        workflow.add_edge("candidate_reranker", "roadmap_builder")
         workflow.add_conditional_edges(
             "roadmap_builder",
             self._route_roadmap_selection,
@@ -275,7 +279,6 @@ class RecommendationService:
         new_state["current_concept"] = context["current_concept"]
         new_state["review"] = context["review"]
         new_state["review_record"] = context["review_record"]
-        new_state["student_profile"] = context["student_profile"]
         new_state["latest_submission"] = context["latest_submission"]
         new_state["mastered_concepts"] = context["mastered_concepts"]
         new_state["attempted_exercise_ids"] = context["attempted_exercise_ids"]
@@ -287,7 +290,8 @@ class RecommendationService:
         plan: dict[str, Any] = {}
         is_valid = False
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion_with_retry(
+                self.client,
                 model=self.stage_configs["context_planner"].model_name,
                 messages=[
                     {
@@ -343,7 +347,8 @@ class RecommendationService:
             return parsed
 
         try:
-            repair_response = self.client.chat.completions.create(
+            repair_response = create_chat_completion_with_retry(
+                self.client,
                 model=self.stage_configs[stage_key].model_name,
                 messages=[
                     {
@@ -387,14 +392,12 @@ class RecommendationService:
 
         review_history = list(state["review_history"])
         exercise_graph = dict(state["exercise_graph"])
-        concept_progression = list(state["concept_progression"])
         previous_review_payload = state["previous_review_payload"]
         previous_submission_payload = state["previous_submission_payload"]
-        latest_review_improvement_signal = state["latest_review_improvement_signal"]
-        latest_review_severity_change = state["latest_review_severity_change"]
         latest_submission_improvement_ratio = state["latest_submission_improvement_ratio"]
         latest_submission_regression_ratio = state["latest_submission_regression_ratio"]
         attempted_exercise_ids = list(state["attempted_exercise_ids"])
+        assigned_exercise_ids = list(state["assigned_exercise_ids"])
 
         if "review_trend" in blocks and review_record is not None:
             review_trend = self.knowledge_graph_repository.fetch_review_trend_context(
@@ -402,12 +405,6 @@ class RecommendationService:
                 student_id=state["student_id"],
             )
             review_history = review_trend["review_history"]
-            latest_review_improvement_signal = review_trend[
-                "latest_review_improvement_signal"
-            ]
-            latest_review_severity_change = review_trend[
-                "latest_review_severity_change"
-            ]
             previous_review_id = review_trend.get("previous_review_id", "")
             if previous_review_id:
                 previous_review_payload = self.knowledge_graph_repository.get_review_payload(
@@ -441,32 +438,20 @@ class RecommendationService:
             )
             loaded_blocks.append("exercise_graph")
 
-        if "concept_progression" in blocks and state["anchor_concept"]:
-            concept_progression = (
-                self.knowledge_graph_repository.fetch_concept_progression_context(
-                    current_concept=state["anchor_concept"],
-                    attempted_exercise_ids=attempted_exercise_ids,
-                    mastered_concepts=state["mastered_concepts"],
-                )
-            )
-            loaded_blocks.append("concept_progression")
-
         if "student_history" in blocks:
             history = self.knowledge_graph_repository.fetch_student_history_context(
                 student_id=state["student_id"]
             )
             attempted_exercise_ids = history.get("attempted_exercise_ids", [])
+            assigned_exercise_ids = history.get("assigned_exercise_ids", [])
             loaded_blocks.append("student_history")
 
         new_state = dict(state)
         new_state["loaded_blocks"] = loaded_blocks
         new_state["review_history"] = review_history
         new_state["exercise_graph"] = exercise_graph
-        new_state["concept_progression"] = concept_progression
         new_state["previous_review_payload"] = previous_review_payload
         new_state["previous_submission_payload"] = previous_submission_payload
-        new_state["latest_review_improvement_signal"] = latest_review_improvement_signal
-        new_state["latest_review_severity_change"] = latest_review_severity_change
         new_state["latest_submission_improvement_ratio"] = (
             latest_submission_improvement_ratio
         )
@@ -474,6 +459,7 @@ class RecommendationService:
             latest_submission_regression_ratio
         )
         new_state["attempted_exercise_ids"] = attempted_exercise_ids
+        new_state["assigned_exercise_ids"] = assigned_exercise_ids
         return cast(RecommendationState, new_state)
 
     def _path_decider(self, state: RecommendationState) -> RecommendationState:
@@ -481,7 +467,8 @@ class RecommendationService:
         is_valid = False
         fallback_decision = self._fallback_path_decision(state)
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion_with_retry(
+                self.client,
                 model=self.stage_configs["path_decider"].model_name,
                 messages=[
                     {
@@ -534,19 +521,12 @@ class RecommendationService:
 
     def _candidate_retriever(self, state: RecommendationState) -> RecommendationState:
         focus_concept_id = state["focus_concept_id"] or state["anchor_concept"]
-        if (
-            state["assigned_path"] == "NEXT_CONCEPT"
-            and focus_concept_id == state["anchor_concept"]
-            and state["concept_progression"]
-        ):
-            focus_concept_id = state["concept_progression"][0]["concept_id"]
 
         candidates = self.knowledge_graph_repository.retrieve_candidates(
             student_id=state["student_id"],
             current_exercise_id=state["exercise_id"],
             current_concept=state["anchor_concept"],
             target_concept=focus_concept_id,
-            assigned_path=state["assigned_path"],
             attempted_exercise_ids=state["attempted_exercise_ids"],
             limit=12,
         )
@@ -556,7 +536,6 @@ class RecommendationService:
                 current_exercise_id=state["exercise_id"],
                 current_concept=state["anchor_concept"],
                 target_concept=state["anchor_concept"],
-                assigned_path="IMPROVE",
                 attempted_exercise_ids=state["attempted_exercise_ids"],
                 limit=12,
             )
@@ -564,17 +543,69 @@ class RecommendationService:
         new_state = dict(state)
         new_state["focus_concept_id"] = focus_concept_id
         new_state["retrieved_candidates"] = candidates
+        new_state["reranked_candidates"] = []
+        return cast(RecommendationState, new_state)
+
+    def _candidate_reranker(self, state: RecommendationState) -> RecommendationState:
+        candidates = state["retrieved_candidates"]
+        if not candidates:
+            new_state = dict(state)
+            new_state["reranked_candidates"] = []
+            return cast(RecommendationState, new_state)
+
+        reranked_candidates = self._fallback_reranked_candidates(state)
+        try:
+            response = create_chat_completion_with_retry(
+                self.client,
+                model=self.stage_configs["candidate_reranker"].model_name,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": build_candidate_reranker_system_prompt(),
+                    },
+                    {
+                        "role": "user",
+                        "content": self._build_candidate_reranker_prompt(state),
+                    },
+                ],
+                temperature=self.stage_configs["candidate_reranker"].temperature,
+                max_tokens=self.stage_configs["candidate_reranker"].max_tokens,
+            )
+            parsed = self._parse_json_with_repair(
+                raw_response=response.choices[0].message.content or "",
+                stage_key="candidate_reranker",
+            )
+            reranked_ids = parsed.get("exercise_ids") or []
+            if isinstance(reranked_ids, list):
+                selected = self._select_candidates_by_ids(
+                    candidates,
+                    [str(item).strip() for item in reranked_ids if str(item).strip()],
+                )
+                if selected:
+                    seen_ids = {candidate["exercise"].exercise_id for candidate in selected}
+                    remainder = [
+                        candidate
+                        for candidate in reranked_candidates
+                        if candidate["exercise"].exercise_id not in seen_ids
+                    ]
+                    reranked_candidates = selected + remainder
+        except Exception:
+            pass
+
+        new_state = dict(state)
+        new_state["reranked_candidates"] = reranked_candidates
         return cast(RecommendationState, new_state)
 
     def _roadmap_builder(self, state: RecommendationState) -> RecommendationState:
-        candidates = state["retrieved_candidates"]
+        candidates = state["reranked_candidates"] or state["retrieved_candidates"]
         if not candidates:
             raise ValueError("Neo4j did not return any recommendation roadmap candidates.")
 
         selected_ids: list[str] = []
         directives: list[str] = []
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion_with_retry(
+                self.client,
                 model=self.stage_configs["roadmap_builder"].model_name,
                 messages=[
                     {
@@ -618,7 +649,7 @@ class RecommendationService:
         )
 
     def _roadmap_builder_fallback(self, state: RecommendationState) -> RecommendationState:
-        candidates = state["retrieved_candidates"]
+        candidates = state["reranked_candidates"] or state["retrieved_candidates"]
         if not candidates:
             raise ValueError("Neo4j did not return any recommendation roadmap candidates.")
         selected_candidates = candidates[:3]
@@ -644,7 +675,8 @@ class RecommendationService:
         reasoning: dict[str, Any] | None = None
         roadmap_summary: dict[str, Any] | None = None
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion_with_retry(
+                self.client,
                 model=self.stage_configs["explanation_builder"].model_name,
                 messages=[
                     {
@@ -745,11 +777,9 @@ class RecommendationService:
             "best_related_exercise_weight": state["exercise_graph"].get(
                 "best_related_exercise_weight", 0.0
             ),
-            "best_path_weight": state["exercise_graph"].get("best_path_weight", 0.0),
-            "latest_review_improvement_signal": state[
-                "latest_review_improvement_signal"
-            ],
-            "latest_review_severity_change": state["latest_review_severity_change"],
+            "best_recommended_weight": state["exercise_graph"].get(
+                "best_recommended_weight", 0.0
+            ),
             "latest_submission_improvement_ratio": state[
                 "latest_submission_improvement_ratio"
             ],
@@ -797,7 +827,6 @@ class RecommendationService:
     def _build_context_planner_prompt(self, state: RecommendationState) -> str:
         base = state["base_context"]
         review = cast(Any, base["review"])
-        profile = cast(Any, base["student_profile"])
         latest_submission = base.get("latest_submission")
         return build_context_planner_prompt(
             student_id=state["student_id"],
@@ -807,17 +836,18 @@ class RecommendationService:
             review_summary=review.summary,
             review_detail=review.detail,
             tested_concepts=base["tested_concepts"],
-            recommended_paths=base["recommended_paths"],
+            recommended_concepts=base["recommended_concepts"],
             has_latest_submission=latest_submission is not None,
-            concept_mastery=profile.concept_mastery,
-            debugging_independence=profile.debugging_independence,
-            concept_transfer=profile.concept_transfer,
-            learning_velocity=profile.learning_velocity,
         )
 
     def _build_path_decider_prompt(self, state: RecommendationState) -> str:
         review = state["review"]
-        profile = state["student_profile"]
+        review_trend_summary = self._review_trend_summary(state)
+        submission_trend_summary = self._submission_trend_summary(state)
+        student_history_summary = self._student_history_summary(state)
+        exercise_graph_summary = (
+            state["exercise_graph"] if "exercise_graph" in state["loaded_blocks"] else None
+        )
         return build_path_decider_prompt(
             anchor_concept=state["anchor_concept"],
             suggested_focus_concept=state["context_plan"].get(
@@ -825,23 +855,17 @@ class RecommendationService:
             ),
             critical_errors=state["critical_errors"],
             latest_review_summary=review.summary if review else "",
-            latest_review_improvement_signal=state["latest_review_improvement_signal"],
-            latest_review_severity_change=state["latest_review_severity_change"],
-            latest_submission_improvement_ratio=state[
-                "latest_submission_improvement_ratio"
-            ],
-            latest_submission_regression_ratio=state[
-                "latest_submission_regression_ratio"
-            ],
-            exercise_graph=state["exercise_graph"],
-            concept_progression=state["concept_progression"],
-            student_profile=profile.model_dump() if profile else {},
+            review_trend_summary=review_trend_summary,
+            submission_trend_summary=submission_trend_summary,
+            student_history_summary=student_history_summary,
+            exercise_graph=exercise_graph_summary,
             valid_focus_concepts=self._valid_focus_concept_ids(state),
         )
 
     def _build_roadmap_prompt(self, state: RecommendationState) -> str:
         candidates = []
-        for candidate in state["retrieved_candidates"][:8]:
+        source_candidates = state["reranked_candidates"] or state["retrieved_candidates"]
+        for candidate in source_candidates[:8]:
             exercise = candidate["exercise"]
             candidates.append(
                 {
@@ -849,8 +873,8 @@ class RecommendationService:
                     "title": exercise.title,
                     "description": exercise.description,
                     "difficulty": exercise.difficulty,
-                    "tags": exercise.tags,
-                    "path_weight": candidate["path_weight"],
+                    "concept_slugs": exercise.concept_slugs,
+                    "recommended_weight": candidate["recommended_weight"],
                     "tests_weight": candidate["tests_weight"],
                     "related_weight": candidate["related_weight"],
                     "progression_score": candidate["progression_score"],
@@ -863,6 +887,37 @@ class RecommendationService:
             assigned_path=state["assigned_path"],
             focus_concept_id=state["focus_concept_id"],
             path_reason=state["path_decision_reason"],
+            candidates=candidates,
+        )
+
+    def _build_candidate_reranker_prompt(self, state: RecommendationState) -> str:
+        review = state["review"]
+        candidates = []
+        for candidate in state["retrieved_candidates"][:12]:
+            exercise = candidate["exercise"]
+            candidates.append(
+                {
+                    "exercise_id": exercise.exercise_id,
+                    "title": exercise.title,
+                    "description": exercise.description,
+                    "difficulty": exercise.difficulty,
+                    "concept_slugs": exercise.concept_slugs,
+                    "recommended_weight": candidate["recommended_weight"],
+                    "tests_weight": candidate["tests_weight"],
+                    "related_weight": candidate["related_weight"],
+                    "relation_type": candidate["relation_type"],
+                    "difficulty_gap": candidate["difficulty_gap"],
+                    "progression_score": candidate["progression_score"],
+                    "similarity_score": candidate["similarity_score"],
+                }
+            )
+        return build_candidate_reranker_prompt(
+            assigned_path=state["assigned_path"],
+            anchor_concept=state["anchor_concept"],
+            focus_concept_id=state["focus_concept_id"],
+            path_reason=state["path_decision_reason"],
+            critical_errors=state["critical_errors"],
+            latest_review_summary=review.summary if review else "",
             candidates=candidates,
         )
 
@@ -896,8 +951,6 @@ class RecommendationService:
         blocks = ["exercise_graph", "review_trend", "student_history"]
         if latest_submission is not None:
             blocks.append("submission_trend")
-        if critical_errors == 0:
-            blocks.append("concept_progression")
         return {
             "blocks": blocks,
             "provisional_focus_concept_id": state["anchor_concept"],
@@ -907,14 +960,86 @@ class RecommendationService:
             "reason": "Fallback context plan loads trend, graph, and history before path selection.",
         }
 
+    @staticmethod
+    def _review_trend_summary(state: RecommendationState) -> dict[str, Any] | None:
+        if "review_trend" not in state["loaded_blocks"]:
+            return None
+        previous_review_payload = state["previous_review_payload"]
+        if not previous_review_payload:
+            return None
+        previous_review = previous_review_payload.get("review")
+        previous_submission = previous_review_payload.get("submission")
+        return {
+            "previous_review_id": getattr(previous_review, "review_id", ""),
+            "previous_review_summary": getattr(previous_review, "summary", ""),
+            "previous_review_concept": getattr(previous_review, "current_concept", ""),
+            "previous_submission_id": getattr(previous_submission, "submission_id", ""),
+            "history_count": len(state["review_history"]),
+        }
+
+    @staticmethod
+    def _submission_trend_summary(state: RecommendationState) -> dict[str, Any] | None:
+        if "submission_trend" not in state["loaded_blocks"]:
+            return None
+        previous_submission_payload = state["previous_submission_payload"]
+        if not previous_submission_payload:
+            return None
+        previous_submission = previous_submission_payload.get("submission")
+        return {
+            "previous_submission_id": getattr(previous_submission, "submission_id", ""),
+            "improvement_ratio": state["latest_submission_improvement_ratio"],
+            "regression_ratio": state["latest_submission_regression_ratio"],
+        }
+
+    @staticmethod
+    def _student_history_summary(state: RecommendationState) -> dict[str, Any] | None:
+        if "student_history" not in state["loaded_blocks"]:
+            return None
+        return {
+            "attempted_exercise_count": len(state["attempted_exercise_ids"]),
+            "assigned_exercise_count": len(state["assigned_exercise_ids"]),
+            "recent_attempted_exercise_ids": state["attempted_exercise_ids"][:5],
+            "recent_assigned_exercise_ids": state["assigned_exercise_ids"][:5],
+        }
+
     def _fallback_path_decision(self, state: RecommendationState) -> dict[str, Any]:
-        profile = state["student_profile"]
-        mastery = profile.concept_mastery if profile else 0.5
-        debugging = profile.debugging_independence if profile else 0.5
+        review_summary = (state["review"].summary if state["review"] else "").lower()
+        review_detail = (state["review"].detail if state["review"] else "").lower()
+        review_text = f"{review_summary} {review_detail}".strip()
+        improvement_ratio = state["latest_submission_improvement_ratio"]
+        regression_ratio = state["latest_submission_regression_ratio"]
+        exercise_graph = state["exercise_graph"]
+        related_exercises = exercise_graph.get("related_exercises", [])
+        strongest_relation_type = (
+            str(related_exercises[0].get("relation_type", "")).strip()
+            if related_exercises
+            else ""
+        )
+        student_history = self._student_history_summary(state) or {}
+        attempted_count = int(student_history.get("attempted_exercise_count", 0) or 0)
+        assigned_count = int(student_history.get("assigned_exercise_count", 0) or 0)
+        repeated_exposure = attempted_count + assigned_count
+        foundation_signals = (
+            "prerequisite" in review_text
+            or "foundation" in review_text
+            or "fundamental" in review_text
+            or strongest_relation_type == "PREREQUISITE_REVIEW"
+        )
+
+        if foundation_signals and (
+            state["critical_errors"] >= 2 or regression_ratio >= improvement_ratio
+        ):
+            return {
+                "assigned_path": "PREREQUISITE_REVIEW",
+                "focus_concept_id": state["anchor_concept"],
+                "confidence": 0.62,
+                "risk_level": "high",
+                "readiness_level": "emerging",
+                "reason": "The evidence points to a missing foundation, so prerequisite review is safer than staying at the current level.",
+            }
         if (
             state["critical_errors"] >= 2
-            or state["latest_submission_regression_ratio"] > state["latest_submission_improvement_ratio"]
-            or debugging < 0.45
+            or regression_ratio > improvement_ratio
         ):
             return {
                 "assigned_path": "REINFORCE",
@@ -925,18 +1050,31 @@ class RecommendationService:
                 "reason": "The latest evidence shows unstable understanding on the current concept, so reinforcement is safest.",
             }
         if (
-            mastery >= 0.7
-            and state["latest_review_improvement_signal"] >= 0.35
-            and state["latest_submission_regression_ratio"] <= 0.05
-            and state["concept_progression"]
+            state["critical_errors"] == 0
+            and improvement_ratio >= 0.45
+            and regression_ratio <= 0.1
+            and repeated_exposure >= 4
         ):
             return {
-                "assigned_path": "NEXT_CONCEPT",
-                "focus_concept_id": state["concept_progression"][0]["concept_id"],
-                "confidence": 0.62,
+                "assigned_path": "TRANSFER",
+                "focus_concept_id": state["anchor_concept"],
+                "confidence": 0.59,
                 "risk_level": "low",
                 "readiness_level": "ready",
-                "reason": "The student is showing stable progress and has a viable next concept available.",
+                "reason": "The student looks stable on the current concept and has enough repeated exposure that a transfer-style variation is a better next check.",
+            }
+        if (
+            state["critical_errors"] == 0
+            and improvement_ratio >= 0.35
+            and regression_ratio <= 0.1
+        ):
+            return {
+                "assigned_path": "HARDER",
+                "focus_concept_id": state["anchor_concept"],
+                "confidence": 0.57,
+                "risk_level": "low",
+                "readiness_level": "ready",
+                "reason": "The recent signals are strong enough to try a harder same-concept exercise.",
             }
         return {
             "assigned_path": "IMPROVE",
@@ -950,13 +1088,38 @@ class RecommendationService:
     def _fallback_directives(
         self, state: RecommendationState, exercises: list[ExerciseRecord]
     ) -> list[str]:
-        if state["assigned_path"] == "REINFORCE":
+        if state["assigned_path"] == "PREREQUISITE_REVIEW":
+            prefix = "Step back to prerequisite foundations with this exercise."
+        elif state["assigned_path"] == "REINFORCE":
             prefix = "Stabilize the same concept with this practice task."
-        elif state["assigned_path"] == "NEXT_CONCEPT":
-            prefix = "Use this exercise as the next concept step."
+        elif state["assigned_path"] == "HARDER":
+            prefix = "Use this harder exercise to deepen the same concept."
+        elif state["assigned_path"] == "TRANSFER":
+            prefix = "Apply the same concept in a different problem form with this exercise."
         else:
             prefix = "Use this exercise to improve the current concept with a slightly broader task."
         return [f"Step {index}: {prefix}" for index, _ in enumerate(exercises, start=1)]
+
+    def _fallback_reranked_candidates(
+        self, state: RecommendationState
+    ) -> list[dict[str, Any]]:
+        return sorted(
+            state["retrieved_candidates"],
+            key=self._candidate_sort_key,
+            reverse=True,
+        )
+
+    @staticmethod
+    def _candidate_sort_key(
+        candidate: dict[str, Any]
+    ) -> tuple[float, float, float, float, float]:
+        return (
+            float(candidate.get("recommended_weight", 0.0)),
+            float(candidate.get("tests_weight", 0.0)),
+            float(candidate.get("related_weight", 0.0)),
+            float(candidate.get("progression_score", 0.0)),
+            float(candidate.get("similarity_score", 0.0)),
+        )
 
     def _fallback_reasoning_block(
         self, state: RecommendationState, ref_catalog: dict[str, dict[str, str]]
@@ -1094,13 +1257,18 @@ class RecommendationService:
     def _valid_focus_concept_ids(self, state: RecommendationState) -> list[str]:
         focus_ids = {state["anchor_concept"]}
         focus_ids.update(item["concept_id"] for item in state["base_context"].get("tested_concepts", []))
-        focus_ids.update(item["concept_id"] for item in state["concept_progression"])
         return [concept_id for concept_id in focus_ids if concept_id]
 
     @staticmethod
     def _parse_assigned_path(value: Any) -> AssignedPath:
         text = str(value).strip().upper()
-        if text in {"REINFORCE", "IMPROVE", "NEXT_CONCEPT"}:
+        if text in {
+            "REINFORCE",
+            "IMPROVE",
+            "HARDER",
+            "PREREQUISITE_REVIEW",
+            "TRANSFER",
+        }:
             return cast(AssignedPath, text)
         return "IMPROVE"
 

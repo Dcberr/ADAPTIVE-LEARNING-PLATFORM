@@ -20,9 +20,14 @@ class ImportExercisesMainProcess(BaseMainProcess):
 
     def __init__(self, settings: ImportExercisesSettings) -> None:
         self.settings = settings
-        self.database_subprocess = ExerciseDatabaseSubProcess(settings.database.postgres_dsn)
+        self.database_subprocess = ExerciseDatabaseSubProcess(
+            settings.database.postgres_dsn
+        )
         self.csv_subprocess = ExerciseCsvSubProcess(settings.database.import_csv_path)
         self.leetcode_subprocess = LeetCodeFetchSubProcess(settings.leetcode)
+        self.leetcode_subprocess.set_allowed_topic_tag_slugs(
+            {tag.slug for tag in settings.tags}
+        )
         self.code_review_subprocess = CodeReviewSubProcess(
             settings.code_review_api.base_url,
             settings.code_review_api.max_retries,
@@ -34,7 +39,8 @@ class ImportExercisesMainProcess(BaseMainProcess):
             settings.code_review_ai_api.max_workers,
             settings.code_review_ai_api.max_retries,
             settings.code_review_ai_api.backoff_seconds,
-            settings.code_review_ai_api.batch_upsert_chunk_size,
+            settings.code_review_ai_api.put_exercise_chunk_size,
+            settings.code_review_ai_api.patch_exercise_relations_chunk_size,
         )
 
     def run(self) -> None:
@@ -65,15 +71,22 @@ class ImportExercisesMainProcess(BaseMainProcess):
             self.logger.info("Fetched %s total exercises from LeetCode", len(exercises))
 
             csv_path = self.csv_subprocess.write(exercises)
-            self.logger.info("Wrote %s exercises to CSV at %s", len(exercises), csv_path)
-            self.database_subprocess.load_csv_to_tmp_import_exercises(connection, csv_path)
-
+            self.logger.info(
+                "Wrote %s exercises to CSV at %s", len(exercises), csv_path
+            )
+            self.database_subprocess.load_csv_to_tmp_import_exercises(
+                connection, csv_path
+            )
             exercise_changes = self.database_subprocess.get_exercise_changes(connection)
             create_count = sum(
-                1 for exercise_change in exercise_changes if exercise_change.diff_type == "create"
+                1
+                for exercise_change in exercise_changes
+                if exercise_change.diff_type == "create"
             )
             update_count = sum(
-                1 for exercise_change in exercise_changes if exercise_change.diff_type == "update"
+                1
+                for exercise_change in exercise_changes
+                if exercise_change.diff_type == "update"
             )
             no_diff_count = sum(
                 1
@@ -87,10 +100,14 @@ class ImportExercisesMainProcess(BaseMainProcess):
                 update_count,
                 no_diff_count,
             )
-            changed_exercises = self.code_review_subprocess.import_exercise(exercise_changes)
+            changed_exercises = self.code_review_subprocess.import_exercise(
+                exercise_changes
+            )
             self.code_review_ai_subprocess.import_exercises(changed_exercises)
             self.patch_code_review_ai_relations(changed_exercises)
-            self.database_subprocess.upsert_latest_exercises(connection, changed_exercises)
+            self.database_subprocess.upsert_latest_exercises(
+                connection, changed_exercises
+            )
             self.logger.info(
                 "Finished import exercises batch with %s changed exercises persisted",
                 len(changed_exercises),

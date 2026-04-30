@@ -306,17 +306,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v1/knowledgegraph:
-    get:
-      summary: Get Knowledge Graph Snapshot
-      operationId: get_knowledge_graph_snapshot_api_v1_knowledgegraph_get
-      responses:
-        "200":
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/KnowledgeGraphSnapshotResponse'
 components:
   schemas:
     AssignmentContext:
@@ -342,13 +331,6 @@ components:
               type: array
             - type: "null"
           title: Concept Slugs
-        related_exercise_ids:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: "null"
-          title: Related Exercise Ids
         related_exercise_slugs:
           anyOf:
             - items:
@@ -390,11 +372,11 @@ components:
         difficulty:
           type: string
           title: Difficulty
-        tags:
+        concept_slugs:
           items:
             type: string
           type: array
-          title: Tags
+          title: Concept Slugs
         exercise_id:
           type: string
           title: Exercise Id
@@ -491,7 +473,7 @@ components:
         - exercise_id
         - concept_id
       title: ExerciseConceptLink
-    ExercisePathLink:
+    ExerciseRecommendedLink:
       properties:
         exercise_id:
           type: string
@@ -499,13 +481,6 @@ components:
         concept_id:
           type: string
           title: Concept Id
-        path:
-          type: string
-          enum:
-            - REINFORCE
-            - IMPROVE
-            - NEXT_CONCEPT
-          title: Path
         weight:
           type: number
           title: Weight
@@ -514,8 +489,7 @@ components:
       required:
         - exercise_id
         - concept_id
-        - path
-      title: ExercisePathLink
+      title: ExerciseRecommendedLink
     ExerciseRecord:
       properties:
         exercise_id:
@@ -537,11 +511,11 @@ components:
         difficulty:
           type: string
           title: Difficulty
-        tags:
+        concept_slugs:
           items:
             type: string
           type: array
-          title: Tags
+          title: Concept Slugs
       type: object
       required:
         - exercise_id
@@ -566,15 +540,6 @@ components:
           type: string
           title: Relation Type
           default: ""
-        target_concept_id:
-          type: string
-          title: Target Concept Id
-          default: ""
-        shared_concept_ids:
-          items:
-            type: string
-          type: array
-          title: Shared Concept Ids
         difficulty_gap:
           type: number
           title: Difficulty Gap
@@ -645,65 +610,6 @@ components:
       required:
         - concept
       title: KnowledgeGraphConceptResponse
-    KnowledgeGraphDocument:
-      properties:
-        concepts:
-          items:
-            $ref: '#/components/schemas/ConceptRecord'
-          type: array
-          title: Concepts
-        concept_relations:
-          items:
-            $ref: '#/components/schemas/ConceptRelation'
-          type: array
-          title: Concept Relations
-        exercises:
-          items:
-            $ref: '#/components/schemas/ExerciseRecord'
-          type: array
-          title: Exercises
-        exercise_concept_links:
-          items:
-            $ref: '#/components/schemas/ExerciseConceptLink'
-          type: array
-          title: Exercise Concept Links
-        exercise_path_links:
-          items:
-            $ref: '#/components/schemas/ExercisePathLink'
-          type: array
-          title: Exercise Path Links
-        exercise_relations:
-          items:
-            $ref: '#/components/schemas/ExerciseRelation'
-          type: array
-          title: Exercise Relations
-        students:
-          items:
-            $ref: '#/components/schemas/StudentRecord'
-          type: array
-          title: Students
-        submissions:
-          items:
-            $ref: '#/components/schemas/SubmissionRecord'
-          type: array
-          title: Submissions
-        submission_relations:
-          items:
-            $ref: '#/components/schemas/SubmissionRelation'
-          type: array
-          title: Submission Relations
-        reviews:
-          items:
-            $ref: '#/components/schemas/ReviewRecord'
-          type: array
-          title: Reviews
-        review_relations:
-          items:
-            $ref: '#/components/schemas/ReviewRelation'
-          type: array
-          title: Review Relations
-      type: object
-      title: KnowledgeGraphDocument
     KnowledgeGraphExerciseResponse:
       properties:
         exercise:
@@ -729,14 +635,6 @@ components:
       required:
         - review
       title: KnowledgeGraphReviewResponse
-    KnowledgeGraphSnapshotResponse:
-      properties:
-        graph:
-          $ref: '#/components/schemas/KnowledgeGraphDocument'
-      type: object
-      required:
-        - graph
-      title: KnowledgeGraphSnapshotResponse
     KnowledgeGraphStudentResponse:
       properties:
         student_id:
@@ -794,13 +692,6 @@ components:
               type: array
             - type: "null"
           title: Concept Slugs
-        related_exercise_ids:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: "null"
-          title: Related Exercise Ids
         related_exercise_slugs:
           anyOf:
             - items:
@@ -859,18 +750,12 @@ components:
         current_concept_weight:
           type: number
           title: Current Concept Weight
-        best_path_weight:
+        best_recommended_weight:
           type: number
-          title: Best Path Weight
+          title: Best Recommended Weight
         best_related_exercise_weight:
           type: number
           title: Best Related Exercise Weight
-        latest_review_improvement_signal:
-          type: number
-          title: Latest Review Improvement Signal
-        latest_review_severity_change:
-          type: number
-          title: Latest Review Severity Change
         latest_submission_improvement_ratio:
           type: number
           title: Latest Submission Improvement Ratio
@@ -880,10 +765,8 @@ components:
       type: object
       required:
         - current_concept_weight
-        - best_path_weight
+        - best_recommended_weight
         - best_related_exercise_weight
-        - latest_review_improvement_signal
-        - latest_review_severity_change
         - latest_submission_improvement_ratio
         - latest_submission_regression_ratio
       title: RecommendationGraphSummary
@@ -916,7 +799,9 @@ components:
           enum:
             - REINFORCE
             - IMPROVE
-            - NEXT_CONCEPT
+            - HARDER
+            - PREREQUISITE_REVIEW
+            - TRANSFER
           title: Assigned Path
         focus_concept_id:
           type: string
@@ -1111,14 +996,6 @@ components:
           type: boolean
           title: Same Concept
           default: false
-        improvement_signal:
-          type: number
-          title: Improvement Signal
-          default: 0.0
-        severity_change:
-          type: number
-          title: Severity Change
-          default: 0.0
       type: object
       required:
         - previous_review_id
@@ -1451,11 +1328,11 @@ components:
         difficulty:
           type: string
           title: Difficulty
-        tags:
+        concept_slugs:
           items:
             type: string
           type: array
-          title: Tags
+          title: Concept Slugs
       type: object
       required:
         - title

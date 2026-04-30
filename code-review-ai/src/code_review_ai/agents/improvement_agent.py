@@ -7,6 +7,7 @@ from code_review_ai.prompts.review.improvement import build_improvement_messages
 from code_review_ai.models.review_state import ReviewState
 from code_review_ai.utils.code_context import build_improvement_code_context
 from code_review_ai.utils.debug_logging import summarize_state, truncate_text
+from code_review_ai.utils.fireworks_client import create_chat_completion_with_retry
 from code_review_ai.utils.review_output_tools import parse_review_json_with_repair
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,8 @@ class ImprovementAgent:
         try:
             messages = self.generate_messages(code)
 
-            response = self.client.chat.completions.create(
+            response = create_chat_completion_with_retry(
+                self.client,
                 model=self.model_name,
                 messages=messages,
                 temperature=self.temperature,

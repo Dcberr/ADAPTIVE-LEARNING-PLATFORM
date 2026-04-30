@@ -28,9 +28,8 @@ class PatchExerciseRelationsRequest(BaseModel):
     PatchExerciseRelationsRequest
     """ # noqa: E501
     concept_slugs: Optional[List[StrictStr]] = None
-    related_exercise_ids: Optional[List[StrictStr]] = None
     related_exercise_slugs: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["concept_slugs", "related_exercise_ids", "related_exercise_slugs"]
+    __properties: ClassVar[List[str]] = ["concept_slugs", "related_exercise_slugs"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -76,11 +75,6 @@ class PatchExerciseRelationsRequest(BaseModel):
         if self.concept_slugs is None and "concept_slugs" in self.model_fields_set:
             _dict['concept_slugs'] = None
 
-        # set to None if related_exercise_ids (nullable) is None
-        # and model_fields_set contains the field
-        if self.related_exercise_ids is None and "related_exercise_ids" in self.model_fields_set:
-            _dict['related_exercise_ids'] = None
-
         # set to None if related_exercise_slugs (nullable) is None
         # and model_fields_set contains the field
         if self.related_exercise_slugs is None and "related_exercise_slugs" in self.model_fields_set:
@@ -99,7 +93,6 @@ class PatchExerciseRelationsRequest(BaseModel):
 
         _obj = cls.model_validate({
             "concept_slugs": obj.get("concept_slugs"),
-            "related_exercise_ids": obj.get("related_exercise_ids"),
             "related_exercise_slugs": obj.get("related_exercise_slugs")
         })
         return _obj

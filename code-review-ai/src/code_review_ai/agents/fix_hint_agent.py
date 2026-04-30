@@ -7,6 +7,7 @@ from openai import OpenAI
 from code_review_ai.models.review_state import LogicIssue, ReviewState
 from code_review_ai.prompts.review.fix_hint import build_fix_hint_messages
 from code_review_ai.utils.debug_logging import summarize_state, truncate_text
+from code_review_ai.utils.fireworks_client import create_chat_completion_with_retry
 from code_review_ai.utils.review_output_tools import parse_review_json_with_repair
 
 logger = logging.getLogger(__name__)
@@ -127,7 +128,8 @@ class FixHintAgent:
         try:
             async with semaphore:
                 response = await asyncio.to_thread(
-                    self.client.chat.completions.create,
+                    create_chat_completion_with_retry,
+                    self.client,
                     model=self.model_name,
                     messages=messages,
                     temperature=self.temperature,

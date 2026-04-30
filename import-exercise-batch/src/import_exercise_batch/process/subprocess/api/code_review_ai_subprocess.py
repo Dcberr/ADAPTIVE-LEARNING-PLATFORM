@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TypeVar
 
 import urllib3
+from code_review_ai_client.models import concept_relation
 from import_exercise_batch.config import TagConfig
 from import_exercise_batch.model import LeetCodeProblemChange
 from import_exercise_batch.process.subprocess.base import BaseSubProcess
@@ -34,13 +35,15 @@ class CodeReviewAiSubProcess(BaseSubProcess):
         max_workers: int,
         max_retries: int,
         backoff_seconds: float,
-        batch_upsert_chunk_size: int,
+        put_exercise_chunk_size: int,
+        patch_exercise_relations_chunk_size: int,
     ) -> None:
         self.base_url = base_url
         self.max_workers = max_workers
         self.max_retries = max_retries
         self.backoff_seconds = backoff_seconds
-        self.batch_upsert_chunk_size = batch_upsert_chunk_size
+        self.put_exercise_chunk_size = put_exercise_chunk_size
+        self.patch_exercise_relations_chunk_size = patch_exercise_relations_chunk_size
 
     def import_exercises(self, exercises: Iterable[LeetCodeProblemChange]) -> None:
         exercise_list = list(exercises)
@@ -56,13 +59,13 @@ class CodeReviewAiSubProcess(BaseSubProcess):
         configuration = Configuration(host=self.base_url)
         success_count = 0
         total_chunks = (
-            len(exercise_list) + self.batch_upsert_chunk_size - 1
-        ) // self.batch_upsert_chunk_size
+            len(exercise_list) + self.put_exercise_chunk_size - 1
+        ) // self.put_exercise_chunk_size
         for chunk_index, chunk in enumerate(
-            self._chunked(exercise_list, self.batch_upsert_chunk_size),
+            self._chunked(exercise_list, self.put_exercise_chunk_size),
             start=1,
         ):
-            chunk_start = (chunk_index - 1) * self.batch_upsert_chunk_size + 1
+            chunk_start = (chunk_index - 1) * self.put_exercise_chunk_size + 1
             chunk_end = chunk_start + len(chunk) - 1
             batch_request = BatchUpsertExercisesRequest(
                 exercises=[
@@ -221,8 +224,8 @@ class CodeReviewAiSubProcess(BaseSubProcess):
 
         configuration = Configuration(host=self.base_url)
         total_chunks = (
-            len(patch_inputs) + self.batch_upsert_chunk_size - 1
-        ) // self.batch_upsert_chunk_size
+            len(patch_inputs) + self.patch_exercise_relations_chunk_size - 1
+        ) // self.patch_exercise_relations_chunk_size
         success_count = 0
         self.logger.info(
             "Running CodeReviewAI exercise relation batch patch with %s chunks for %s exercises",
@@ -230,10 +233,12 @@ class CodeReviewAiSubProcess(BaseSubProcess):
             len(patch_inputs),
         )
         for chunk_index, chunk in enumerate(
-            self._chunked(patch_inputs, self.batch_upsert_chunk_size),
+            self._chunked(patch_inputs, self.patch_exercise_relations_chunk_size),
             start=1,
         ):
-            chunk_start = (chunk_index - 1) * self.batch_upsert_chunk_size + 1
+            chunk_start = (
+                chunk_index - 1
+            ) * self.patch_exercise_relations_chunk_size + 1
             chunk_end = chunk_start + len(chunk) - 1
             batch_request = BatchPatchExerciseRelationsRequest(
                 exercises=[
@@ -348,7 +353,7 @@ class CodeReviewAiSubProcess(BaseSubProcess):
             description=exercise.content,
             content=exercise.content,
             difficulty=exercise.difficulty,
-            tags=exercise.topic_tag_slugs,
+            concept_slugs=exercise.topic_tag_slugs,
         )
 
     @staticmethod

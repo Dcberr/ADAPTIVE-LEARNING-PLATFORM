@@ -99,7 +99,7 @@ Body:
 
 - `(:Student)-[:SUBMITTED]->(:Submission)`
 - `(:Submission)-[:FOR_EXERCISE]->(:Exercise)`
-- `(:Submission)-[:NEXT_ATTEMPT {student_id, linked_at, same_exercise, improvement_ratio, regression_ratio}]->(:Submission)` when there is a prior attempt by the same student on the same exercise
+- `(:Submission)-[:NEXT_ATTEMPT {student_id, linked_at, same_exercise}]->(:Submission)` when there is a prior attempt by the same student on the same exercise
 
 If the submission already exists, its stored fields are overwritten by the request and these relations are refreshed to match the latest `student_id`, `exercise_id`, and adjacent-attempt progression links.
 

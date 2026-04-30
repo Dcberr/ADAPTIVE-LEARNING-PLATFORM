@@ -2,9 +2,8 @@ from pydantic import BaseModel, Field
 
 from code_review_ai.api.review_code_schema import ReviewItem, ScoreCard
 from code_review_ai.models.exercise_record import ExerciseRecord
-from code_review_ai.models.knowledge_graph import ConceptRecord, KnowledgeGraphDocument
+from code_review_ai.models.knowledge_graph import ConceptRecord
 from code_review_ai.models.review_record import ReviewRecord
-from code_review_ai.models.student_profile import StudentProfileScoring
 from code_review_ai.models.submission_record import SubmissionRecord, SubmissionTestCaseOutput
 
 
@@ -24,7 +23,7 @@ class UpsertExerciseRequest(BaseModel):
     description: str
     content: str
     difficulty: str
-    tags: list[str] = Field(default_factory=list)
+    concept_slugs: list[str] = Field(default_factory=list)
 
 
 class BatchUpsertExerciseItem(UpsertExerciseRequest):
@@ -37,7 +36,6 @@ class BatchUpsertExercisesRequest(BaseModel):
 
 class PatchExerciseRelationsRequest(BaseModel):
     concept_slugs: list[str] | None = None
-    related_exercise_ids: list[str] | None = None
     related_exercise_slugs: list[str] | None = None
 
 
@@ -49,8 +47,8 @@ class BatchPatchExerciseRelationsRequest(BaseModel):
     exercises: list[BatchPatchExerciseRelationsItem] = Field(default_factory=list)
 
 
-class UpsertStudentProfileRequest(BaseModel):
-    student_profile: StudentProfileScoring
+class UpsertStudentRequest(BaseModel):
+    pass
 
 
 class UpsertSubmissionRequest(BaseModel):
@@ -69,12 +67,6 @@ class UpsertReviewRequest(BaseModel):
     current_concept: str = ""
 
 
-class RecalculateStudentProfileRequest(BaseModel):
-    exercise_id: str
-    current_concept: str = ""
-    scorecard: ScoreCard
-
-
 class KnowledgeGraphConceptResponse(BaseModel):
     concept: ConceptRecord
 
@@ -89,7 +81,6 @@ class KnowledgeGraphExercisesBatchResponse(BaseModel):
 
 class KnowledgeGraphStudentResponse(BaseModel):
     student_id: str
-    student_profile: StudentProfileScoring
 
 
 class KnowledgeGraphReviewResponse(BaseModel):
@@ -98,14 +89,3 @@ class KnowledgeGraphReviewResponse(BaseModel):
 
 class KnowledgeGraphSubmissionResponse(BaseModel):
     submission: SubmissionRecord
-
-
-class KnowledgeGraphStudentProfileResponse(BaseModel):
-    student_id: str
-    exercise_id: str
-    current_concept: str
-    student_profile: StudentProfileScoring
-
-
-class KnowledgeGraphSnapshotResponse(BaseModel):
-    graph: KnowledgeGraphDocument

@@ -45,6 +45,7 @@ __all__ = [
     "ApiResponseListAssignmentResponse",
     "ApiResponseListClassOverviewResponse",
     "ApiResponseListDocumentResponse",
+    "ApiResponseListProblemResponse",
     "ApiResponseListReviewResponse",
     "ApiResponseListSubmissionOverviewResponse",
     "ApiResponseListTestcaseResponse",
@@ -124,6 +125,7 @@ from code_review_api_client.models.api_response_document_response import ApiResp
 from code_review_api_client.models.api_response_list_assignment_response import ApiResponseListAssignmentResponse as ApiResponseListAssignmentResponse
 from code_review_api_client.models.api_response_list_class_overview_response import ApiResponseListClassOverviewResponse as ApiResponseListClassOverviewResponse
 from code_review_api_client.models.api_response_list_document_response import ApiResponseListDocumentResponse as ApiResponseListDocumentResponse
+from code_review_api_client.models.api_response_list_problem_response import ApiResponseListProblemResponse as ApiResponseListProblemResponse
 from code_review_api_client.models.api_response_list_review_response import ApiResponseListReviewResponse as ApiResponseListReviewResponse
 from code_review_api_client.models.api_response_list_submission_overview_response import ApiResponseListSubmissionOverviewResponse as ApiResponseListSubmissionOverviewResponse
 from code_review_api_client.models.api_response_list_testcase_response import ApiResponseListTestcaseResponse as ApiResponseListTestcaseResponse

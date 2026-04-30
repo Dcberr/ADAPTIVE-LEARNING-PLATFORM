@@ -163,7 +163,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **import_leet_code_problems**
-> ApiResponseString import_leet_code_problems(leet_code_import_request)
+> ApiResponseListProblemResponse import_leet_code_problems(leet_code_import_request)
 
 Batch import LeetCode problems
 
@@ -173,7 +173,7 @@ Batch import LeetCode problems
 
 ```python
 import code_review_api_client
-from code_review_api_client.models.api_response_string import ApiResponseString
+from code_review_api_client.models.api_response_list_problem_response import ApiResponseListProblemResponse
 from code_review_api_client.models.leet_code_import_request import LeetCodeImportRequest
 from code_review_api_client.rest import ApiException
 from pprint import pprint
@@ -220,7 +220,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**ApiResponseString**](ApiResponseString.md)
+[**ApiResponseListProblemResponse**](ApiResponseListProblemResponse.md)
 
 ### Authorization
 

@@ -32,9 +32,9 @@ class BatchUpsertExerciseItem(BaseModel):
     description: StrictStr
     content: StrictStr
     difficulty: StrictStr
-    tags: Optional[List[StrictStr]] = None
+    concept_slugs: Optional[List[StrictStr]] = None
     exercise_id: StrictStr
-    __properties: ClassVar[List[str]] = ["slug", "title", "description", "content", "difficulty", "tags", "exercise_id"]
+    __properties: ClassVar[List[str]] = ["slug", "title", "description", "content", "difficulty", "concept_slugs", "exercise_id"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -92,7 +92,7 @@ class BatchUpsertExerciseItem(BaseModel):
             "description": obj.get("description"),
             "content": obj.get("content"),
             "difficulty": obj.get("difficulty"),
-            "tags": obj.get("tags"),
+            "concept_slugs": obj.get("concept_slugs"),
             "exercise_id": obj.get("exercise_id")
         })
         return _obj

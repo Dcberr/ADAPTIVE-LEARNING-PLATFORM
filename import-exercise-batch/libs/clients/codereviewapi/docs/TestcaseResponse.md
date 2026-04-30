@@ -9,8 +9,8 @@ Name | Type | Description | Notes
 **problem_id** | **UUID** |  | [optional] 
 **input** | **str** |  | [optional] 
 **expected_output** | **str** |  | [optional] 
+**is_hidden** | **bool** |  | [optional] 
 **explanation** | **str** |  | [optional] 
-**sample** | **bool** |  | [optional] 
 
 ## Example
 

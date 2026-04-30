@@ -56,10 +56,24 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
             yield connection
             connection.commit()
         except Exception:
-            connection.rollback()
+            try:
+                if not connection.closed:
+                    connection.rollback()
+            except psycopg.Error:
+                self.logger.warning(
+                    "Skipping rollback because the database connection is already lost",
+                    exc_info=True,
+                )
             raise
         finally:
-            connection.close()
+            try:
+                if not connection.closed:
+                    connection.close()
+            except psycopg.Error:
+                self.logger.warning(
+                    "Failed to close database connection cleanly",
+                    exc_info=True,
+                )
 
     def truncate_tmp_import_exercises(
         self, connection: psycopg.Connection[DictRow]

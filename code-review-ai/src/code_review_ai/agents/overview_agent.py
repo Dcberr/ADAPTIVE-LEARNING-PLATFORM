@@ -5,6 +5,7 @@ from code_review_ai.api.review_code_schema import ReviewItem
 from code_review_ai.models.review_state import ReviewState
 from code_review_ai.prompts.review.overview import build_overview_messages
 from code_review_ai.utils.debug_logging import summarize_state, truncate_text
+from code_review_ai.utils.fireworks_client import create_chat_completion_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,8 @@ class OverviewAgent:
 
         # Generate teacher-style overview using prompt
         try:
-            response = self.client.chat.completions.create(
+            response = create_chat_completion_with_retry(
+                self.client,
                 model=self.model_name,
                 messages=build_overview_messages(new_state),
                 temperature=self.temperature,
