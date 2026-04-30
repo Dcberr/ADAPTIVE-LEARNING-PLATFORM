@@ -21,4 +21,6 @@ public interface ReviewService {
 
     List<ReviewResponse> getAllReviewsForUser(UUID userId);
 
+    List<ReviewResponse> getReviewByUserIdAndProblemId(UUID userId, UUID problemId);
+
 }
