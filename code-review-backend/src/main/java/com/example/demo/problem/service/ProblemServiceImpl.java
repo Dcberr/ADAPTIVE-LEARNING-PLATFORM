@@ -8,12 +8,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.entity.AssignmentProblem;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
+import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.client.LeetCodeClient;
 import com.example.demo.problem.dto.CreateProblemRequest;
 // import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
@@ -52,7 +55,7 @@ public class ProblemServiceImpl implements ProblemService {
                 // .title(request.getTitle())
                 .description(request.getDescription())
                 .problemConstraint(request.getProblemConstraint())
-                .starterCodes(request.getStarterCodes())
+                .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
                 // .difficulty(request.getDifficulty())
                 // .source(request.getSource())
                 .createdAt(Instant.now())
@@ -127,6 +130,29 @@ public class ProblemServiceImpl implements ProblemService {
     }
 
     @Override
+    public PageResponse<ProblemResponse> getAllLeetCodeProblems(int page, int size) {
+        Page<Problem> problemPage = problemRepository.findAllBySourceOrderByCreatedAtDesc(
+                "LEETCODE",
+                PageRequest.of(page, size)
+        );
+
+        List<ProblemResponse> content = problemPage.getContent().stream()
+                .map(problem -> map(
+                    problem,
+                    testcaseService.getTestcasesByProblem(problem.getId())
+                ))
+                .toList();
+
+        return PageResponse.<ProblemResponse>builder()
+                .content(content)
+                .page(problemPage.getNumber())
+                .size(problemPage.getSize())
+                .totalElements(problemPage.getTotalElements())
+                .totalPages(problemPage.getTotalPages())
+                .build();
+    }
+
+    @Override
     public LeetCodeProblemPageResponse getLeetCodeProblems(int page, int limit) {
         return leetCodeClient.getProblems(page, limit);
     }
@@ -137,7 +163,7 @@ public class ProblemServiceImpl implements ProblemService {
         Problem problem = problemRepository.findById(request.getProblemId())
                 .orElseThrow(() -> new RuntimeException("Problem not found"));
 
-        problem.setStarterCodes(request.getStarterCodes());
+        problem.setStarterCodes(normalizeStarterCodes(request.getStarterCodes()));
         
         problemRepository.save(problem);
 
@@ -185,7 +211,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .description(request.getDescription())
                 .difficulty(request.getDifficulty())
                 .problemConstraint(request.getProblemConstraint())
-                .starterCodes(request.getStarterCodes())
+                .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
                 .type(ProblemType.MANUAL)
                 .source("SYSTEM")
                 .createdAt(Instant.now())
@@ -223,7 +249,7 @@ public class ProblemServiceImpl implements ProblemService {
                                 .description(req.getDescription())
                                 .difficulty(req.getDifficulty())
                                 .problemConstraint(req.getConstraints())
-                                .starterCodes(req.getStarterCodes())
+                                .starterCodes(normalizeStarterCodes(req.getStarterCodes()))
                                 .type(ProblemType.LEETCODE)
                                 .source("LEETCODE")
                                 .externalId(req.getExternalId())
@@ -283,6 +309,71 @@ public class ProblemServiceImpl implements ProblemService {
                 .toList();
     }
 
+    @Transactional
+    @Override
+    public List<ProblemResponse> batchUpdateLeetCode(List<LeetCodeImportRequest> requests) {
+
+        Map<String, Problem> cache = new HashMap<>();
+
+        for (LeetCodeImportRequest req : requests) {
+            Problem problem = problemRepository
+                    .findBySourceAndExternalId("LEETCODE", req.getExternalId())
+                    .orElseGet(() -> Problem.builder()
+                            .type(ProblemType.LEETCODE)
+                            .source("LEETCODE")
+                            .externalId(req.getExternalId())
+                            .createdAt(Instant.now())
+                            .build());
+
+            problem.setTitle(req.getTitle());
+            problem.setDescription(req.getDescription());
+            problem.setDifficulty(req.getDifficulty());
+            problem.setProblemConstraint(req.getConstraints());
+            problem.setStarterCodes(normalizeStarterCodes(req.getStarterCodes()));
+            problem.setType(ProblemType.LEETCODE);
+            problem.setSource("LEETCODE");
+            problem.setExternalId(req.getExternalId());
+            problem.getSimilarProblems().clear();
+
+            problemRepository.save(problem);
+
+            testcaseRepository.deleteByProblemId(problem.getId());
+            saveTestcases(problem.getId(), req.getTestcases());
+
+            cache.put(req.getExternalId(), problem);
+        }
+
+        for (LeetCodeImportRequest req : requests) {
+
+            Problem current = cache.get(req.getExternalId());
+
+            if (req.getSimilarQuestionIds() == null) continue;
+
+            for (String similarId : req.getSimilarQuestionIds()) {
+
+                Problem similar = problemRepository
+                        .findBySourceAndExternalId("LEETCODE", similarId)
+                        .orElse(null);
+
+                if (similar != null && !similar.getId().equals(current.getId())) {
+                    current.getSimilarProblems().add(similar);
+                    similar.getSimilarProblems().add(current);
+                }
+            }
+        }
+
+        problemRepository.saveAll(cache.values());
+
+        return cache.values().stream()
+                .map(problem -> {
+                    List<TestcaseResponse> testcases =
+                            testcaseService.getTestcasesByProblem(problem.getId());
+
+                    return map(problem, testcases);
+                })
+                .toList();
+    }
+
     private void saveTestcases(UUID problemId, List<TestcaseDto> testcases) {
 
         if (testcases == null) return;
@@ -298,6 +389,10 @@ public class ProblemServiceImpl implements ProblemService {
                             .build()
             );
         }
+    }
+
+    private Map<String, String> normalizeStarterCodes(Map<String, String> starterCodes) {
+        return leetCodeStarterCodeGenerator.normalizeStarterCodes(starterCodes);
     }
     
 }

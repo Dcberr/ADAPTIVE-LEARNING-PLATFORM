@@ -11,6 +11,8 @@ public enum ErrorCode {
 
     CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Class not found"),
 
+    TOPIC_NOT_FOUND(HttpStatus.NOT_FOUND, "Topic not found"),
+
     ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Assignment not found"),
 
     PROBLEM_NOT_FOUND(HttpStatus.NOT_FOUND, "Problem not found"),

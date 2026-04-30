@@ -8,9 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.common.response.ApiResponse;
+import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
-import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
@@ -48,16 +48,16 @@ public class ProblemController {
         );
     }
 
-//     @Operation(summary = "Get problems from LeetCode crawler service")
-//     @GetMapping("/leetcode")
-//     public ApiResponse<LeetCodeProblemPageResponse> getLeetCodeProblems(
-//             @RequestParam(defaultValue = "1") int page,
-//             @RequestParam(defaultValue = "10") int limit
-//     ) {
-//         return ApiResponse.success(
-//                 problemService.getLeetCodeProblems(page, limit)
-//         );
-//     }
+    @Operation(summary = "Get paged LeetCode problems")
+    @GetMapping("/leetcode")
+    public ApiResponse<PageResponse<ProblemResponse>> getAllLeetCodeProblems(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ApiResponse.success(
+                problemService.getAllLeetCodeProblems(page, size)
+        );
+    }
 
     @Operation(summary = "Create manual problem")
     @PostMapping("/manual")
@@ -75,6 +75,14 @@ public class ProblemController {
             @RequestBody List<LeetCodeImportRequest> requests
     ) {
         return ApiResponse.success(problemService.batchInsertLeetCode(requests));
+    }
+
+    @Operation(summary = "Batch update LeetCode problems")
+    @PutMapping("/leetcode/batch")
+    public ApiResponse<List<ProblemResponse>> updateLeetCodeProblems(
+            @RequestBody List<LeetCodeImportRequest> requests
+    ) {
+        return ApiResponse.success(problemService.batchUpdateLeetCode(requests));
     }
 
     @Operation(summary = "Get problem by assignment ID")

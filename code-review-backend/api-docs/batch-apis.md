@@ -1,9 +1,10 @@
-# LeetCode Batch Import API
+# LeetCode Batch APIs
 
-## Endpoint
+## Endpoints
 
-```
+```http
 POST /problems/leetcode/batch
+PUT /problems/leetcode/batch
 Content-Type: application/json
 ```
 
@@ -11,16 +12,18 @@ Content-Type: application/json
 
 ## Description
 
-This API is used to import a batch of LeetCode problems into the system.
+These APIs are used by batch jobs or crawler services to sync LeetCode problems into the system.
 
-* Supports inserting multiple problems in a single request
-* Prevents duplicates using `(source, externalId)`
-* Automatically links related problems via `similarQuestionIds`
-* Returns the final state of all processed problems after import
+* `POST /problems/leetcode/batch` imports problems and skips creating duplicates
+* `PUT /problems/leetcode/batch` performs batch upsert
+* Both APIs automatically link related problems via `similarQuestionIds`
+* Both APIs return the final state of all processed problems
 
 ---
 
 ## Request Body
+
+Both endpoints use the same request body:
 
 ```json
 [
@@ -93,15 +96,15 @@ This API is used to import a batch of LeetCode problems into the system.
 
 ### externalId
 
-* The LeetCode problem identifier (slug)
-* Used to map with external systems
-* Unique per `source`
+* The LeetCode problem identifier
+* Used to match existing records
+* Unique per `(source, externalId)`
 
 ---
 
 ### similarQuestionIds
 
-* List of related problems (by externalId)
+* List of related problems by `externalId`
 * Always returned as an array
 * Never `null`
 
@@ -124,57 +127,68 @@ Example:
 ### testcases
 
 * List of testcases stored in the database
-* May be empty if not provided during import
+* For `PUT`, old testcases are removed and replaced by the request payload
+* May be empty if not provided
 
 ---
 
 ## Behavior
 
-### Insert vs Existing
+### POST /problems/leetcode/batch
 
-| Case           | Behavior               |
-| -------------- | ---------------------- |
-| Not existing   | Insert                 |
-| Already exists | Reuse (no duplication) |
+| Case | Behavior |
+| --- | --- |
+| Not existing | Insert |
+| Already exists | Reuse existing record, no duplicate insert |
+
+---
+
+### PUT /problems/leetcode/batch
+
+| Case | Behavior |
+| --- | --- |
+| Not existing | Insert new problem |
+| Already exists | Update existing problem |
+
+For `PUT`:
+
+* Problem fields such as `title`, `description`, `difficulty`, `constraints`, and `starterCodes` are overwritten
+* Existing testcases are deleted and recreated from the request
+* Existing `similarProblems` links are cleared and rebuilt from `similarQuestionIds`
 
 ---
 
 ### Similar Linking
 
-* Processed after insertion (2-phase)
+* Processed after insert or update
 * Independent of request order
-* Supports bidirectional linking
+* Supports bidirectional linking when related problems exist in the database
 
 ---
 
 ### Duplicate Protection
 
 * Based on `(source, externalId)`
-* Prevents duplicate entries
+* Prevents duplicate problem entries
 
 ---
 
 ## Important Notes
 
-* The API returns the **final state from the database**
-* Includes:
-
-  * Insert/update results
-  * Similar problem linking
-  * Loaded testcases
-* Lists are **never returned as null**
+* The APIs return the final state from the database
+* Includes inserted or updated problem data
+* Includes similar problem linking
+* Includes loaded testcases
+* Lists are never returned as `null`
 
 ---
 
 ## Recommended Usage
 
-* Intended for batch jobs / crawler services
+* Intended for batch jobs or crawler services
 * Should not be publicly exposed without authentication
-* Can be used for:
-
-  * Periodic data synchronization
-  * Building recommendation graphs
-
+* Can be used for periodic synchronization from LeetCode
+* `PUT` is recommended when the crawler should keep local data fully in sync
 
 ---
 
@@ -186,6 +200,10 @@ SELECT * FROM problems WHERE source = 'LEETCODE';
 
 ```sql
 SELECT * FROM problem_similar;
+```
+
+```sql
+SELECT * FROM testcases;
 ```
 
 ---

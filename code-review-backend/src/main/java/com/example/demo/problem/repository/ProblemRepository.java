@@ -3,6 +3,8 @@ package com.example.demo.problem.repository;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,5 +16,7 @@ public interface ProblemRepository
         boolean existsBySourceAndExternalId(String source, String externalId);
 
         Optional<Problem> findBySourceAndExternalId(String source, String externalId);
+
+        Page<Problem> findAllBySourceOrderByCreatedAtDesc(String source, Pageable pageable);
 
 }
