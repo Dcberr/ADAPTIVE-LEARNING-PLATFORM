@@ -11,6 +11,7 @@ import {
   Video,
 } from "lucide-react"
 
+import { CourseDetailSkeleton } from "@/components/lms/LmsLoadingStates"
 import { getClassCoverBackgroundImage } from "@/lib/class-cover"
 import { getBackendBaseUrl } from "@/lib/auth"
 import TopicSectionCard from "@/components/lms/pages/lecturer-course-detail/TopicSectionCard"
@@ -18,6 +19,7 @@ import type { TopicCard } from "@/components/lms/pages/lecturer-course-detail/ty
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import {
@@ -136,13 +138,7 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
   )
 
   if (isLoadingCourse) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Đang tải khóa học...</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <CourseDetailSkeleton />
   }
 
   if (courseError || !course) {
@@ -222,9 +218,21 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
           className="mt-6 space-y-4"
         >
           {isLoadingTopics ? (
-            <Card>
-              <CardContent className="p-6 text-sm text-slate-500">Đang tải topics...</CardContent>
-            </Card>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index}>
+                  <CardContent className="space-y-4 p-6">
+                    <Skeleton className="h-7 w-52 rounded-full" />
+                    <Skeleton className="h-5 w-full rounded-full" />
+                    <Skeleton className="h-5 w-2/3 rounded-full" />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Skeleton className="h-24 rounded-3xl" />
+                      <Skeleton className="h-24 rounded-3xl" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : topicsError ? (
             <Card>
               <CardContent className="p-6 text-sm text-rose-600">

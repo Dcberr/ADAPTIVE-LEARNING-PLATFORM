@@ -12,13 +12,6 @@ import type {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ClassStudent } from "@/store/redux/api/lmsApi"
 
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
-
 export default function ClassWorkspaceTabs({
   activeTab,
   hasMountedContent,
@@ -26,10 +19,8 @@ export default function ClassWorkspaceTabs({
   editMode,
   topicCards,
   collapsedTopics,
-  contentFeedback,
   classroom,
   userCode,
-  feedback,
   recentStudentIds,
   students,
   isAddingStudent,
@@ -57,14 +48,12 @@ export default function ClassWorkspaceTabs({
   editMode: boolean
   topicCards: TopicCard[]
   collapsedTopics: Record<string, boolean>
-  contentFeedback: FeedbackState
   classroom: {
     instructorName: string
     enrolledStudentsCount: number
     schedule: string | null
   }
   userCode: string
-  feedback: FeedbackState
   recentStudentIds: string[]
   students: ClassStudent[]
   isAddingStudent: boolean
@@ -101,7 +90,6 @@ export default function ClassWorkspaceTabs({
         <ContentTab
           topicCards={topicCards}
           editMode={editMode}
-          feedback={contentFeedback}
           collapsedTopics={collapsedTopics}
           onToggleTopic={onToggleTopic}
           onUpdateTopic={onUpdateTopic}
@@ -127,7 +115,6 @@ export default function ClassWorkspaceTabs({
           createdAt={formattedCreatedAt}
           schedule={classroom.schedule}
           userCode={userCode}
-          feedback={feedback}
           recentStudentIds={recentStudentIds}
           isSubmitting={isAddingStudent}
           onUserCodeChange={onUserCodeChange}

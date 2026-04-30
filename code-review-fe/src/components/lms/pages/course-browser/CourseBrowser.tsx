@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export type CourseBrowserItem = {
   id: string
@@ -32,6 +33,7 @@ type CourseBrowserProps = {
   emptyDescription: string
   searchPlaceholder: string
   headerActions?: ReactNode
+  isLoading?: boolean
 }
 
 type ViewMode = "grid" | "list"
@@ -44,6 +46,7 @@ export default function CourseBrowser({
   emptyDescription,
   searchPlaceholder,
   headerActions,
+  isLoading = false,
 }: CourseBrowserProps) {
   const [query, setQuery] = useState("")
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
@@ -106,12 +109,36 @@ export default function CourseBrowser({
       </div>
 
       {filteredItems.length === 0 ? (
-        <Card className="rounded-[2rem] border border-slate-200">
-          <CardContent className="px-6 py-12 text-center">
-            <p className="text-lg font-semibold text-[#0b6673]">{emptyTitle}</p>
-            <p className="mt-2 text-sm text-slate-500">{emptyDescription}</p>
-          </CardContent>
-        </Card>
+        isLoading ? (
+          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Card
+                key={index}
+                className="overflow-hidden gap-0 rounded-[2rem] border border-slate-200 bg-white py-0 shadow-md shadow-slate-200/50"
+              >
+                <Skeleton className="h-40 w-full rounded-none" />
+                <CardContent className="space-y-4 p-5">
+                  <div className="space-y-3">
+                    <Skeleton className="h-8 w-3/4 rounded-full" />
+                    <Skeleton className="h-5 w-1/2 rounded-full" />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Skeleton className="h-5 w-24 rounded-full" />
+                    <Skeleton className="h-5 w-36 rounded-full" />
+                  </div>
+                  <Skeleton className="h-11 w-32 rounded-xl" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="rounded-[2rem] border border-slate-200">
+            <CardContent className="px-6 py-12 text-center">
+              <p className="text-lg font-semibold text-[#0b6673]">{emptyTitle}</p>
+              <p className="mt-2 text-sm text-slate-500">{emptyDescription}</p>
+            </CardContent>
+          </Card>
+        )
       ) : viewMode === "grid" ? (
         <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => (

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
 
+import { ClassWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import ClassWorkspaceHeader from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceHeader"
 import ClassWorkspaceModals from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceModals"
 import ClassWorkspaceTabs from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceTabs"
@@ -29,14 +30,9 @@ import {
 } from "@/store/redux/api/lmsApi"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/components/ui/toast-provider"
 
 type LecturerTab = "content" | "students"
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
 
 export default function LecturerCourseDetailPage({ classId }: { classId: string }) {
   const [editMode, setEditMode] = useState(false)
@@ -54,11 +50,10 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [resourceDraft, setResourceDraft] = useState<ResourceDraft>(emptyResourceDraft)
   const [assignmentDraft, setAssignmentDraft] = useState(emptyAssignmentDraft)
   const [userCode, setUserCode] = useState("")
-  const [feedback, setFeedback] = useState<FeedbackState>(null)
-  const [contentFeedback, setContentFeedback] = useState<FeedbackState>(null)
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
   const [removingStudentCode, setRemovingStudentCode] = useState<string | null>(null)
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<LecturerTab>("content")
+  const { toast } = useToast()
   const {
     data: classroom,
     error,
@@ -204,9 +199,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     const description = topicDraft.description.trim()
 
     if (!title || !description) {
-      setContentFeedback({
+      toast({
         tone: "error",
-        message: "Tên section và mô tả là bắt buộc.",
+        description: "Tên section và mô tả là bắt buộc.",
       })
       return
     }
@@ -219,24 +214,24 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       .unwrap()
       .then(() => {
         resetTopicModal()
-        setContentFeedback({
+        toast({
           tone: "success",
-          message: "Đã thêm section mới cho lớp học.",
+          description: "Đã thêm section mới cho lớp học.",
         })
       })
       .catch(() => {
-        setContentFeedback({
+        toast({
           tone: "error",
-          message: "Không thể tạo topic mới. Kiểm tra lại backend rồi thử lại.",
+          description: "Không thể tạo topic mới. Kiểm tra lại backend rồi thử lại.",
         })
       })
-  }, [classId, createTopic, resetTopicModal, topicDraft])
+  }, [classId, createTopic, resetTopicModal, toast, topicDraft])
 
   const handleSaveMaterial = useCallback(() => {
     if (editingMaterialId) {
-      setContentFeedback({
+      toast({
         tone: "error",
-        message: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
+        description: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
       })
       return
     }
@@ -246,9 +241,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     const file = resourceDraft.file
 
     if (!resourceDraft.topicId || !title || !description || !file) {
-      setContentFeedback({
+      toast({
         tone: "error",
-        message: "Tên tài nguyên, mô tả và file upload là bắt buộc.",
+        description: "Tên tài nguyên, mô tả và file upload là bắt buộc.",
       })
       return
     }
@@ -262,24 +257,24 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       .unwrap()
       .then(() => {
         resetResourceModal()
-        setContentFeedback({
+        toast({
           tone: "success",
-          message: "Đã thêm tài nguyên cho section.",
+          description: "Đã thêm tài nguyên cho section.",
         })
       })
       .catch(() => {
-        setContentFeedback({
+        toast({
           tone: "error",
-          message: "Không thể upload tài nguyên. Kiểm tra lại backend rồi thử lại.",
+          description: "Không thể upload tài nguyên. Kiểm tra lại backend rồi thử lại.",
         })
       })
-  }, [createDocument, editingMaterialId, resetResourceModal, resourceDraft])
+  }, [createDocument, editingMaterialId, resetResourceModal, resourceDraft, toast])
 
   const handleSaveAssignmentDraft = useCallback(() => {
     if (editingDraftId) {
-      setContentFeedback({
+      toast({
         tone: "error",
-        message: "Chưa tích hợp API chỉnh sửa assignment ở màn hình này.",
+        description: "Chưa tích hợp API chỉnh sửa assignment ở màn hình này.",
       })
       return
     }
@@ -291,9 +286,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       !assignmentDraft.deadline ||
       !assignmentDraft.timeLimit
     ) {
-      setContentFeedback({
+      toast({
         tone: "error",
-        message: "Tiêu đề, mô tả, thời điểm mở, deadline và time limit là bắt buộc.",
+        description: "Tiêu đề, mô tả, thời điểm mở, deadline và time limit là bắt buộc.",
       })
       return
     }
@@ -343,18 +338,18 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
             .filter(Boolean),
         })
         resetAssignmentModal()
-        setContentFeedback({
+        toast({
           tone: "success",
-          message: "Đã tạo assignment cho section.",
+          description: "Đã tạo assignment cho section.",
         })
       })
       .catch(() => {
-        setContentFeedback({
+        toast({
           tone: "error",
-          message: "Không thể tạo assignment. Kiểm tra lại payload hoặc backend rồi thử lại.",
+          description: "Không thể tạo assignment. Kiểm tra lại payload hoặc backend rồi thử lại.",
         })
       })
-  }, [assignmentDraft, createAssignment, editingDraftId, resetAssignmentModal])
+  }, [assignmentDraft, createAssignment, editingDraftId, resetAssignmentModal, toast])
 
   const handleToggleTopic = useCallback((topicId: string) => {
     setCollapsedTopics((state) => ({
@@ -368,9 +363,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
 
     const normalizedUserCode = userCode.trim()
     if (!normalizedUserCode) {
-      setFeedback({
+      toast({
         tone: "error",
-        message: "Mã sinh viên là bắt buộc.",
+        description: "Mã sinh viên là bắt buộc.",
       })
       return
     }
@@ -384,14 +379,14 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         [normalizedUserCode, ...state.filter((id) => id !== normalizedUserCode)].slice(0, 5)
       )
       setUserCode("")
-      setFeedback({
+      toast({
         tone: "success",
-        message: `Đã thêm sinh viên ${normalizedUserCode} vào lớp.`,
+        description: `Đã thêm sinh viên ${normalizedUserCode} vào lớp.`,
       })
     } catch {
-      setFeedback({
+      toast({
         tone: "error",
-        message: "Không thể thêm sinh viên vào lớp. Kiểm tra lại mã sinh viên hoặc quyền hiện tại.",
+        description: "Không thể thêm sinh viên vào lớp. Kiểm tra lại mã sinh viên hoặc quyền hiện tại.",
       })
     }
   }
@@ -406,30 +401,24 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           userCode: studentUserCode,
         }).unwrap()
         setRecentStudentIds((state) => state.filter((item) => item !== studentUserCode))
-        setFeedback({
+        toast({
           tone: "success",
-          message: `Đã xóa sinh viên ${studentUserCode} khỏi lớp.`,
+          description: `Đã xóa sinh viên ${studentUserCode} khỏi lớp.`,
         })
       } catch {
-        setFeedback({
+        toast({
           tone: "error",
-          message: "Không thể xóa sinh viên khỏi lớp. Kiểm tra lại quyền hiện tại rồi thử lại.",
+          description: "Không thể xóa sinh viên khỏi lớp. Kiểm tra lại quyền hiện tại rồi thử lại.",
         })
       } finally {
         setRemovingStudentCode(null)
       }
     },
-    [classId, removeStudentFromClass]
+    [classId, removeStudentFromClass, toast]
   )
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Loading class workspace...</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <ClassWorkspaceSkeleton />
   }
 
   if (error || !bundle || !classroom) {
@@ -487,13 +476,11 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         editMode={editMode}
         topicCards={topicCards}
         collapsedTopics={collapsedTopics}
-        contentFeedback={contentFeedback}
         classroom={{
           ...classroom,
           enrolledStudentsCount: resolvedEnrolledStudentsCount,
         }}
         userCode={userCode}
-        feedback={feedback}
         recentStudentIds={recentStudentIds}
         students={enrolledStudents}
         isAddingStudent={isAddingStudent}
@@ -513,15 +500,15 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           }))
         }
         onDeleteTopic={() =>
-          setContentFeedback({
+          toast({
             tone: "error",
-            message: "Chưa tích hợp API xóa topic ở màn hình này.",
+            description: "Chưa tích hợp API xóa topic ở màn hình này.",
           })
         }
         onDeleteMaterial={() =>
-          setContentFeedback({
+          toast({
             tone: "error",
-            message: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
+            description: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
           })
         }
         onOpenResourceModal={openResourceModal}

@@ -12,7 +12,6 @@ import type {
 function ContentTabComponent({
   topicCards,
   editMode,
-  feedback,
   collapsedTopics,
   onToggleTopic,
   onUpdateTopic,
@@ -26,12 +25,6 @@ function ContentTabComponent({
 }: {
   topicCards: TopicCard[]
   editMode: boolean
-  feedback:
-    | {
-        tone: "success" | "error"
-        message: string
-      }
-    | null
   collapsedTopics: Record<string, boolean>
   onToggleTopic: (topicId: string) => void
   onUpdateTopic: (topicId: string, patch: { title?: string; summary?: string }) => void
@@ -45,18 +38,6 @@ function ContentTabComponent({
 }) {
   return (
     <div className="mt-6 space-y-5">
-      {feedback ? (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
-
       {topicCards.length === 0 ? (
         <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
           <p className="text-lg font-semibold text-[#030391]">Hiện chưa có topic nào</p>

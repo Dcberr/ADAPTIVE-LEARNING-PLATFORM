@@ -34,9 +34,9 @@ function AssignmentAttemptHeaderComponent({
   startedAtMs: number
   timeLimitMinutes: number
   language: string
-  languages: readonly string[]
+  languages?: readonly string[]
   readOnly?: boolean
-  onLanguageChange: (value: string) => void
+  onLanguageChange?: (value: string) => void
 }) {
   const [remainingMinutesLabel, setRemainingMinutesLabel] = useState(() =>
     formatRemaining(startedAtMs, timeLimitMinutes)
@@ -79,17 +79,19 @@ function AssignmentAttemptHeaderComponent({
                 <TimerReset className="size-4 text-[#1488D8]" />
                 Còn lại {remainingMinutesLabel}
               </div>
-              <select
-                value={language}
-                onChange={(event) => onLanguageChange(event.target.value)}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
-              >
-                {languages.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+              {languages && languages.length > 1 && onLanguageChange ? (
+                <select
+                  value={language}
+                  onChange={(event) => onLanguageChange(event.target.value)}
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                  {languages.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </>
           )}
         </div>

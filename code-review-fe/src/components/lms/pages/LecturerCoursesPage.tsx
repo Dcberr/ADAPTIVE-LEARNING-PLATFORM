@@ -7,19 +7,13 @@ import CourseBrowser, {
   type CourseBrowserItem,
 } from "@/components/lms/pages/course-browser/CourseBrowser"
 import SimpleModal from "@/components/lms/SimpleModal"
+import { useToast } from "@/components/ui/toast-provider"
 import {
   useCreateClassMutation,
   useGetMyClassesQuery,
 } from "@/store/redux/api/lmsApi"
 import CreateClassCard from "@/components/lms/pages/lecturer-courses/CreateClassCard"
 import { Button } from "@/components/ui/button"
-
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
 
 export default function LecturerCoursesPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -29,8 +23,8 @@ export default function LecturerCoursesPage() {
     image: null as File | null,
     schedule: "",
   })
-  const [feedback, setFeedback] = useState<FeedbackState>(null)
   const [highlightedClassId, setHighlightedClassId] = useState<string | null>(null)
+  const { toast } = useToast()
   const {
     data: classes = [],
     error,
@@ -64,9 +58,9 @@ export default function LecturerCoursesPage() {
     const schedule = draft.schedule.trim()
 
     if (!name || !description) {
-      setFeedback({
+      toast({
         tone: "error",
-        message: "Tên lớp và mô tả là bắt buộc.",
+        description: "Tên lớp và mô tả là bắt buộc.",
       })
       return
     }
@@ -76,14 +70,14 @@ export default function LecturerCoursesPage() {
       setDraft({ name: "", description: "", image: null, schedule: "" })
       setHighlightedClassId(createdClass.id)
       setCreateModalOpen(false)
-      setFeedback({
+      toast({
         tone: "success",
-        message: `Đã tạo lớp "${createdClass.name}".`,
+        description: `Đã tạo lớp "${createdClass.name}".`,
       })
     } catch {
-      setFeedback({
+      toast({
         tone: "error",
-        message: "Không thể tạo lớp. Kiểm tra lại backend hoặc quyền hiện tại.",
+        description: "Không thể tạo lớp. Kiểm tra lại backend hoặc quyền hiện tại.",
       })
     }
   }
@@ -95,16 +89,14 @@ export default function LecturerCoursesPage() {
           items={[]}
           title="Lớp học của bạn"
           description="Tìm nhanh lớp học, chuyển giữa grid và list, và giữ giao diện đồng bộ với bên sinh viên."
+          isLoading={false}
           emptyTitle="Không tải được danh sách lớp."
           emptyDescription="Kiểm tra backend rồi thử refresh lại danh sách lớp."
           searchPlaceholder="Tìm theo tên lớp, giảng viên hoặc lịch học..."
           headerActions={
             <Button
               className="rounded-xl bg-[#1717ad] text-white hover:bg-[#1717ad]/90"
-              onClick={() => {
-                setFeedback(null)
-                setCreateModalOpen(true)
-              }}
+              onClick={() => setCreateModalOpen(true)}
             >
               <Plus className="size-4" />
               Tạo lớp
@@ -116,6 +108,7 @@ export default function LecturerCoursesPage() {
           items={browserItems}
           title="Lớp học của bạn"
           description="Tìm nhanh lớp học, chuyển giữa grid và list, và giữ giao diện đồng bộ với bên sinh viên."
+          isLoading={isLoading}
           emptyTitle={isLoading ? "Đang tải lớp học..." : "Chưa có lớp học nào."}
           emptyDescription={
             isLoading
@@ -126,10 +119,7 @@ export default function LecturerCoursesPage() {
           headerActions={
             <Button
               className="rounded-xl bg-[#1717ad] text-white hover:bg-[#1717ad]/90"
-              onClick={() => {
-                setFeedback(null)
-                setCreateModalOpen(true)
-              }}
+              onClick={() => setCreateModalOpen(true)}
             >
               <Plus className="size-4" />
               Tạo lớp
@@ -146,7 +136,6 @@ export default function LecturerCoursesPage() {
       >
         <CreateClassCard
           draft={draft}
-          feedback={feedback}
           isCreating={isCreating}
           onChange={(patch) => setDraft((state) => ({ ...state, ...patch }))}
           onSubmit={handleSubmit}
