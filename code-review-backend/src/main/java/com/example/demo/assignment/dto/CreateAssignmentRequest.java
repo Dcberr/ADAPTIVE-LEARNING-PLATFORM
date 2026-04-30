@@ -6,7 +6,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.example.demo.assignment.entity.AssigmentDifficulty;
-import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
+import com.example.demo.problem.dto.TestcaseDto;
+// import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,7 +56,7 @@ public class CreateAssignmentRequest {
         private String leetCodeCodeSnippet;
         private String leetCodeLanguage;
 
-        private List<TestcaseRequest> testcases;
+        private List<TestcaseDto> testcases;
     }
 
 }

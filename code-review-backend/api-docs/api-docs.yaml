@@ -177,6 +177,27 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseProblemResponse"
+  /problems/leetcode/batch:
+    post:
+      tags:
+      - Problem
+      summary: Batch import LeetCode problems
+      operationId: importLeetCodeProblems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeetCodeImportRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListProblemResponse"
   /execution/run:
     post:
       tags:
@@ -740,10 +761,10 @@ components:
           type: string
         expectedOutput:
           type: string
+        isHidden:
+          type: boolean
         explanation:
           type: string
-        sample:
-          type: boolean
     SubmitCodeRequest:
       type: object
       properties:
@@ -868,15 +889,100 @@ components:
         timestamp:
           type: string
           format: date-time
+    ApiResponseListProblemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProblemResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ApiResponseString:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
     ProblemResponse:
       type: object
       properties:
         id:
           type: string
           format: uuid
+        externalId:
+          type: string
+        title:
+          type: string
         description:
           type: string
+        difficulty:
+          type: string
         problemConstraint:
+          type: string
+        type:
+          type: string
+          enum:
+          - MANUAL
+          - LEETCODE
+        functionSkeletons:
+          type: object
+          additionalProperties:
+            type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResponse"
+        similarQuestionIds:
+          type: array
+          items:
+            type: string
+    LeetCodeImportRequest:
+      type: object
+      properties:
+        externalId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        difficulty:
+          type: string
+        constraints:
+          type: string
+        starterCodes:
+          type: object
+          additionalProperties:
+            type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseDto"
+        similarQuestionIds:
+          type: array
+          items:
+            type: string
+    TestcaseDto:
+      type: object
+      properties:
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        isHidden:
+          type: boolean
+        explanation:
           type: string
     RunCodeRequest:
       type: object

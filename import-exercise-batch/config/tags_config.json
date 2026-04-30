@@ -1,0 +1,108 @@
+[
+  {
+    "name": "Array",
+    "slug": "array",
+    "enable": true,
+    "limit": 1,
+    "prerequisite_slugs": []
+  },
+  {
+    "name": "String",
+    "slug": "string",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array"
+    ]
+  },
+  {
+    "name": "Hash Table",
+    "slug": "hash-table",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array"
+    ]
+  },
+  {
+    "name": "Math",
+    "slug": "math",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": []
+  },
+  {
+    "name": "Sorting",
+    "slug": "sorting",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array"
+    ]
+  },
+  {
+    "name": "Matrix",
+    "slug": "matrix",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array"
+    ]
+  },
+  {
+    "name": "Simulation",
+    "slug": "simulation",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array",
+      "string"
+    ]
+  },
+  {
+    "name": "Counting",
+    "slug": "counting",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array",
+      "hash-table"
+    ]
+  },
+  {
+    "name": "Stack",
+    "slug": "stack",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array",
+      "string"
+    ]
+  },
+  {
+    "name": "Linked List",
+    "slug": "linked-list",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array"
+    ]
+  },
+  {
+    "name": "Queue",
+    "slug": "queue",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": [
+      "array",
+      "linked-list"
+    ]
+  },
+  {
+    "name": "Recursion",
+    "slug": "recursion",
+    "enable": false,
+    "limit": 100,
+    "prerequisite_slugs": []
+  }
+]

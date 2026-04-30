@@ -1,0 +1,8 @@
+{
+  "slug": "two-sum",
+  "title": "Two Sum",
+  "description": "Read two integers and print their sum.",
+  "content": "Write a program that reads two integers and prints their sum.",
+  "difficulty": "easy",
+  "concept_slugs": ["arrays", "addition"]
+}

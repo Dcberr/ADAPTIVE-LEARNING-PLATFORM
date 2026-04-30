@@ -32,6 +32,9 @@ google:
 review: 
   url: ${REVIEW_AGENT_URL}
 
+recommend:
+  url: ${RECOMMEND_AGENT_URL:http://review-agent:8000/api/v1/recommend}
+
 minio:
   url: ${MINIO_URL}
   access-key: ${MINIO_ACCESS_KEY}

@@ -6,7 +6,8 @@ import java.util.UUID;
 
 import com.example.demo.assignment.entity.AssigmentDifficulty;
 import com.example.demo.assignment.entity.AssignmentStatus;
-import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
+import com.example.demo.problem.dto.TestcaseDto;
+// import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -39,6 +40,6 @@ public class UpdateAssignmentRequest {
 
         private String description;
 
-        private List<TestcaseRequest> testcases;
+        private List<TestcaseDto> testcases;
     }
 }

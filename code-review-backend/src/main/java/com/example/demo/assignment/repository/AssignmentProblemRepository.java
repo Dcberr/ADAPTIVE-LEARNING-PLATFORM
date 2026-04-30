@@ -14,5 +14,6 @@ public interface AssignmentProblemRepository
 
     AssignmentProblem findByAssignmentId(UUID assignmentId);
     AssignmentProblem findByProblemId(UUID problemId);
+    boolean existsByAssignmentIdAndProblemId(UUID assignmentId, UUID problemId);
 
 }

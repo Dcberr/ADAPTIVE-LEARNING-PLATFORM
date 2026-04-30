@@ -6,7 +6,9 @@ import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 
+import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.common.response.ApiResponse;
+import com.example.demo.topic.dto.AddLeetCodeProblemToTopicRequest;
 import com.example.demo.topic.dto.CreateTopicRequest;
 import com.example.demo.topic.dto.TopicDetailResponse;
 import com.example.demo.topic.dto.TopicOverviewResponse;
@@ -54,6 +56,18 @@ public class TopicController {
     ) {
         return ApiResponse.success(
                 topicService.getTopicDetail(topicId)
+        );
+    }
+
+    @Operation(summary = "Add an existing LeetCode problem to a topic")
+    @PostMapping("/{topicId}/assignments/leetcode")
+    public ApiResponse<AssignmentResponse> addLeetCodeProblemToTopic(
+            @Parameter(description = "Topic ID")
+            @PathVariable UUID topicId,
+            @RequestBody AddLeetCodeProblemToTopicRequest request
+    ) {
+        return ApiResponse.success(
+                topicService.addLeetCodeProblemToTopic(topicId, request)
         );
     }
 }

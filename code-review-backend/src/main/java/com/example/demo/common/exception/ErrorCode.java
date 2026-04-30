@@ -11,6 +11,8 @@ public enum ErrorCode {
 
     CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "Class not found"),
 
+    TOPIC_NOT_FOUND(HttpStatus.NOT_FOUND, "Topic not found"),
+
     ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Assignment not found"),
 
     PROBLEM_NOT_FOUND(HttpStatus.NOT_FOUND, "Problem not found"),
@@ -24,6 +26,8 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Validation error"),
+
+    RECOMMENDATION_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "Recommendation service error"),
 
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
 
