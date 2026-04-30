@@ -83,6 +83,36 @@ class CodeReviewSubProcessTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing problems for slugs"):
             self.subprocess._merge_import_results(exercises, imported_problems)
 
+    def test_parse_testcases_from_content_for_multi_param_input(self) -> None:
+        content = """
+        <p><strong class=\"example\">Example 1:</strong></p>
+        <pre>
+        <strong>Input:</strong> nums = [2,7,11,15], target = 9
+        <strong>Output:</strong> [0,1]
+        </pre>
+        """
+
+        testcases = self.subprocess._parse_testcases(sample_test_case="", content=content)
+
+        self.assertEqual(1, len(testcases))
+        self.assertEqual("[2,7,11,15]\n9", testcases[0].input)
+        self.assertEqual("[0,1]", testcases[0].expected_output)
+
+    def test_parse_testcases_from_content_for_single_param_input(self) -> None:
+        content = """
+        <p><strong class=\"example\">Example 1:</strong></p>
+        <pre>
+        Input: s = \"leetcode\"
+        Output: true
+        </pre>
+        """
+
+        testcases = self.subprocess._parse_testcases(sample_test_case="", content=content)
+
+        self.assertEqual(1, len(testcases))
+        self.assertEqual('"leetcode"', testcases[0].input)
+        self.assertEqual("true", testcases[0].expected_output)
+
 
 if __name__ == "__main__":
     unittest.main()
