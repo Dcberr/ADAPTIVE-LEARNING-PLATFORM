@@ -27,9 +27,11 @@ import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.dto.TestcaseResponse;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.entity.Problem;
+import com.example.demo.problem.entity.ProblemTag;
 import com.example.demo.problem.entity.ProblemType;
 import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.problem.repository.ProblemTagRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.utils.CodeExtractor;
 import com.example.demo.problem.utils.LeetCodeStarterCodeGenerator;
@@ -41,6 +43,7 @@ import jakarta.transaction.Transactional;
 public class ProblemServiceImpl implements ProblemService {
 
     private final ProblemRepository problemRepository;
+    private final ProblemTagRepository problemTagRepository;
     private final TestcaseRepository testcaseRepository;    
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final LeetCodeClient leetCodeClient;
@@ -199,6 +202,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .type(problem.getType())
                 .functionSkeletons(functionSkeletons)
                 .similarQuestionIds(similarIds)
+                .tags(getProblemTags(problem.getId()))
                 .testcases(testcases)
                 .build();
     }
@@ -259,9 +263,12 @@ public class ProblemServiceImpl implements ProblemService {
                         problemRepository.save(newProblem);
 
                         saveTestcases(newProblem.getId(), req.getTestcases());
+                        replaceProblemTags(newProblem.getId(), req.getTags());
 
                         return newProblem;
                     });
+
+            replaceProblemTags(problem.getId(), req.getTags());
 
             cache.put(req.getExternalId(), problem);
         }
@@ -339,6 +346,7 @@ public class ProblemServiceImpl implements ProblemService {
 
             testcaseRepository.deleteByProblemId(problem.getId());
             saveTestcases(problem.getId(), req.getTestcases());
+            replaceProblemTags(problem.getId(), req.getTags());
 
             cache.put(req.getExternalId(), problem);
         }
@@ -393,6 +401,31 @@ public class ProblemServiceImpl implements ProblemService {
 
     private Map<String, String> normalizeStarterCodes(Map<String, String> starterCodes) {
         return leetCodeStarterCodeGenerator.normalizeStarterCodes(starterCodes);
+    }
+
+    private List<String> getProblemTags(UUID problemId) {
+        return problemTagRepository.findByProblemId(problemId).stream()
+                .map(ProblemTag::getTag)
+                .toList();
+    }
+
+    private void replaceProblemTags(UUID problemId, List<String> tags) {
+        problemTagRepository.deleteByProblemId(problemId);
+
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+
+        List<ProblemTag> problemTags = tags.stream()
+                .filter(tag -> tag != null && !tag.isBlank())
+                .distinct()
+                .map(tag -> ProblemTag.builder()
+                        .problemId(problemId)
+                        .tag(tag)
+                        .build())
+                .toList();
+
+        problemTagRepository.saveAll(problemTags);
     }
     
 }

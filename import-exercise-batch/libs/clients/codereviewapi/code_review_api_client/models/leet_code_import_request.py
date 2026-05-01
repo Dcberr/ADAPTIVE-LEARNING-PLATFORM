@@ -36,7 +36,8 @@ class LeetCodeImportRequest(BaseModel):
     starter_codes: Optional[Dict[str, StrictStr]] = Field(default=None, alias="starterCodes")
     testcases: Optional[List[TestcaseDto]] = None
     similar_question_ids: Optional[List[StrictStr]] = Field(default=None, alias="similarQuestionIds")
-    __properties: ClassVar[List[str]] = ["externalId", "title", "description", "difficulty", "constraints", "starterCodes", "testcases", "similarQuestionIds"]
+    tags: Optional[List[StrictStr]] = None
+    __properties: ClassVar[List[str]] = ["externalId", "title", "description", "difficulty", "constraints", "starterCodes", "testcases", "similarQuestionIds", "tags"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -103,8 +104,8 @@ class LeetCodeImportRequest(BaseModel):
             "constraints": obj.get("constraints"),
             "starterCodes": obj.get("starterCodes"),
             "testcases": [TestcaseDto.from_dict(_item) for _item in obj["testcases"]] if obj.get("testcases") is not None else None,
-            "similarQuestionIds": obj.get("similarQuestionIds")
+            "similarQuestionIds": obj.get("similarQuestionIds"),
+            "tags": obj.get("tags")
         })
         return _obj
-
 

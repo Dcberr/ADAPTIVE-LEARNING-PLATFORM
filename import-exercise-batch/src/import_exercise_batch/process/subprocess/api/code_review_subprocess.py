@@ -155,6 +155,7 @@ class CodeReviewSubProcess(BaseSubProcess):
             starterCodes={"cpp": exercise.code_snippet},
             testcases=self._parse_testcases(exercise.sample_test_case, exercise.content),
             similarQuestionIds=[],
+            tags=exercise.topic_tag_slugs,
         )
 
     @staticmethod
