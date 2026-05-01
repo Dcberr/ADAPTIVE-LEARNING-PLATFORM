@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.example.demo.submission.dto.*;
+import com.example.demo.submission.entity.Submission;
 
 public interface SubmissionService {
 
@@ -20,5 +21,7 @@ public interface SubmissionService {
     public List<SubmissionResponse> getUserSubmissionsByAssignmentId(UUID userId, UUID assignmentId);
 
     public List<SubmissionResponse> getAllSubmissionsByAssignmentId(UUID assignmentId);
+
+    public List<Submission> getAllSubmissionsByProblemIdAndUserId(UUID userId, UUID problemId);
 
 }

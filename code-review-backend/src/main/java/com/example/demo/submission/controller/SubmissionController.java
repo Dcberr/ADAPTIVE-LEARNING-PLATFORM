@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.submission.dto.*;
+import com.example.demo.submission.entity.Submission;
 import com.example.demo.submission.service.SubmissionService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -79,6 +80,17 @@ public class SubmissionController {
     ) {
         return ApiResponse.success(
                 submissionService.getSubmissionDetail(submissionId)
+        );
+    }
+
+    @Operation(summary = "Get user submission for a problem")
+    @GetMapping("/problem/{problemId}/{userId}")
+    public ApiResponse<List<Submission>> getUserSubmissionsByProblemIdAndUserId(
+            @PathVariable UUID problemId,
+            @PathVariable UUID userId
+    ) {
+        return ApiResponse.success(
+                submissionService.getAllSubmissionsByProblemIdAndUserId(userId, problemId)
         );
     }
 }

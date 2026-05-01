@@ -102,6 +102,12 @@ public interface SubmissionRepository
         """)
         List<SubmissionResponse> getAllSubmissionsByAssignmentId(UUID assignmentId);
 
-    
+    @Query(value = """
+        SELECT s
+        FROM Submission s
+        JOIN Problem p ON s.problemId = p.id
+        WHERE s.userId = :userId AND p.id = :problemId
+    """)
+    List<Submission> getAllSubmissionsByProblemIdAndUserId(UUID userId, UUID problemId);
 
 }

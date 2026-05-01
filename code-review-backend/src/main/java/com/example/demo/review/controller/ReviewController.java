@@ -76,6 +76,19 @@ public class ReviewController {
         );
     }
 
+    @Operation(summary = "Get all reviews for a problem by user")
+        @GetMapping("/problem/{problemId}/user/{userId}")
+        public ApiResponse<List<ReviewResponse>> getProblemReviewsByUser(
+                @Parameter(description = "Problem ID")
+                @PathVariable UUID problemId,
+                @Parameter(description = "User ID")
+                @PathVariable UUID userId
+        ) {
+            return ApiResponse.success(
+                    reviewService.getProblemReviewsByUser(problemId, userId)
+            );
+        }
+
 //     @Operation(summary = "Get all reviews (instructor only)")
 //     @GetMapping("/all")
 //     public ApiResponse<List<ReviewResponse>> getAllReviews(
