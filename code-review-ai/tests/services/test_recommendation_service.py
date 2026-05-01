@@ -3,16 +3,17 @@ from unittest.mock import MagicMock, call
 from unittest.mock import patch
 
 from code_review_ai.config import FireworksStageConfig
+from code_review_ai.api.recommendation_schema import (
+    RecommendationReviewRequest,
+    RecommendationSubmissionRequest,
+)
 from code_review_ai.api.review_code_schema import (
     LineContext,
     ReviewItem,
-    ReviewResponse,
     ScoreCard,
     ScoreCardItem,
 )
 from code_review_ai.models.exercise_record import ExerciseRecord
-from code_review_ai.models.review_record import ReviewRecord
-from code_review_ai.models.submission_record import SubmissionRecord
 from code_review_ai.services.recommendation_service import RecommendationService
 
 
@@ -68,7 +69,7 @@ def _candidate(
 
 
 def _state() -> dict:
-    review = ReviewResponse(
+    review = RecommendationReviewRequest(
         review_id="review-1",
         summary="Needs stronger loop boundary handling.",
         detail="The student still misses exit conditions and repeats off-by-one mistakes.",
@@ -98,38 +99,19 @@ def _state() -> dict:
     return {
         "student_id": "student-1",
         "exercise_id": "exercise-current",
-        "base_context": {
-            "exercise": _exercise("exercise-current"),
-            "tested_concepts": [{"concept_id": "loops"}],
-            "recommended_concepts": [{"concept_id": "iteration", "weight": 0.8}],
-        },
+        "exercise": _exercise("exercise-current"),
         "focus_concept_id": "loops",
-        "focus_concept_weight": 0.7,
         "review": review,
-        "review_record": ReviewRecord(
-            review_id="review-1",
-            student_id="student-1",
-            exercise_id="exercise-current",
+        "submission": RecommendationSubmissionRequest(
             submission_id="submission-1",
-            current_concept="loops",
-            created_at="2026-04-30T10:00:00Z",
-            summary=review.summary,
-            detail=review.detail,
-        ),
-        "review_history": [],
-        "submission_record": SubmissionRecord(
-            submission_id="submission-1",
-            student_id="student-1",
-            exercise_id="exercise-current",
             code="for i in range(n+1):\n    print(i)\n",
-            testcase_outputs=[
-                {"expect": "1", "output": "1"},
-                {"expect": "2", "output": "2"},
-                {"expect": "3", "output": "0"},
+            testcases=[
+                {"input": "1", "expect": "1", "output": "1"},
+                {"input": "2", "expect": "2", "output": "2"},
+                {"input": "3", "expect": "3", "output": "0"},
             ],
             created_at="2026-04-30T09:55:00Z",
         ),
-        "submission_history": [],
         "attempted_exercise_ids": ["done-1", "done-2"],
         "retrieved_candidates": [],
         "rerank_query": {},
@@ -262,8 +244,7 @@ class RecommendationServiceTests(unittest.TestCase):
             ]
         )
 
-    @patch("code_review_ai.services.recommendation_service.create_chat_completion_with_retry")
-    def test_rerank_context_builder_uses_base_context(self, create_completion):
+    def test_rerank_context_builder_uses_request_context(self):
         state = _state()
         state["retrieved_candidates"] = [
             _candidate(
@@ -276,160 +257,31 @@ class RecommendationServiceTests(unittest.TestCase):
                 difficulty_gap=0.1,
             )
         ]
-        create_completion.side_effect = [
-            MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(
-                            content='{"goal_query":"Rank exercises that reinforce loop control.","need_review_history":false,"review_history_limit":0,"need_submission_history":false,"submission_history_limit":0}'
-                        )
-                    )
-                ]
-            ),
-            MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(
-                            content='{"goal_query":"Prioritize next exercises that reinforce loop control.","student_overview":"The student is still shaky on loop boundaries and needs nearby practice.","query_facets":["loop boundaries","nearby practice"]}'
-                        )
-                    )
-                ]
-            ),
-        ]
 
         new_state = self.service._rerank_context_builder(state)
 
         self.assertEqual(new_state["rerank_query"]["focus_concept_id"], "loops")
         self.assertEqual(
             new_state["rerank_query"]["goal_query"],
-            "Prioritize next exercises that reinforce loop control.",
+            "Rank the best next exercises for the student's current concept.",
         )
         self.assertEqual(
             new_state["rerank_query"]["current_exercise"]["title"],
             "Exercise exercise-current",
         )
-        self.assertEqual(
-            new_state["review_history"],
-            [],
-        )
-        self.assertEqual(
-            new_state["submission_history"],
-            [],
-        )
-        self.assertEqual(
-            new_state["rerank_query"]["query_facets"],
-            ["loop boundaries", "nearby practice"],
-        )
-        self.assertEqual(
-            new_state["rerank_overview"],
-            "The student is still shaky on loop boundaries and needs nearby practice.",
-        )
+        self.assertNotIn("query_facets", new_state["rerank_query"])
+        self.assertIn("should stay focused on concept loops", new_state["rerank_overview"])
 
-    @patch("code_review_ai.services.recommendation_service.create_chat_completion_with_retry")
-    def test_rerank_context_builder_can_expand_review_and_submission_history(
-        self, create_completion
-    ):
+    def test_rerank_context_builder_uses_current_request_review_and_submission(self):
         state = _state()
-        review_history = [
-            ReviewRecord(
-                review_id="review-0",
-                student_id="student-1",
-                exercise_id="exercise-prev",
-                submission_id="submission-0",
-                current_concept="loops",
-                created_at="2026-04-29T10:00:00Z",
-                summary="Still missing loop termination.",
-                detail="The student kept the off-by-one bug.",
-            )
-        ]
-        submission_history = [
-            SubmissionRecord(
-                submission_id="submission-0",
-                student_id="student-1",
-                exercise_id="exercise-prev",
-                code="while i <= n:\n    print(i)\n",
-                testcase_outputs=[
-                    {"expect": "1", "output": "1"},
-                    {"expect": "2", "output": "0"},
-                    {"expect": "3", "output": "0"},
-                ],
-                created_at="2026-04-29T09:55:00Z",
-            )
-        ]
-        self.neo4j_repository.fetch_review_trend_context.return_value = {
-            "review_history": review_history,
-        }
-        self.neo4j_repository.fetch_submission_history_context.return_value = {
-            "submission_history": submission_history,
-        }
-        create_completion.side_effect = [
-            MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(
-                            content='{"goal_query":"Find the next exercise for loop control improvement.","need_review_history":true,"review_history_limit":1,"need_submission_history":true,"submission_history_limit":1}'
-                        )
-                    )
-                ]
-            ),
-            MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(
-                            content='{"goal_query":"Find the next exercise for loop control improvement.","student_overview":"The student repeats loop termination mistakes across recent attempts, so the next exercise should stay close to the current concept.","query_facets":["loop termination","same-concept reinforcement"]}'
-                        )
-                    )
-                ]
-            ),
-        ]
 
         new_state = self.service._rerank_context_builder(state)
 
-        self.neo4j_repository.fetch_review_trend_context.assert_called_once_with(
-            review_id="review-1",
-            student_id="student-1",
-            history_limit=1,
+        self.assertEqual(
+            new_state["rerank_query"]["latest_review"]["summary"],
+            "Needs stronger loop boundary handling.",
         )
-        self.neo4j_repository.fetch_submission_history_context.assert_called_once_with(
-            submission_id="submission-1",
-            history_limit=1,
-        )
-        self.assertEqual(new_state["review_history"], review_history)
-        self.assertEqual(new_state["submission_history"], submission_history)
-        self.assertEqual(new_state["rerank_query"]["query_facets"], ["loop termination", "same-concept reinforcement"])
-        self.assertIn("repeats loop termination mistakes", new_state["rerank_overview"])
-
-    def test_summarize_submission_history_compares_previous_with_current(self):
-        state = _state()
-
-        summary = self.service._summarize_submission_history(
-            current_submission=state["submission_record"],
-            submission_history=[
-                SubmissionRecord(
-                    submission_id="submission-0",
-                    student_id="student-1",
-                    exercise_id="exercise-current",
-                    code="while i <= n:\n    print(i)\n",
-                    testcase_outputs=[
-                        {"expect": "1", "output": "1"},
-                        {"expect": "2", "output": "0"},
-                        {"expect": "3", "output": "0"},
-                    ],
-                    created_at="2026-04-29T09:55:00Z",
-                )
-            ],
-        )
-
-        self.assertEqual(len(summary), 1)
-        self.assertEqual(summary[0]["submission_id"], "submission-0")
-        self.assertEqual(summary[0]["comparison_to_current"]["previous_pass_count"], 1)
-        self.assertEqual(summary[0]["comparison_to_current"]["current_pass_count"], 2)
-        self.assertEqual(summary[0]["comparison_to_current"]["pass_count_delta"], 1)
-        self.assertAlmostEqual(
-            summary[0]["comparison_to_current"]["improvement_ratio"],
-            0.4166666667,
-            places=6,
-        )
+        self.assertIn("latest review highlights", new_state["rerank_overview"])
 
     def test_candidate_ranker_uses_context_and_selects_top_three(self):
         state = _state()

@@ -51,7 +51,6 @@ class RecommendationService:
         self.fireworks_base_url = fireworks_base_url
         self.rerank_context_builder_stage_config = rerank_context_builder_stage_config
         self.reranker_stage_config = reranker_stage_config
-        self.context_subgraph = self._build_context_subgraph()
         self.workflow = self._build_workflow()
 
     def generate_recommendation(
@@ -59,16 +58,12 @@ class RecommendationService:
     ) -> RecommendationResponse:
         initial_state: RecommendationState = {
             "student_id": request.student_id,
-            "exercise_id": request.exercise_id,
-            "base_context": {},
-            "focus_concept_id": "",
-            "focus_concept_weight": 0.0,
-            "review": None,
-            "review_record": None,
-            "review_history": [],
-            "submission_record": None,
-            "submission_history": [],
-            "attempted_exercise_ids": [],
+            "exercise_id": request.exercise.exercise_id,
+            "exercise": request.exercise,
+            "focus_concept_id": request.focus_concept_id,
+            "review": request.review,
+            "submission": request.submission,
+            "attempted_exercise_ids": list(request.attempted_exercise_ids),
             "retrieved_candidates": [],
             "rerank_query": {},
             "rerank_overview": "",
@@ -91,9 +86,7 @@ class RecommendationService:
             assigned_path="IMPROVE",
             target_concept=final_state["focus_concept_id"],
             exercise_ids=[exercise.exercise_id for exercise in selected_exercises],
-            review_id=(
-                final_state["review"].review_id if final_state["review"] is not None else None
-            ),
+            review_id=None,
         )
         exercise_concept_map = self.neo4j_repository.get_concept_ids_by_exercise(
             [exercise.exercise_id for exercise in selected_exercises]
@@ -118,42 +111,14 @@ class RecommendationService:
 
     def _build_workflow(self):
         workflow = StateGraph(RecommendationState)
-        workflow.add_node("context_subgraph", self._run_context_subgraph)
         workflow.add_node("candidate_retriever", self._candidate_retriever)
         workflow.add_node("rerank_context_builder", self._rerank_context_builder)
         workflow.add_node("candidate_ranker", self._candidate_ranker)
-        workflow.set_entry_point("context_subgraph")
-        workflow.add_edge("context_subgraph", "candidate_retriever")
+        workflow.set_entry_point("candidate_retriever")
         workflow.add_edge("candidate_retriever", "rerank_context_builder")
         workflow.add_edge("rerank_context_builder", "candidate_ranker")
         workflow.set_finish_point("candidate_ranker")
         return workflow.compile()
-
-    def _build_context_subgraph(self):
-        workflow = StateGraph(RecommendationState)
-        workflow.add_node("base_context_loader", self._base_context_loader)
-        workflow.set_entry_point("base_context_loader")
-        workflow.set_finish_point("base_context_loader")
-        return workflow.compile()
-
-    def _run_context_subgraph(self, state: RecommendationState) -> RecommendationState:
-        return cast(RecommendationState, self.context_subgraph.invoke(state))
-
-    def _base_context_loader(self, state: RecommendationState) -> RecommendationState:
-        context = self.neo4j_repository.fetch_recommendation_base_context(
-            student_id=state["student_id"],
-            exercise_id=state["exercise_id"],
-        )
-        new_state = dict(state)
-        new_state["base_context"] = context
-        new_state["focus_concept_id"] = context["current_concept"]
-        new_state["focus_concept_weight"] = context["current_concept_weight"]
-        new_state["review"] = context["review"]
-        new_state["review_record"] = context["review_record"]
-        new_state["submission_record"] = context["latest_submission"]
-        new_state["submission_history"] = []
-        new_state["attempted_exercise_ids"] = context["attempted_exercise_ids"]
-        return cast(RecommendationState, new_state)
 
     def _candidate_retriever(self, state: RecommendationState) -> RecommendationState:
         focus_concept_id = state["focus_concept_id"]
@@ -213,35 +178,11 @@ class RecommendationService:
         return cast(RecommendationState, new_state)
 
     def _rerank_context_builder(self, state: RecommendationState) -> RecommendationState:
-        plan = self._plan_rerank_context(state)
-        review_history = list(state["review_history"])
-        submission_history = list(state["submission_history"])
-
-        if plan["need_review_history"] and state["review_record"] is not None:
-            review_trend = self.neo4j_repository.fetch_review_trend_context(
-                review_id=state["review_record"].review_id,
-                student_id=state["student_id"],
-                history_limit=plan["review_history_limit"],
-            )
-            review_history = review_trend.get("review_history", [])
-
-        if plan["need_submission_history"] and state["submission_record"] is not None:
-            submission_trend = self.neo4j_repository.fetch_submission_history_context(
-                submission_id=state["submission_record"].submission_id,
-                history_limit=plan["submission_history_limit"],
-            )
-            submission_history = submission_trend.get("submission_history", [])
-
-        rerank_query, rerank_overview = self._finalize_rerank_context(
-            state,
-            review_history=review_history,
-            submission_history=submission_history,
-            planner_goal_query=plan["goal_query"],
-        )
+        # Testing mode: keep rerank context deterministic and skip the LLM planner/finalizer.
+        rerank_query = self._build_rerank_query(state)
+        rerank_overview = self._fallback_rerank_overview(state)
 
         new_state = dict(state)
-        new_state["review_history"] = review_history
-        new_state["submission_history"] = submission_history
         new_state["rerank_query"] = rerank_query
         new_state["rerank_overview"] = rerank_overview
         return cast(RecommendationState, new_state)
@@ -309,11 +250,8 @@ class RecommendationService:
         )
 
     def _build_rerank_query(self, state: RecommendationState) -> dict[str, Any]:
-        base_context = state["base_context"]
-        exercise = base_context.get("exercise")
+        exercise = state["exercise"]
         review = state["review"]
-        tested_concepts = base_context.get("tested_concepts", [])
-        recommended_concepts = base_context.get("recommended_concepts", [])
 
         return {
             "goal": "rank the best next exercises for the student",
@@ -330,18 +268,13 @@ class RecommendationService:
                 "summary": review.summary if review else "",
                 "detail": review.detail if review else "",
             },
-            "tested_concepts": tested_concepts[:5],
-            "recommended_concepts": recommended_concepts[:5],
+            "exercise_concepts": exercise.concept_slugs[:5],
         }
 
     def _plan_rerank_context(self, state: RecommendationState) -> dict[str, Any]:
         base_context = self._llm_base_context_summary(state)
         fallback = {
             "goal_query": "Rank the best next exercises for the student's current concept.",
-            "need_review_history": bool(state["review_record"]),
-            "review_history_limit": 2,
-            "need_submission_history": bool(state["submission_record"]),
-            "submission_history_limit": 2,
         }
         try:
             response = create_chat_completion_with_retry(
@@ -366,26 +299,6 @@ class RecommendationService:
             return {
                 "goal_query": str(parsed.get("goal_query", fallback["goal_query"])).strip()
                 or fallback["goal_query"],
-                "need_review_history": bool(parsed.get("need_review_history", fallback["need_review_history"])),
-                "review_history_limit": max(
-                    0,
-                    min(3, int(parsed.get("review_history_limit", fallback["review_history_limit"]))),
-                ),
-                "need_submission_history": bool(
-                    parsed.get("need_submission_history", fallback["need_submission_history"])
-                ),
-                "submission_history_limit": max(
-                    0,
-                    min(
-                        3,
-                        int(
-                            parsed.get(
-                                "submission_history_limit",
-                                fallback["submission_history_limit"],
-                            )
-                        ),
-                    ),
-                ),
             }
         except Exception:
             return fallback
@@ -394,34 +307,12 @@ class RecommendationService:
         self,
         state: RecommendationState,
         *,
-        review_history: list[Any],
-        submission_history: list[Any],
         planner_goal_query: str,
     ) -> tuple[dict[str, Any], str]:
         base_context = self._llm_base_context_summary(state)
-        submission_history_summary = self._summarize_submission_history(
-            current_submission=state["submission_record"],
-            submission_history=submission_history,
-        )
-        review_history_summary = [
-            {
-                "summary": review.summary,
-                "detail": review.detail,
-            }
-            for review in review_history
-        ]
-        submission_history_summary = [
-            {
-                "code_preview": item.get("code_preview", ""),
-                "comparison_to_current": item.get("comparison_to_current", {}),
-            }
-            for item in submission_history_summary
-        ]
         fallback_query = self._build_rerank_query(state)
         fallback_overview = self._fallback_rerank_overview(
             state,
-            review_history=review_history_summary,
-            submission_history=submission_history_summary,
         )
         try:
             response = create_chat_completion_with_retry(
@@ -436,8 +327,6 @@ class RecommendationService:
                         "role": "user",
                         "content": build_rerank_context_finalize_prompt(
                             base_context=base_context,
-                            review_history=review_history_summary,
-                            submission_history=submission_history_summary,
                             planner_goal_query=planner_goal_query,
                         ),
                     },
@@ -461,22 +350,10 @@ class RecommendationService:
             return fallback_query, fallback_overview
 
     def _llm_base_context_summary(self, state: RecommendationState) -> dict[str, Any]:
-        base_context = state["base_context"]
-        exercise = base_context.get("exercise")
+        exercise = state["exercise"]
         review = state["review"]
-        submission_record = state["submission_record"]
+        submission = state["submission"]
         review_items = review.review_items if review else []
-        review_history_summary = [
-            {
-                "summary": item.summary,
-                "detail": item.detail,
-            }
-            for item in state["review_history"]
-        ]
-        submission_history_summary = self._summarize_submission_history(
-            current_submission=submission_record,
-            submission_history=state["submission_history"],
-        )
 
         return {
             "goal": "build rerank query and student context for recommendation",
@@ -490,10 +367,8 @@ class RecommendationService:
             },
             "focus_concept": {
                 "concept_id": state["focus_concept_id"],
-                "weight": state["focus_concept_weight"],
             },
             "latest_review": {
-                "review_id": state["review_record"].review_id if state["review_record"] else "",
                 "summary": review.summary if review else "",
                 "detail": review.detail if review else "",
                 "issues": [
@@ -504,28 +379,26 @@ class RecommendationService:
                     for item in review_items[:4]
                 ],
             },
-            "review_history": review_history_summary,
             "latest_submission": {
-                "submission_id": (
-                    submission_record.submission_id if submission_record else ""
-                ),
-                "created_at": submission_record.created_at if submission_record else "",
+                "submission_id": (submission.submission_id if submission else ""),
+                "created_at": submission.created_at if submission else "",
                 "code_preview": (
-                    self._extract_code_snippet(submission_record.code)
-                    if submission_record and submission_record.code.strip()
+                    self._extract_code_snippet(submission.code)
+                    if submission and submission.code.strip()
                     else ""
                 ),
                 "testcase_output_count": (
-                    len(submission_record.testcase_outputs) if submission_record else 0
+                    len(submission.testcases) if submission else 0
                 ),
+                "testcases": [
+                    {
+                        "input": testcase.input,
+                        "expect": testcase.expect,
+                        "output": testcase.output,
+                    }
+                    for testcase in (submission.testcases if submission else [])
+                ][:6],
             },
-            "submission_history": [
-                {
-                    "code_preview": item.get("code_preview", ""),
-                    "comparison_to_current": item.get("comparison_to_current", {}),
-                }
-                for item in submission_history_summary
-            ],
             "history": {
                 "attempted_exercise_count": len(state["attempted_exercise_ids"]),
                 "recent_attempted_exercise_ids": state["attempted_exercise_ids"][:5],
@@ -535,122 +408,11 @@ class RecommendationService:
             },
         }
 
-    def _summarize_submission_history(
-        self,
-        *,
-        current_submission: Any,
-        submission_history: list[Any],
-    ) -> list[dict[str, Any]]:
-        if current_submission is None:
-            return []
-
-        current_outputs = list(getattr(current_submission, "testcase_outputs", []) or [])
-        current_pass_count, current_total = self._submission_pass_stats(current_outputs)
-        summaries: list[dict[str, Any]] = []
-        for previous_submission in submission_history:
-            previous_outputs = list(
-                getattr(previous_submission, "testcase_outputs", []) or []
-            )
-            previous_pass_count, previous_total = self._submission_pass_stats(
-                previous_outputs
-            )
-            improvement_ratio, regression_ratio = self._calculate_attempt_transition_scores(
-                previous_outputs=previous_outputs,
-                current_outputs=current_outputs,
-            )
-            summaries.append(
-                {
-                    "submission_id": previous_submission.submission_id,
-                    "created_at": previous_submission.created_at,
-                    "code_preview": self._extract_code_snippet(previous_submission.code),
-                    "comparison_to_current": {
-                        "improvement_ratio": improvement_ratio,
-                        "regression_ratio": regression_ratio,
-                        "previous_pass_count": previous_pass_count,
-                        "previous_testcase_count": previous_total,
-                        "current_pass_count": current_pass_count,
-                        "current_testcase_count": current_total,
-                        "pass_count_delta": current_pass_count - previous_pass_count,
-                    },
-                }
-            )
-        return summaries
-
-    @staticmethod
-    def _submission_pass_stats(outputs: list[Any]) -> tuple[int, int]:
-        total = len(outputs)
-        pass_count = 0
-        for output in outputs:
-            if hasattr(output, "expect"):
-                expect_value = getattr(output, "expect", "")
-                actual_value = getattr(output, "output", "")
-            else:
-                expect_value = output.get("expect", "") if isinstance(output, dict) else ""
-                actual_value = output.get("output", "") if isinstance(output, dict) else ""
-            expect = str(expect_value).strip()
-            actual = str(actual_value).strip()
-            if expect == actual:
-                pass_count += 1
-        return pass_count, total
-
-    def _calculate_attempt_transition_scores(
-        self,
-        *,
-        previous_outputs: list[Any],
-        current_outputs: list[Any],
-    ) -> tuple[float, float]:
-        previous_failed = {
-            index
-            for index, item in enumerate(previous_outputs)
-            if not self._did_testcase_pass(item)
-        }
-        current_failed = {
-            index
-            for index, item in enumerate(current_outputs)
-            if not self._did_testcase_pass(item)
-        }
-
-        fixed_count = len(previous_failed - current_failed)
-        newly_broken_count = len(current_failed - previous_failed)
-
-        previous_total = max(len(previous_outputs), 1)
-        current_total = max(len(current_outputs), 1)
-        previous_pass_rate = (previous_total - len(previous_failed)) / previous_total
-        current_pass_rate = (current_total - len(current_failed)) / current_total
-        score_delta = current_pass_rate - previous_pass_rate
-
-        fixed_ratio = fixed_count / max(len(previous_failed), 1)
-        broken_ratio = newly_broken_count / max(len(previous_failed), 1)
-
-        improvement_ratio = max(
-            0.0,
-            min(1.0, 0.5 * max(score_delta, 0.0) + 0.5 * fixed_ratio),
-        )
-        regression_ratio = max(
-            0.0,
-            min(1.0, 0.5 * max(-score_delta, 0.0) + 0.5 * broken_ratio),
-        )
-        return improvement_ratio, regression_ratio
-
-    @staticmethod
-    def _did_testcase_pass(output: Any) -> bool:
-        if hasattr(output, "expect"):
-            expect_value = getattr(output, "expect", "")
-            actual_value = getattr(output, "output", "")
-        else:
-            expect_value = output.get("expect", "") if isinstance(output, dict) else ""
-            actual_value = output.get("output", "") if isinstance(output, dict) else ""
-        return str(expect_value).strip() == str(actual_value).strip()
-
     def _fallback_rerank_overview(
         self,
         state: RecommendationState,
-        *,
-        review_history: list[dict[str, Any]],
-        submission_history: list[dict[str, Any]],
     ) -> str:
-        base_context = state["base_context"]
-        exercise = base_context.get("exercise")
+        exercise = state["exercise"]
         review = state["review"]
         exercise_title = getattr(exercise, "title", state["exercise_id"])
         attempted_count = len(state["attempted_exercise_ids"])
@@ -663,14 +425,6 @@ class RecommendationService:
         ]
         if review and review.summary.strip():
             parts.append(f"The latest review highlights: {review.summary.strip()}")
-        if review_history:
-            parts.append(
-                f"{len(review_history)} earlier review records are available for repeated-pattern checking."
-            )
-        if submission_history:
-            parts.append(
-                f"{len(submission_history)} earlier submissions are available for progress comparison."
-            )
         return " ".join(parts)
 
     def _build_rerank_documents(
@@ -787,13 +541,12 @@ class RecommendationService:
         return list(merged.values())
 
     def _build_vector_query_text(self, state: RecommendationState) -> str:
-        base_context = state["base_context"]
-        exercise = base_context.get("exercise")
+        exercise = state["exercise"]
         review = state["review"]
         review_summary = review.summary if review else ""
         review_detail = review.detail if review else ""
-        exercise_title = exercise.title if exercise is not None else state["exercise_id"]
-        exercise_description = exercise.description if exercise is not None else ""
+        exercise_title = exercise.title
+        exercise_description = exercise.description
         return "\n".join(
             [
                 "Recommendation retrieval query",

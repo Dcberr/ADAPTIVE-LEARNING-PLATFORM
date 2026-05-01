@@ -1,21 +1,19 @@
 from typing import TypedDict
 
-from code_review_ai.api.review_code_schema import ReviewResponse
-from code_review_ai.models.review_record import ReviewRecord
-from code_review_ai.models.submission_record import SubmissionRecord
+from code_review_ai.api.recommendation_schema import (
+    RecommendationReviewRequest,
+    RecommendationSubmissionRequest,
+)
+from code_review_ai.models.exercise_record import ExerciseRecord
 
 
 class RecommendationState(TypedDict):
     student_id: str
     exercise_id: str
-    base_context: dict
+    exercise: ExerciseRecord
     focus_concept_id: str
-    focus_concept_weight: float
-    review: ReviewResponse | None
-    review_record: ReviewRecord | None
-    review_history: list[ReviewRecord]
-    submission_record: SubmissionRecord | None
-    submission_history: list[SubmissionRecord]
+    review: RecommendationReviewRequest | None
+    submission: RecommendationSubmissionRequest | None
     attempted_exercise_ids: list[str]
     retrieved_candidates: list[dict]
     rerank_query: dict
