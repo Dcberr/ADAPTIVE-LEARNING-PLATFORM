@@ -87,8 +87,8 @@ public class ProblemController {
         return ApiResponse.success(problemService.batchUpdateLeetCode(requests));
     }
 
-    @Operation(summary = "Create manual LeetCode problem")
-    @PostMapping("/leetcode/manual")
+    @Operation(summary = "Create manual Library problem")
+    @PostMapping("/library/manual")
     public ApiResponse<ProblemResponse> createManualLibraryProblem(
             @RequestBody ProblemLibraryRequest request
     ) {
