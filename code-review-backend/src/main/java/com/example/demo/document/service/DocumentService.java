@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 
 import com.example.demo.document.dto.CreateDocumentRequest;
 import com.example.demo.document.dto.DocumentResponse;
+import com.example.demo.document.dto.UpdateDocumentRequest;
 
 public interface DocumentService {
 
@@ -15,6 +16,12 @@ public interface DocumentService {
 
     List<DocumentResponse> getDocumentsByTopic(UUID topicId);
 
-    public ResponseEntity<Resource> download(String documentId);
+    DocumentResponse getDocumentById(UUID documentId);
+
+    DocumentResponse update(UUID documentId, UpdateDocumentRequest request);
+
+    void delete(UUID documentId);
+
+    ResponseEntity<Resource> download(String documentId);
 
 }

@@ -12,7 +12,9 @@ import com.example.demo.assignment.entity.Assignment;
 public interface AssignmentRepository
         extends JpaRepository<Assignment, UUID> {
 
-    List<Assignment> findByTopicId(UUID topicId);
+    List<Assignment> findByTopicIdAndDeletedAtIsNull(UUID topicId);
+
+    java.util.Optional<Assignment> findByIdAndDeletedAtIsNull(UUID id);
     // Assignment findByProblemId(UUID problemId);
 
 }

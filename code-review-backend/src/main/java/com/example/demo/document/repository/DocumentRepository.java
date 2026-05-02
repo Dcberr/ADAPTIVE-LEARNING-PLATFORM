@@ -12,6 +12,8 @@ import com.example.demo.document.entity.Document;
 public interface DocumentRepository
         extends JpaRepository<Document, UUID> {
 
-    List<Document> findByTopicId(UUID topicId);
+    List<Document> findByTopicIdAndDeletedAtIsNull(UUID topicId);
+
+    java.util.Optional<Document> findByIdAndDeletedAtIsNull(UUID id);
 
 }

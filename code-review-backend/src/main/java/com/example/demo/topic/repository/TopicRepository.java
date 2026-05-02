@@ -11,6 +11,8 @@ import com.example.demo.topic.entity.Topic;
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, UUID> {
 
-    List<Topic> findByClassId(UUID classId);
+    List<Topic> findByClassIdAndDeletedAtIsNull(UUID classId);
+
+    java.util.Optional<Topic> findByIdAndDeletedAtIsNull(UUID id);
 
 }

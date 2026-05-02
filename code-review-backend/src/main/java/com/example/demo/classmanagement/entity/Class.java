@@ -30,6 +30,8 @@ public class Class {
 
     private Instant createdAt;
 
+    private Instant deletedAt;
+
     private String schedule;    
 
     private String imageUrl;

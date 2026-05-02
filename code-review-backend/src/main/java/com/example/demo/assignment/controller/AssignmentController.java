@@ -8,8 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.AddProblemToAssignmentRequest;
-import com.example.demo.assignment.dto.CreateAssignmentRequest;
 import com.example.demo.assignment.dto.AssignmentResponse;
+import com.example.demo.assignment.dto.CreateAssignmentRequest;
+import com.example.demo.assignment.dto.UpdateAssignmentRequest;
 import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.common.response.ApiResponse;
 
@@ -46,6 +47,27 @@ public class AssignmentController {
         );
     }
 
+//     @Operation(summary = "Get assignment detail")
+//     @GetMapping("/{assignmentId}")
+//     public ApiResponse<AssignmentResponse> getAssignment(
+//             @PathVariable UUID assignmentId
+//     ) {
+//         return ApiResponse.success(
+//                 assignmentService.getAssignmentById(assignmentId)
+//         );
+//     }
+
+    @Operation(summary = "Update assignment")
+    @PutMapping("/{assignmentId}")
+    public ApiResponse<AssignmentResponse> updateAssignment(
+            @PathVariable UUID assignmentId,
+            @RequestBody UpdateAssignmentRequest request
+    ) {
+        return ApiResponse.success(
+                assignmentService.updateAssignment(assignmentId, request)
+        );
+    }
+
     @Operation(summary = "Add an existing LeetCode problem to an assignment in a topic")
     @PostMapping("/topic/{topicId}/{assignmentId}/problems/leetcode")
     public ApiResponse<AssignmentResponse> addLeetCodeProblemToAssignment(
@@ -60,5 +82,12 @@ public class AssignmentController {
                         request.getProblemId()
                 )
         );
+    }
+
+    @Operation(summary = "Soft delete assignment")
+    @DeleteMapping("/{assignmentId}")
+    public ApiResponse<?> deleteAssignment(@PathVariable UUID assignmentId) {
+        assignmentService.deleteAssignment(assignmentId);
+        return ApiResponse.success(null);
     }
 }

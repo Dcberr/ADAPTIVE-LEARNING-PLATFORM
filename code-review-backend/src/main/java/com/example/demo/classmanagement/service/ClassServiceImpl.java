@@ -10,6 +10,7 @@ import com.example.demo.classmanagement.dto.ClassDetailResponse;
 import com.example.demo.classmanagement.dto.ClassOverviewResponse;
 import com.example.demo.classmanagement.dto.ClassResponse;
 import com.example.demo.classmanagement.dto.CreateClassRequest;
+import com.example.demo.classmanagement.dto.UpdateClassRequest;
 import com.example.demo.classmanagement.entity.ClassEnrollment;
 import com.example.demo.classmanagement.entity.ClassStatus;
 import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
@@ -60,9 +61,31 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    public ClassResponse updateClass(UUID classId, UpdateClassRequest req) {
+        Class cls = getActiveClass(classId);
+
+        if (req.getName() != null) {
+            cls.setName(req.getName());
+        }
+        if (req.getDescription() != null) {
+            cls.setDescription(req.getDescription());
+        }
+        if (req.getSchedule() != null) {
+            cls.setSchedule(req.getSchedule());
+        }
+        if (req.getImage() != null && !req.getImage().isEmpty()) {
+            UploadFilleResponse uploadResult = storageService.upload(req.getImage());
+            cls.setImageUrl(uploadResult.getFileUrl());
+        }
+
+        classRepository.save(cls);
+        return mapToResponse(cls);
+    }
+
+    @Override
     public List<ClassOverviewResponse> getClassesForInstructor(UUID instructorId) {
 
-        List<Class> classes = classRepository.findByInstructorId(instructorId);
+        List<Class> classes = classRepository.findByInstructorIdAndDeletedAtIsNull(instructorId);
 
         return classes.stream()
                 .map(this::getClassOverview)
@@ -76,7 +99,8 @@ public class ClassServiceImpl implements ClassService {
                 enrollmentRepository.findByStudentId(studentId);
 
         return enrollments.stream()
-                .map(e -> classRepository.findById(e.getClassId()).orElseThrow())
+                .map(e -> classRepository.findByIdAndDeletedAtIsNull(e.getClassId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
                 .map(this::getClassOverview)
                 .toList();
     }
@@ -93,6 +117,8 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public void addStudent(UUID classId, UUID studentId) {
+        getActiveClass(classId);
+
         // Check if student is already enrolled in the class
         if (enrollmentRepository.findByClassIdAndStudentId(classId, studentId).isPresent()) {
             throw new AppException(ErrorCode.STUDENT_ALREADY_ENROLLED);
@@ -110,6 +136,7 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public void removeStudent(UUID classId, UUID studentId) {
+        getActiveClass(classId);
 
         enrollmentRepository
                 .findByClassIdAndStudentId(classId, studentId)
@@ -119,7 +146,7 @@ public class ClassServiceImpl implements ClassService {
     @Override
     public ClassDetailResponse getClassDetail(UUID classId) {
 
-        Class cls = classRepository.findById(classId).orElseThrow(() -> new RuntimeException("Class not found"));
+        Class cls = getActiveClass(classId);
         
         ClassDetailResponse detailResponse = getClassDetailResponse(cls);
 
@@ -189,6 +216,7 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public void addStudentToClassByUserCode(UUID classId, String userCode) {
+        getActiveClass(classId);
         User student = userRepository.findByUserCode(userCode)
                 .orElseThrow(() -> new RuntimeException("Student not found with user code: " + userCode));
 
@@ -197,6 +225,7 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public void removeStudentFromClassByUserCode(UUID classId, String userCode) {
+        getActiveClass(classId);
         User student = userRepository.findByUserCode(userCode)
                 .orElseThrow(() -> new RuntimeException("Student not found with user code: " + userCode));
 
@@ -205,6 +234,7 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public List<UserResponse> getEnrolledStudents(UUID classId) {
+        getActiveClass(classId);
         List<ClassEnrollment> enrollments = enrollmentRepository.findByClassId(classId);
 
         return enrollments.stream()
@@ -218,5 +248,17 @@ public class ClassServiceImpl implements ClassService {
                         .role(student.getRole().name())
                         .build())
                 .toList();
+    }
+
+    @Override
+    public void deleteClass(UUID classId) {
+        Class cls = getActiveClass(classId);
+        cls.setDeletedAt(Instant.now());
+        classRepository.save(cls);
+    }
+
+    private Class getActiveClass(UUID classId) {
+        return classRepository.findByIdAndDeletedAtIsNull(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
     }
 }

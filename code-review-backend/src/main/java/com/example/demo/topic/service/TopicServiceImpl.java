@@ -16,6 +16,7 @@ import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
+import com.example.demo.classmanagement.repository.ClassRepository;
 import com.example.demo.document.dto.DocumentResponse;
 import com.example.demo.document.service.DocumentService;
 import com.example.demo.problem.entity.Problem;
@@ -26,6 +27,7 @@ import com.example.demo.topic.dto.CreateTopicRequest;
 import com.example.demo.topic.dto.TopicDetailResponse;
 import com.example.demo.topic.dto.TopicOverviewResponse;
 import com.example.demo.topic.dto.TopicResponse;
+import com.example.demo.topic.dto.UpdateTopicRequest;
 import com.example.demo.topic.entity.Topic;
 import com.example.demo.topic.repository.TopicRepository;
 
@@ -40,10 +42,13 @@ public class TopicServiceImpl implements TopicService {
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final ProblemRepository problemRepository;
     private final AssignmentService assignmentService;
-    private final DocumentService documentService;   
+    private final DocumentService documentService;
+    private final ClassRepository classRepository;
 
     @Override
     public TopicResponse createTopic(CreateTopicRequest req) {
+        classRepository.findByIdAndDeletedAtIsNull(req.getClassId())
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
         Topic topic = Topic.builder()
                 .classId(req.getClassId())
@@ -58,9 +63,27 @@ public class TopicServiceImpl implements TopicService {
     }
 
     @Override
+    public TopicResponse updateTopic(UUID topicId, UpdateTopicRequest req) {
+        Topic topic = getActiveTopic(topicId);
+
+        if (req.getTitle() != null) {
+            topic.setTitle(req.getTitle());
+        }
+        if (req.getDescription() != null) {
+            topic.setDescription(req.getDescription());
+        }
+
+        topicRepository.save(topic);
+        return map(topic);
+    }
+
+    @Override
     public List<TopicResponse> getTopicsByClass(UUID classId) {
 
-        return topicRepository.findByClassId(classId)
+        classRepository.findByIdAndDeletedAtIsNull(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        return topicRepository.findByClassIdAndDeletedAtIsNull(classId)
                 .stream()
                 .map(this::map)
                 .toList();
@@ -79,8 +102,7 @@ public class TopicServiceImpl implements TopicService {
     @Override
     public TopicDetailResponse getTopicDetail(UUID topicId) {
 
-        Topic topic = topicRepository.findById(topicId)
-                .orElseThrow(() -> new RuntimeException("Topic not found"));
+        Topic topic = getActiveTopic(topicId);
 
         List<AssignmentResponse> assignments = assignmentService.getAssignmentsByTopic(topicId);
 
@@ -98,7 +120,10 @@ public class TopicServiceImpl implements TopicService {
     @Override
     public TopicOverviewResponse getTopicOverviewByClassId(UUID classId) {
 
-        List<Topic> topics = topicRepository.findByClassId(classId);
+        classRepository.findByIdAndDeletedAtIsNull(classId)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        List<Topic> topics = topicRepository.findByClassIdAndDeletedAtIsNull(classId);
 
         return TopicOverviewResponse.builder()
                 .ids(topics.stream().map(Topic::getId).toList())
@@ -108,8 +133,7 @@ public class TopicServiceImpl implements TopicService {
     @Override
     public AssignmentResponse addLeetCodeProblemToTopic(UUID topicId, AddLeetCodeProblemToTopicRequest request) {
 
-        Topic topic = topicRepository.findById(topicId)
-                .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
+        Topic topic = getActiveTopic(topicId);
 
         Problem problem = problemRepository.findById(request.getProblemId())
                 .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
@@ -155,6 +179,13 @@ public class TopicServiceImpl implements TopicService {
                 .build();
     }
 
+    @Override
+    public void deleteTopic(UUID topicId) {
+        Topic topic = getActiveTopic(topicId);
+        topic.setDeletedAt(Instant.now());
+        topicRepository.save(topic);
+    }
+
     private String resolveAssignmentTitle(AddLeetCodeProblemToTopicRequest request, Problem problem) {
         if (request.getTitle() != null && !request.getTitle().isBlank()) {
             return request.getTitle();
@@ -172,6 +203,11 @@ public class TopicServiceImpl implements TopicService {
         } catch (IllegalArgumentException ex) {
             return AssigmentDifficulty.MEDIUM;
         }
+    }
+
+    private Topic getActiveTopic(UUID topicId) {
+        return topicRepository.findByIdAndDeletedAtIsNull(topicId)
+                .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
     }
 
 }

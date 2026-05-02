@@ -14,10 +14,14 @@ public interface AssignmentService {
 
     List<AssignmentResponse> getAssignmentsByTopic(UUID topicId);
 
+    AssignmentResponse getAssignmentById(UUID assignmentId);
+
     public AssignmentResponse updateAssignment(UUID assignmentId, UpdateAssignmentRequest request);
 
     void addProblemToAssignment(UUID assignmentId, UUID problemId);
 
     AssignmentResponse addLeetCodeProblemToAssignment(UUID topicId, UUID assignmentId, UUID problemId);
+
+    void deleteAssignment(UUID assignmentId);
 
 }
