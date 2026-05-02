@@ -8,6 +8,7 @@ import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemLibraryRequest;
+import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
@@ -20,7 +21,7 @@ public interface ProblemService {
 
     ProblemResponse getProblemByAssignmentId(UUID assignmentId);
 
-    PageResponse<ProblemResponse> getAllLeetCodeProblems(int page, int size);
+    PageResponse<ProblemOverviewResponse> getAllLibraryProblems(int page, int size);
 
     LeetCodeProblemPageResponse getLeetCodeProblems(int page, int limit);
 
