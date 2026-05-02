@@ -24,7 +24,6 @@ class ExerciseRelation(BaseModel):
     exercise_id: str
     related_exercise_id: str
     weight: float = 1.0
-    relation_type: str = ""
     difficulty_gap: float = 0.0
     progression_score: float = 0.0
     similarity_score: float = 0.0

@@ -122,11 +122,11 @@ class RecommendationModelConfig:
             max_tokens=0,
         )
     )
-    explanation_builder: FireworksStageConfig = field(
+    roadmap_builder: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
             model_name="fireworks/deepseek-v3p2",
             temperature=0.2,
-            max_tokens=1400,
+            max_tokens=1800,
         )
     )
     default: FireworksStageConfig = field(
@@ -141,7 +141,7 @@ class RecommendationModelConfig:
         return {
             "rerank_context_builder": self.rerank_context_builder,
             "reranker": self.reranker,
-            "explanation_builder": self.explanation_builder,
+            "roadmap_builder": self.roadmap_builder,
             "default": self.default,
         }
 

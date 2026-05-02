@@ -14,11 +14,26 @@ from .repositories.qdrant_repository import QdrantRepository
 
 settings = get_env_config()
 
+
+def _configure_noisy_dependency_loggers() -> None:
+    """Keep app debug logs while muting verbose SDK/network internals."""
+    for logger_name in (
+        "openai",
+        "openai._base_client",
+        "httpx",
+        "httpcore",
+        "urllib3",
+        "neo4j.notifications",
+    ):
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
 # Configure root logger
 logging.basicConfig(
     level=getattr(logging, settings.log_level, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+_configure_noisy_dependency_loggers()
 
 logger = logging.getLogger(__name__)
 

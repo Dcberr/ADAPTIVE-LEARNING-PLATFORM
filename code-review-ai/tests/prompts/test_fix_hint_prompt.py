@@ -42,6 +42,15 @@ class FixHintPromptTests(unittest.TestCase):
         self.assertIn("Give one actionable next step", user_prompt)
         self.assertIn("Do not rewrite the whole program.", user_prompt)
         self.assertIn("ANCHOR SNIPPET:", user_prompt)
+        self.assertIn(
+            "Do NOT include testcase IDs, submission IDs, evidence IDs, UUIDs, or any identifier-like labels.",
+            user_prompt,
+        )
+        self.assertIn(
+            "If you refer to a testcase, use the testcase text, input, expected output, actual output, or described behavior instead of any ID.",
+            user_prompt,
+        )
+        self.assertNotIn("Test case ID", user_prompt)
 
 
 if __name__ == "__main__":

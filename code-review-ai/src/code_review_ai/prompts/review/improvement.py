@@ -61,6 +61,7 @@ def build_improvement_messages(code_context: str) -> list[dict[str, str]]:
                 - Prefer a few high-signal warnings over many small style comments.
                 - Do NOT talk about hidden test cases or speculative failures not supported by the code structure.
                 - Do NOT repeat logic or syntax errors that belong to other review items.
+                - Do NOT include testcase IDs, submission IDs, UUIDs, or any identifier-like labels in `issue` or `fix_suggestion`.
                 - If the code is already correct, still give clean-code warnings when there are beginner-friendly refactoring opportunities.
                 - Keep the tone supportive, practical, and educational.
                 - Return an empty list only if the code is already very clean for a CS1 student.

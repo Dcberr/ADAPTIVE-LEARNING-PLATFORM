@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 from urllib import error, parse, request
 
 from code_review_ai.models.exercise_record import ExerciseRecord
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,13 @@ class QdrantRepository:
         if not points:
             return
 
+        logger.debug(
+            "Qdrant upsert_exercises collection=%s exercise_count=%s point_count=%s vector_dim=%s",
+            self.collection_name,
+            len(exercises),
+            len(points),
+            vector_size,
+        )
         self._ensure_collection(vector_size)
         self._request(
             "PUT",
@@ -84,6 +94,12 @@ class QdrantRepository:
         if not self.is_configured or not query_vector or limit <= 0:
             return []
 
+        logger.debug(
+            "Qdrant search_exercises params: collection=%s limit=%s vector_dim=%s",
+            self.collection_name,
+            limit,
+            len(query_vector),
+        )
         response = self._request(
             "POST",
             f"/collections/{parse.quote(self.collection_name, safe='')}/points/search",
@@ -108,6 +124,11 @@ class QdrantRepository:
                     payload=payload,
                 )
             )
+        logger.debug(
+            "Qdrant search_exercises result_count=%s collection=%s",
+            len(results),
+            self.collection_name,
+        )
         return results
 
     def _ensure_collection(self, vector_size: int) -> None:
@@ -154,6 +175,24 @@ class QdrantRepository:
             headers["api-key"] = self.api_key
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
+
+        debug_payload: dict[str, Any] | None = None
+        if payload is not None:
+            debug_payload = dict(payload)
+            if "vector" in debug_payload:
+                vector = debug_payload.pop("vector")
+                debug_payload["vector_dim"] = len(vector) if isinstance(vector, list) else None
+            if "points" in debug_payload:
+                points = debug_payload.get("points") or []
+                debug_payload["point_count"] = len(points) if isinstance(points, list) else None
+                debug_payload.pop("points", None)
+        logger.debug(
+            "Qdrant request params: method=%s collection=%s path=%s payload=%s",
+            method,
+            self.collection_name,
+            path,
+            debug_payload,
+        )
 
         req = request.Request(
             f"{self.base_url}{path}",

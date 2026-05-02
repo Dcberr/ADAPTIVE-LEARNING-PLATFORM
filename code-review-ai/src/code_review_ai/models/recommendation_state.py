@@ -11,7 +11,7 @@ class RecommendationState(TypedDict):
     student_id: str
     exercise_id: str
     exercise: ExerciseRecord
-    focus_concept_id: str
+    focus_concept_ids: list[str]
     review: RecommendationReviewRequest | None
     submission: RecommendationSubmissionRequest | None
     attempted_exercise_ids: list[str]
@@ -19,3 +19,5 @@ class RecommendationState(TypedDict):
     rerank_query: dict
     rerank_overview: str
     reranked_candidates: list[dict]
+    roadmap_summary: str
+    roadmap_steps: list[dict]

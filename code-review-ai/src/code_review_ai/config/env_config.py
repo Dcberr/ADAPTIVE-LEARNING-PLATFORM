@@ -176,7 +176,7 @@ def _build_recommendation_model_config(stage_configs: dict[str, FireworksStageCo
     return RecommendationModelConfig(
         rerank_context_builder=stage_configs["rerank_context_builder"],
         reranker=stage_configs["reranker"],
-        explanation_builder=stage_configs["explanation_builder"],
+        roadmap_builder=stage_configs["roadmap_builder"],
         default=stage_configs["default"],
     )
 

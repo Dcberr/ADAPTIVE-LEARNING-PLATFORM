@@ -178,7 +178,6 @@ class KnowledgeGraphServiceTests(unittest.TestCase):
             {
                 "exercise-2": {
                     "weight": 0.7,
-                    "relation_type": "NEXT_STEP",
                     "difficulty_gap": 1.0,
                     "progression_score": 0.7,
                     "similarity_score": 0.7,

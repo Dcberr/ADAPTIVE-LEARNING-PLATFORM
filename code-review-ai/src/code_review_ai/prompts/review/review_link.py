@@ -77,6 +77,7 @@ Changed code summary between that submission and the current code:
                 - Use only the first earlier submission where the testcase failed.
                 - Return one review link object per issue in the same order the issues were listed above.
                 - Do not include ids, issue refs, testcase ids, or submission ids in the response.
+                - If you mention the testcase, describe it using its shown behavior or code context, not any ID.
                 - `previous_code_snippets` should contain only short snippets from that earlier failed submission that relate to the current issue.
                 - If the latest previous submission also failed this testcase, `comparison_mode` should usually be `persistent`.
                 - If the match comes from an older earlier failed submission but not the latest previous submission, `comparison_mode` can be `historical_match`.
@@ -90,7 +91,6 @@ Changed code summary between that submission and the current code:
 
 def _format_previous_submission(previous_submission: dict[str, str]) -> str:
     return (
-        f"Submission id: {previous_submission.get('submission_id', '')}\n"
         f"Code:\n{previous_submission.get('code', '')}"
     )
 

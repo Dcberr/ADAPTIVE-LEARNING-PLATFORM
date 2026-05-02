@@ -3,13 +3,15 @@ info:
   title: LMS API
   version: "1.0"
 servers:
-- url: http://localhost:8080
+- url: http://localhost:8080/api
   description: Generated server url
 security:
 - bearerAuth: []
 tags:
 - name: Problem
   description: APIs for problem management
+- name: Recommendation
+  description: APIs for exercise recommendations and roadmap
 - name: Class
   description: APIs for class management
 - name: Testcase
@@ -60,6 +62,66 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseUserResponse"
+  /problems/templates:
+    put:
+      tags:
+      - Problem
+      summary: Update problem starter code templates
+      operationId: updateProblemTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProblemTemplateRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseProblemResponse"
+  /problems/leetcode/batch:
+    put:
+      tags:
+      - Problem
+      summary: Batch update LeetCode problems
+      operationId: updateLeetCodeProblems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeetCodeImportRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListProblemResponse"
+    post:
+      tags:
+      - Problem
+      summary: Batch import LeetCode problems
+      operationId: importLeetCodeProblems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeetCodeImportRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListProblemResponse"
   /topics:
     post:
       tags:
@@ -79,6 +141,33 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseTopicResponse"
+  /topics/{topicId}/assignments/leetcode:
+    post:
+      tags:
+      - Topic
+      summary: Add an existing LeetCode problem to a topic
+      operationId: addLeetCodeProblemToTopic
+      parameters:
+      - name: topicId
+        in: path
+        description: Topic ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddLeetCodeProblemToTopicRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseAssignmentResponse"
   /testcases:
     post:
       tags:
@@ -118,26 +207,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponseSubmissionResponse"
   /reviews/submission/{submissionId}:
-    get:
-      tags:
-      - Review
-      summary: Get review history of a submission
-      operationId: history
-      parameters:
-      - name: submissionId
-        in: path
-        description: Submission ID
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ApiResponseListReviewResponse"
     post:
       tags:
       - Review
@@ -158,6 +227,44 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseReviewResponse"
+  /reviews/code:
+    post:
+      tags:
+      - Review
+      summary: Review code directly without submission
+      operationId: reviewCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCodeRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseReviewResponse"
+  /recommendations:
+    post:
+      tags:
+      - Recommendation
+      summary: Get recommended learning roadmap for a student on the current exercise
+      operationId: getRecommendation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseRecommendationResponse"
   /problems:
     post:
       tags:
@@ -177,19 +284,17 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseProblemResponse"
-  /problems/leetcode/batch:
+  /problems/manual:
     post:
       tags:
       - Problem
-      summary: Batch import LeetCode problems
-      operationId: importLeetCodeProblems
+      summary: Create manual problem
+      operationId: createManualProblem
       requestBody:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: "#/components/schemas/LeetCodeImportRequest"
+              $ref: "#/components/schemas/CreateProblemRequest"
         required: true
       responses:
         "200":
@@ -197,7 +302,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApiResponseListProblemResponse"
+                $ref: "#/components/schemas/ApiResponseProblemResponse"
   /execution/run:
     post:
       tags:
@@ -283,14 +388,26 @@ paths:
     post:
       tags:
       - Class
-      summary: Create a new class
       operationId: createClass
-      parameters:
-      - name: request
-        in: query
-        required: true
-        schema:
-          $ref: "#/components/schemas/CreateClassRequest"
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - description
+              - name
+              - schedule
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                schedule:
+                  type: string
+                image:
+                  type: string
+                  format: binary
       responses:
         "200":
           description: OK
@@ -298,26 +415,48 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseClassResponse"
-  /classes/{classId}/students:
+  /classes/{classId}/students/{userCode}:
     post:
       tags:
       - Class
-      summary: Add student to class
-      operationId: addStudent
+      summary: Add student to class by user code
+      operationId: addStudentByUserCode
       parameters:
       - name: classId
         in: path
-        description: Class ID
         required: true
         schema:
           type: string
           format: uuid
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AddStudentRequest"
+      - name: userCode
+        in: path
         required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseObject"
+    delete:
+      tags:
+      - Class
+      summary: Remove student from class by user code
+      operationId: removeStudentByUserCode
+      parameters:
+      - name: classId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userCode
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         "200":
           description: OK
@@ -344,6 +483,38 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseAssignmentResponse"
+  /assignments/topic/{topicId}/{assignmentId}/problems/leetcode:
+    post:
+      tags:
+      - Assignment
+      summary: Add an existing LeetCode problem to an assignment in a topic
+      operationId: addLeetCodeProblemToAssignment
+      parameters:
+      - name: topicId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddProblemToAssignmentRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseAssignmentResponse"
   /users/{id}:
     get:
       tags:
@@ -358,6 +529,45 @@ paths:
         schema:
           type: string
           format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserResponse"
+  /users/role/{role}:
+    get:
+      tags:
+      - User
+      summary: Get all users by role
+      operationId: getAllUsersByRole
+      parameters:
+      - name: role
+        in: path
+        description: User role
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListUserResponse"
+  /users/code/{userCode}:
+    get:
+      tags:
+      - User
+      summary: Get user by user code
+      operationId: getStudentByUserCode
+      parameters:
+      - name: userCode
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         "200":
           description: OK
@@ -428,6 +638,27 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseListTestcaseResponse"
+  /testcases/assignment/{assignmentId}:
+    get:
+      tags:
+      - Testcase
+      summary: Get testcases by assignment ID
+      operationId: getTestcasesByAssignment
+      parameters:
+      - name: assignmentId
+        in: path
+        description: Assignment ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListTestcaseResponse"
   /submissions/{submissionId}:
     get:
       tags:
@@ -449,12 +680,104 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseSubmissionDetailResponse"
-  /submissions/problem/{problemId}:
+  /submissions/problem/{problemId}/{userId}:
     get:
       tags:
       - Submission
-      summary: Get submissions of a problem
-      operationId: getProblemSubmissions
+      summary: Get user submission for a problem
+      operationId: getUserSubmissionsByProblemIdAndUserId
+      parameters:
+      - name: problemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListSubmission"
+  /submissions/assignment/{assignmentId}:
+    get:
+      tags:
+      - Submission
+      summary: Get all submissions by assignmennt
+      operationId: overview
+      parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListSubmissionResponse"
+  /submissions/assignment/{assignmentId}/{userId}:
+    get:
+      tags:
+      - Submission
+      summary: Get current user's submissions by assignmennt
+      operationId: overview_1
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListSubmissionResponse"
+  /submissions/assignment/{assignmentId}/me:
+    get:
+      tags:
+      - Submission
+      summary: Get my submissions by assignmennt
+      operationId: overview_2
+      parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListSubmissionResponse"
+  /reviews/problem/{problemId}:
+    get:
+      tags:
+      - Review
+      summary: Get all reviews for a problem
+      operationId: getProblemReviews
       parameters:
       - name: problemId
         in: path
@@ -469,20 +792,35 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApiResponseListSubmissionOverviewResponse"
-  /submissions/me:
+                $ref: "#/components/schemas/ApiResponseListReviewResponse"
+  /reviews/problem/{problemId}/user/{userId}:
     get:
       tags:
-      - Submission
-      summary: Get current user's submissions overview
-      operationId: overview
+      - Review
+      summary: Get all reviews for a problem by user
+      operationId: getProblemReviewsByUser
+      parameters:
+      - name: problemId
+        in: path
+        description: Problem ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        description: User ID
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApiResponseListSubmissionOverviewResponse"
+                $ref: "#/components/schemas/ApiResponseListReviewResponse"
   /problems/{problemId}:
     get:
       tags:
@@ -493,6 +831,55 @@ paths:
       - name: problemId
         in: path
         description: Problem ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseProblemResponse"
+  /problems/leetcode:
+    get:
+      tags:
+      - Problem
+      summary: Get paged LeetCode problems
+      operationId: getAllLeetCodeProblems
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageResponseProblemResponse"
+  /problems/assignment/{assignmentId}:
+    get:
+      tags:
+      - Problem
+      summary: Get problem by assignment ID
+      operationId: getProblemByAssignmentId
+      parameters:
+      - name: assignmentId
+        in: path
+        description: Assignment ID
         required: true
         schema:
           type: string
@@ -593,6 +980,26 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseClassDetailResponse"
+  /classes/{classId}/students:
+    get:
+      tags:
+      - Class
+      summary: Get enrolled students
+      operationId: getEnrolledStudents
+      parameters:
+      - name: classId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseListUserResponse"
   /classes/me:
     get:
       tags:
@@ -626,32 +1033,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ApiResponseListAssignmentResponse"
-  /classes/{classId}/students/{studentId}:
-    delete:
-      tags:
-      - Class
-      summary: Remove student from class
-      operationId: removeStudent
-      parameters:
-      - name: classId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: studentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ApiResponseObject"
 components:
   schemas:
     UpdateUserRequest:
@@ -683,200 +1064,22 @@ components:
           type: string
         name:
           type: string
+        userCode:
+          type: string
         picture:
           type: string
         role:
           type: string
-    CreateTopicRequest:
-      type: object
-      properties:
-        classId:
-          type: string
-          format: uuid
-        title:
-          type: string
-        description:
-          type: string
-    ApiResponseTopicResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        data:
-          $ref: "#/components/schemas/TopicResponse"
-        timestamp:
-          type: string
-          format: date-time
-    TopicResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        classId:
-          type: string
-          format: uuid
-        title:
-          type: string
-        description:
-          type: string
-    CreateTestcaseRequest:
+    UpdateProblemTemplateRequest:
       type: object
       properties:
         problemId:
           type: string
           format: uuid
-        input:
-          type: string
-        expectedOutput:
-          type: string
-        explanation:
-          type: string
-        sample:
-          type: boolean
-    ApiResponseTestcaseResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        data:
-          $ref: "#/components/schemas/TestcaseResponse"
-        timestamp:
-          type: string
-          format: date-time
-    TestcaseResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        problemId:
-          type: string
-          format: uuid
-        input:
-          type: string
-        expectedOutput:
-          type: string
-        isHidden:
-          type: boolean
-        explanation:
-          type: string
-    SubmitCodeRequest:
-      type: object
-      properties:
-        problemId:
-          type: string
-          format: uuid
-        language:
-          type: string
-        code:
-          type: string
-    ApiResponseSubmissionResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        data:
-          $ref: "#/components/schemas/SubmissionResponse"
-        timestamp:
-          type: string
-          format: date-time
-    SubmissionResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        status:
-          type: string
-        runtime:
-          type: integer
-          format: int64
-        passedTestcases:
-          type: integer
-          format: int32
-        totalTestcases:
-          type: integer
-          format: int32
-    ApiResponseReviewResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        data:
-          $ref: "#/components/schemas/ReviewResponse"
-        timestamp:
-          type: string
-          format: date-time
-    ReviewResponse:
-      type: object
-      properties:
-        summary:
-          type: string
-        detail:
-          type: string
-        testcaseResults:
-          type: array
-          items:
-            $ref: "#/components/schemas/TestcaseResult"
-    TestcaseResult:
-      type: object
-      properties:
-        index:
-          type: integer
-          format: int32
-        input:
-          type: string
-        expectedOutput:
-          type: string
-        output:
-          type: string
-        error:
-          type: string
-        status:
-          type: string
-          enum:
-          - ACCEPTED
-          - WRONG_ANSWER
-          - COMPILE_ERROR
-          - RUNTIME_ERROR
-          - TIME_LIMIT
-        runtime:
-          type: integer
-          format: int64
-    CreateProblemRequest:
-      type: object
-      properties:
-        description:
-          type: string
-        assignmentId:
-          type: string
-          format: uuid
-        problemConstraint:
-          type: string
-        testcases:
-          type: array
-          items:
-            $ref: "#/components/schemas/TestcaseRequest"
-    TestcaseRequest:
-      type: object
-      properties:
-        input:
-          type: string
-        expectedOutput:
-          type: string
-        explanation:
-          type: string
-        sample:
-          type: boolean
+        starterCodes:
+          type: object
+          additionalProperties:
+            type: string
     ApiResponseProblemResponse:
       type: object
       properties:
@@ -886,32 +1089,6 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/ProblemResponse"
-        timestamp:
-          type: string
-          format: date-time
-    ApiResponseListProblemResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProblemResponse"
-        timestamp:
-          type: string
-          format: date-time
-    ApiResponseString:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        data:
-          type: string
         timestamp:
           type: string
           format: date-time
@@ -948,6 +1125,23 @@ components:
           type: array
           items:
             type: string
+    TestcaseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        problemId:
+          type: string
+          format: uuid
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        explanation:
+          type: string
+        hidden:
+          type: boolean
     LeetCodeImportRequest:
       type: object
       properties:
@@ -980,10 +1174,491 @@ components:
           type: string
         expectedOutput:
           type: string
-        isHidden:
-          type: boolean
         explanation:
           type: string
+        hidden:
+          type: boolean
+    ApiResponseListProblemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProblemResponse"
+        timestamp:
+          type: string
+          format: date-time
+    CreateTopicRequest:
+      type: object
+      properties:
+        classId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+    ApiResponseTopicResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/TopicResponse"
+        timestamp:
+          type: string
+          format: date-time
+    TopicResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        classId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+    AddLeetCodeProblemToTopicRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        deadline:
+          type: string
+          format: date-time
+        timeLimit:
+          type: integer
+          format: int64
+        maxScore:
+          type: number
+          format: float
+        maxSubmission:
+          type: integer
+          format: int32
+        tags:
+          type: array
+          items:
+            type: string
+    ApiResponseAssignmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AssignmentResponse"
+        timestamp:
+          type: string
+          format: date-time
+    AssignmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        difficulty:
+          type: string
+          enum:
+          - EASY
+          - MEDIUM
+          - HARD
+        startTime:
+          type: string
+          format: date-time
+        timeLimit:
+          type: integer
+          format: int64
+        maxScore:
+          type: number
+          format: float
+        maxSubmission:
+          type: integer
+          format: int32
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - SUBMITTED
+          - SCORED
+          - OVERDUE
+    CreateTestcaseRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        explanation:
+          type: string
+        hidden:
+          type: boolean
+    ApiResponseTestcaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/TestcaseResponse"
+        timestamp:
+          type: string
+          format: date-time
+    SubmitCodeRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        language:
+          type: string
+        code:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+    ApiResponseSubmissionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/SubmissionResponse"
+        timestamp:
+          type: string
+          format: date-time
+    SubmissionResponse:
+      type: object
+      properties:
+        submissionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - SUBMITTED
+        startedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+        score:
+          type: string
+        studentName:
+          type: string
+    ApiResponseReviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ReviewResponse"
+        timestamp:
+          type: string
+          format: date-time
+    ColumnContext:
+      type: object
+      properties:
+        start:
+          type: integer
+          format: int32
+        end:
+          type: integer
+          format: int32
+    LineContext:
+      type: object
+      properties:
+        start:
+          type: integer
+          format: int32
+        end:
+          type: integer
+          format: int32
+    ReviewItem:
+      type: object
+      properties:
+        line:
+          $ref: "#/components/schemas/LineContext"
+        column:
+          $ref: "#/components/schemas/ColumnContext"
+        type:
+          type: string
+          enum:
+          - Error
+          - Warning
+        issue:
+          type: string
+        code_snippet:
+          type: string
+        fix_suggestion:
+          type: string
+        review_link:
+          $ref: "#/components/schemas/ReviewLink"
+    ReviewLink:
+      type: object
+      properties:
+        current_issue:
+          type: string
+        current_code_snippet:
+          type: string
+        previous_submission_indexes:
+          type: array
+          items:
+            type: integer
+            format: int32
+        previous_code_snippet:
+          type: string
+        what_improved:
+          type: string
+        what_still_needs_work:
+          type: string
+        relation_summary:
+          type: string
+    ReviewResponse:
+      type: object
+      properties:
+        summary:
+          type: string
+        detail:
+          type: string
+        review_id:
+          type: string
+        review_items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewItem"
+        scorecard:
+          $ref: "#/components/schemas/ScoreCard"
+    ScoreCard:
+      type: object
+      properties:
+        problem_solving_creativity:
+          $ref: "#/components/schemas/ScoreCardItem"
+        logic_traceability:
+          $ref: "#/components/schemas/ScoreCardItem"
+        generalization_score:
+          $ref: "#/components/schemas/ScoreCardItem"
+        construct_appropriateness:
+          $ref: "#/components/schemas/ScoreCardItem"
+        self_correction_path:
+          $ref: "#/components/schemas/ScoreCardItem"
+        variable_understanding:
+          $ref: "#/components/schemas/ScoreCardItem"
+        control_flow_understanding:
+          $ref: "#/components/schemas/ScoreCardItem"
+        input_output_awareness:
+          $ref: "#/components/schemas/ScoreCardItem"
+        edge_case_awareness:
+          $ref: "#/components/schemas/ScoreCardItem"
+        debugging_readiness:
+          $ref: "#/components/schemas/ScoreCardItem"
+    ScoreCardItem:
+      type: object
+      properties:
+        score:
+          type: integer
+          format: int32
+        label:
+          type: string
+        explanation:
+          type: string
+    ReviewCodeRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        language:
+          type: string
+    RecommendationRequest:
+      type: object
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        current_exercise_id:
+          type: string
+          format: uuid
+    ApiResponseRecommendationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RecommendationResponse"
+        timestamp:
+          type: string
+          format: date-time
+    Exercise:
+      type: object
+      properties:
+        exercise_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        content:
+          type: string
+        difficulty:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        concept_ids:
+          type: array
+          items:
+            type: string
+        directive:
+          type: string
+    Framework:
+      type: object
+      properties:
+        risk_level:
+          type: string
+        readiness_level:
+          type: string
+        explanation:
+          type: string
+    GraphSummary:
+      type: object
+      properties:
+        current_concept_weight:
+          type: number
+          format: double
+        best_path_weight:
+          type: number
+          format: double
+        best_related_exercise_weight:
+          type: number
+          format: double
+        latest_review_improvement_signal:
+          type: number
+          format: double
+        latest_review_severity_change:
+          type: number
+          format: double
+        latest_submission_improvement_ratio:
+          type: number
+          format: double
+        latest_submission_regression_ratio:
+          type: number
+          format: double
+    RecommendationResponse:
+      type: object
+      properties:
+        student_id:
+          type: string
+        current_exercise_id:
+          type: string
+        anchor_concept:
+          type: string
+        assigned_path:
+          type: string
+        focus_concept_id:
+          type: string
+        critical_errors:
+          type: integer
+          format: int32
+        framework:
+          $ref: "#/components/schemas/Framework"
+        graph_summary:
+          $ref: "#/components/schemas/GraphSummary"
+        reasoning:
+          $ref: "#/components/schemas/ReferenceBlock"
+        roadmap_summary:
+          $ref: "#/components/schemas/ReferenceBlock"
+        roadmap:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoadmapStep"
+    ReferenceBlock:
+      type: object
+      properties:
+        content:
+          type: string
+        refs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferenceItem"
+    ReferenceItem:
+      type: object
+      properties:
+        ref_id:
+          type: string
+        content:
+          type: string
+        ref_category:
+          type: string
+    RoadmapStep:
+      type: object
+      properties:
+        step:
+          type: integer
+          format: int32
+        exercise:
+          $ref: "#/components/schemas/Exercise"
+    CreateProblemRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        title:
+          type: string
+        difficulty:
+          type: string
+        assignmentId:
+          type: string
+          format: uuid
+        problemConstraint:
+          type: string
+        starterCodes:
+          type: object
+          additionalProperties:
+            type: string
+        testcases:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseDto"
     RunCodeRequest:
       type: object
       properties:
@@ -1026,6 +1701,37 @@ components:
         totalTestcases:
           type: integer
           format: int32
+        runtime:
+          type: integer
+          format: int64
+    TestcaseResult:
+      type: object
+      properties:
+        testcaseId:
+          type: string
+          format: uuid
+        index:
+          type: integer
+          format: int32
+        input:
+          type: string
+        expectedOutput:
+          type: string
+        output:
+          type: string
+        error:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - WRONG_ANSWER
+          - COMPILE_ERROR
+          - RUNTIME_ERROR
+          - TIME_LIMIT
+        runtime:
+          type: integer
+          format: int64
     RunTestcaseRequest:
       type: object
       properties:
@@ -1062,18 +1768,6 @@ components:
           type: string
         type:
           type: string
-    CreateClassRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        image:
-          type: string
-          format: binary
-        schedule:
-          type: string
     ApiResponseClassResponse:
       type: object
       properties:
@@ -1101,12 +1795,6 @@ components:
           format: uuid
         imageUrl:
           type: string
-    AddStudentRequest:
-      type: object
-      properties:
-        studentId:
-          type: string
-          format: uuid
     ApiResponseObject:
       type: object
       properties:
@@ -1127,15 +1815,31 @@ components:
           format: uuid
         title:
           type: string
+        startTime:
+          type: string
+          format: date-time
         deadline:
           type: string
           format: date-time
+        timeLimit:
+          type: integer
+          format: int64
+        maxScore:
+          type: number
+          format: float
+        maxSubmission:
+          type: integer
+          format: int32
         difficulty:
           type: string
           enum:
           - EASY
           - MEDIUM
           - HARD
+        tags:
+          type: array
+          items:
+            type: string
         problem:
           $ref: "#/components/schemas/ProblemRequest"
     ProblemRequest:
@@ -1143,11 +1847,27 @@ components:
       properties:
         description:
           type: string
+        problemConstraint:
+          type: string
+        starterCodes:
+          type: object
+          additionalProperties:
+            type: string
+        leetCodeCodeSnippet:
+          type: string
+        leetCodeLanguage:
+          type: string
         testcases:
           type: array
           items:
-            $ref: "#/components/schemas/TestcaseRequest"
-    ApiResponseAssignmentResponse:
+            $ref: "#/components/schemas/TestcaseDto"
+    AddProblemToAssignmentRequest:
+      type: object
+      properties:
+        problemId:
+          type: string
+          format: uuid
+    ApiResponseListUserResponse:
       type: object
       properties:
         success:
@@ -1155,34 +1875,12 @@ components:
         message:
           type: string
         data:
-          $ref: "#/components/schemas/AssignmentResponse"
+          type: array
+          items:
+            $ref: "#/components/schemas/UserResponse"
         timestamp:
           type: string
           format: date-time
-    AssignmentResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        title:
-          type: string
-        deadline:
-          type: string
-          format: date-time
-        difficulty:
-          type: string
-          enum:
-          - EASY
-          - MEDIUM
-          - HARD
-        status:
-          type: string
-          enum:
-          - PENDING
-          - SUBMITTED
-          - SCORED
-          - OVERDUE
     ApiResponseTopicDetailResponse:
       type: object
       properties:
@@ -1262,28 +1960,15 @@ components:
     SubmissionDetailResponse:
       type: object
       properties:
-        submissionId:
-          type: string
-          format: uuid
-        problemTitle:
-          type: string
-        problemDescription:
-          type: string
-        score:
-          type: string
-        difficulty:
-          type: string
         code:
           type: string
         language:
           type: string
-        status:
-          type: string
-        testcases:
+        testcaseResults:
           type: array
           items:
-            $ref: "#/components/schemas/TestcaseResponse"
-    ApiResponseListSubmissionOverviewResponse:
+            $ref: "#/components/schemas/TestcaseResult"
+    ApiResponseListSubmission:
       type: object
       properties:
         success:
@@ -1293,34 +1978,63 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/SubmissionOverviewResponse"
+            $ref: "#/components/schemas/Submission"
         timestamp:
           type: string
           format: date-time
-    SubmissionOverviewResponse:
+    Submission:
       type: object
       properties:
-        submissionId:
+        id:
           type: string
           format: uuid
-        assignmentTitle:
+        userId:
           type: string
-        problemTitle:
+          format: uuid
+        problemId:
           type: string
-        score:
+          format: uuid
+        language:
           type: string
-        difficulty:
+        code:
           type: string
-        deadline:
-          type: string
-          format: date-time
         status:
           type: string
+          enum:
+          - IN_PROGRESS
+          - SUBMITTED
+        runtime:
+          type: integer
+          format: int64
+        testcaseResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestcaseResult"
+        passedTestcases:
+          type: integer
+          format: int32
+        totalTestcases:
+          type: integer
+          format: int32
         submittedAt:
           type: string
           format: date-time
-        studentName:
+        score:
           type: string
+    ApiResponseListSubmissionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmissionResponse"
+        timestamp:
+          type: string
+          format: date-time
     ApiResponseListReviewResponse:
       type: object
       properties:
@@ -1335,6 +2049,37 @@ components:
         timestamp:
           type: string
           format: date-time
+    ApiResponsePageResponseProblemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/PageResponseProblemResponse"
+        timestamp:
+          type: string
+          format: date-time
+    PageResponseProblemResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProblemResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
     ApiResponseListDocumentResponse:
       type: object
       properties:
@@ -1371,6 +2116,10 @@ components:
         enrolledStudentsCount:
           type: integer
           format: int32
+        enrolledStudents:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserResponse"
         createdAt:
           type: string
         status:

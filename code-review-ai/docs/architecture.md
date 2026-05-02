@@ -191,7 +191,7 @@ Core relationships:
 
 - `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 - `(:Exercise)-[:TESTS {weight}]->(:Concept)`
-- `(:Exercise)-[:RELATED_TO {weight, relation_type, target_concept_id, shared_concept_ids, difficulty_gap, progression_score, similarity_score}]->(:Exercise)`
+- `(:Exercise)-[:RELATED_TO {weight, target_concept_id, shared_concept_ids, difficulty_gap, progression_score, similarity_score}]->(:Exercise)`
 - `(:Exercise)-[:RECOMMENDED_FOR {path}]->(:Concept)`
 - `(:Student)-[:MASTERED]->(:Concept)`
 - `(:Student)-[:ATTEMPTED]->(:Exercise)`

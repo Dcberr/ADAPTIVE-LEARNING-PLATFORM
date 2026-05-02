@@ -96,4 +96,3 @@ class ReviewResponse(BaseModel):
     summary: str
     detail: str
     review_items: List[ReviewItem]
-    scorecard: ScoreCard

@@ -225,7 +225,6 @@ class Neo4jRepositoryExerciseBatchTests(unittest.TestCase):
                             related_exercise,
                             {
                                 "weight": 0.7,
-                                "relation_type": "SIMILAR_PRACTICE",
                                 "difficulty_gap": 0.0,
                                 "progression_score": 0.7,
                                 "similarity_score": 0.8,

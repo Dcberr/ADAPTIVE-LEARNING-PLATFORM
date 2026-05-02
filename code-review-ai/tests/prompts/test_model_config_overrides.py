@@ -76,20 +76,20 @@ class ModelConfigOverrideTests(unittest.TestCase):
                 "FIREWORKS_API_KEY": "test-key",
                 "RECOMMENDATION_MODEL": "fireworks/recommendation-default",
                 "RECOMMENDATION_RERANKER_MODEL": "accounts/fireworks/models/reranker-override",
-                "RECOMMENDATION_EXPLANATION_BUILDER_MODEL": "fireworks/explainer-override",
+                "RECOMMENDATION_ROADMAP_BUILDER_MODEL": "fireworks/roadmap-override",
             }
         )
 
         reranker_stage = config.get_stage_config("recommendation", "reranker")
-        explanation_stage = config.get_stage_config(
-            "recommendation", "explanation_builder"
+        roadmap_stage = config.get_stage_config(
+            "recommendation", "roadmap_builder"
         )
 
         self.assertEqual(
             reranker_stage.model_name, "accounts/fireworks/models/reranker-override"
         )
         self.assertEqual(
-            explanation_stage.model_name, "fireworks/explainer-override"
+            roadmap_stage.model_name, "fireworks/roadmap-override"
         )
 
 if __name__ == "__main__":

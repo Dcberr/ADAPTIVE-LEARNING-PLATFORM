@@ -7,7 +7,6 @@ from code_review_ai.agents.improvement_agent import ImprovementAgent
 from code_review_ai.agents.logic_agent import LogicAgent
 from code_review_ai.agents.overview_agent import OverviewAgent
 from code_review_ai.agents.review_link_agent import ReviewLinkAgent
-from code_review_ai.agents.scoring_agent import ScoringAgent
 from code_review_ai.config import EnvConfig, FireworksStageConfig, get_env_config
 from code_review_ai.services.review_code_service import ReviewCodeService
 
@@ -109,26 +108,12 @@ def get_overview_agent(
     )
 
 
-def get_scoring_agent(
-    client=Depends(get_fireworks_client),
-    settings: EnvConfig = Depends(get_settings_dependency),
-) -> ScoringAgent:
-    config = get_stage_model_config("review", "scoring", settings=settings)
-    return ScoringAgent(
-        client=client,
-        model_name=config.model_name,
-        temperature=config.temperature,
-        max_tokens=config.max_tokens,
-    )
-
-
 def get_review_service(
     logic_agent: LogicAgent = Depends(get_logic_agent),
     fix_hint_agent: FixHintAgent = Depends(get_fix_hint_agent),
     improvement_agent: ImprovementAgent = Depends(get_improvement_agent),
     review_link_agent: ReviewLinkAgent = Depends(get_review_link_agent),
     overview_agent: OverviewAgent = Depends(get_overview_agent),
-    scoring_agent: ScoringAgent = Depends(get_scoring_agent),
 ) -> ReviewCodeService:
     return ReviewCodeService(
         logic_agent=logic_agent,
@@ -136,5 +121,4 @@ def get_review_service(
         improvement_agent=improvement_agent,
         review_link_agent=review_link_agent,
         overview_agent=overview_agent,
-        scoring_agent=scoring_agent,
     )
