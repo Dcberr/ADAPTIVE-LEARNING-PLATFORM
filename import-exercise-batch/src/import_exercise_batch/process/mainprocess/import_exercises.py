@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from import_exercise_batch.model import LeetCodeProblemChange
+from import_exercise_batch.model import LeetCodeProblem, LeetCodeProblemChange
 from import_exercise_batch.config import ImportExercisesSettings
 from import_exercise_batch.process.mainprocess.base import BaseMainProcess
 from import_exercise_batch.process.subprocess.api import (
@@ -57,13 +57,17 @@ class ImportExercisesMainProcess(BaseMainProcess):
                     tag=tag.slug,
                     limit=resolved_limit,
                 )
+                complete_exercises = self._filter_exercises_with_full_payload(
+                    fetched_exercises,
+                    tag_slug=tag.slug,
+                )
                 self.logger.info(
-                    "Fetched %s exercises from LeetCode for tag=%s limit=%s",
-                    len(fetched_exercises),
+                    "Fetched %s complete exercises from LeetCode for tag=%s limit=%s",
+                    len(complete_exercises),
                     tag.slug,
                     resolved_limit,
                 )
-                for exercise in fetched_exercises:
+                for exercise in complete_exercises:
                     exercises_by_slug.setdefault(exercise.question_slug, exercise)
 
             exercises = list(exercises_by_slug.values())
@@ -100,9 +104,15 @@ class ImportExercisesMainProcess(BaseMainProcess):
                 update_count,
                 no_diff_count,
             )
-            changed_exercises = self.code_review_subprocess.import_exercise(
-                exercise_changes
+            synced_exercises = self.code_review_subprocess.import_exercise(
+                exercise_changes,
+                sync_unchanged=True,
             )
+            changed_exercises = [
+                exercise
+                for exercise in synced_exercises
+                if exercise.diff_type != "no_different"
+            ]
             self.code_review_ai_subprocess.import_exercises(changed_exercises)
             self.patch_code_review_ai_relations(changed_exercises)
             self.database_subprocess.upsert_latest_exercises(
@@ -118,3 +128,27 @@ class ImportExercisesMainProcess(BaseMainProcess):
         exercises: Iterable[LeetCodeProblemChange],
     ) -> None:
         self.code_review_ai_subprocess.patch_exercise_relations_batch(exercises)
+
+    def _filter_exercises_with_full_payload(
+        self,
+        exercises: Iterable[LeetCodeProblem],
+        *,
+        tag_slug: str,
+    ) -> list[LeetCodeProblem]:
+        complete_exercises: list[LeetCodeProblem] = []
+        skipped_slugs: list[str] = []
+        for exercise in exercises:
+            if exercise.has_full_payload():
+                complete_exercises.append(exercise)
+                continue
+            skipped_slugs.append(exercise.question_slug)
+
+        if skipped_slugs:
+            self.logger.warning(
+                "Skipping %s LeetCode exercises without full payload for tag=%s slugs=%s",
+                len(skipped_slugs),
+                tag_slug,
+                ", ".join(skipped_slugs),
+            )
+
+        return complete_exercises
