@@ -7,7 +7,9 @@ import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
+import com.example.demo.problem.dto.ProblemLibraryRequest;
 import com.example.demo.problem.dto.ProblemResponse;
+import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 
 public interface ProblemService {
@@ -29,8 +31,12 @@ public interface ProblemService {
 
     public ProblemResponse createManualProblem(CreateProblemRequest request);
 
+    public ProblemResponse createManualLibraryProblem(ProblemLibraryRequest request);
+
     public List<ProblemResponse> batchInsertLeetCode(List<LeetCodeImportRequest> requests);
 
     public List<ProblemResponse> batchUpdateLeetCode(List<LeetCodeImportRequest> requests);
+
+    public ProblemResponse updateProblemSourceToLibrary(UpdateProblemSourceRequest request);
 
 }

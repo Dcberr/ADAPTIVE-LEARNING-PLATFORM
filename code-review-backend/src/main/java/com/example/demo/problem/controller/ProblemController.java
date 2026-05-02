@@ -11,7 +11,9 @@ import com.example.demo.common.response.ApiResponse;
 import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
+import com.example.demo.problem.dto.ProblemLibraryRequest;
 import com.example.demo.problem.dto.ProblemResponse;
+import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
 
@@ -83,6 +85,22 @@ public class ProblemController {
             @RequestBody List<LeetCodeImportRequest> requests
     ) {
         return ApiResponse.success(problemService.batchUpdateLeetCode(requests));
+    }
+
+    @Operation(summary = "Create manual LeetCode problem")
+    @PostMapping("/leetcode/manual")
+    public ApiResponse<ProblemResponse> createManualLibraryProblem(
+            @RequestBody ProblemLibraryRequest request
+    ) {
+        return ApiResponse.success(problemService.createManualLibraryProblem(request));
+    }
+
+    @Operation(summary = "Add problem from class to library")
+    @PutMapping("/source/library")
+    public ApiResponse<ProblemResponse> updateProblemSourceToLibrary(
+            @RequestBody UpdateProblemSourceRequest request
+    ) {
+        return ApiResponse.success(problemService.updateProblemSourceToLibrary(request));
     }
 
     @Operation(summary = "Get problem by assignment ID")

@@ -22,9 +22,11 @@ import com.example.demo.problem.dto.CreateProblemRequest;
 // import com.example.demo.problem.dto.CreateProblemRequest.TestcaseRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
+import com.example.demo.problem.dto.ProblemLibraryRequest;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.dto.TestcaseResponse;
+import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.ProblemTag;
@@ -235,6 +237,37 @@ public class ProblemServiceImpl implements ProblemService {
 
     @Transactional
     @Override
+    public ProblemResponse createManualLibraryProblem(ProblemLibraryRequest request) {
+
+        // validateLeetCodeExternalId(request.getExternalId(), null);
+
+        Problem problem = Problem.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .difficulty(request.getDifficulty())
+                .problemConstraint(request.getConstraints())
+                .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
+                .type(ProblemType.MANUAL)
+                .source("SYSTEM")
+                // .externalId(request.getExternalId())
+                .createdAt(Instant.now())
+                .build();
+
+        problemRepository.save(problem);
+
+        saveTestcases(problem.getId(), request.getTestcases());
+        replaceProblemTags(problem.getId(), request.getTags());
+        // syncSimilarProblems(problem, request.getSimilarQuestionIds());
+        problemRepository.save(problem);
+
+        List<TestcaseResponse> testcases =
+                testcaseService.getTestcasesByProblem(problem.getId());
+
+        return map(problem, testcases);
+    }
+
+    @Transactional
+    @Override
     public List<ProblemResponse> batchInsertLeetCode(List<LeetCodeImportRequest> requests) {
 
         Map<String, Problem> cache = new HashMap<>();
@@ -279,23 +312,7 @@ public class ProblemServiceImpl implements ProblemService {
         for (LeetCodeImportRequest req : requests) {
 
             Problem current = cache.get(req.getExternalId());
-
-            if (req.getSimilarQuestionIds() == null) continue;
-
-            for (String similarId : req.getSimilarQuestionIds()) {
-
-                Problem similar = problemRepository
-                        .findBySourceAndExternalId("LEETCODE", similarId)
-                        .orElse(null);
-
-                if (similar != null && !similar.getId().equals(current.getId())) {
-
-                    current.getSimilarProblems().add(similar);
-
-                    // optional: bidirectional
-                    similar.getSimilarProblems().add(current);
-                }
-            }
+            syncSimilarProblems(current, req.getSimilarQuestionIds());
         }
 
         // =========================
@@ -354,20 +371,7 @@ public class ProblemServiceImpl implements ProblemService {
         for (LeetCodeImportRequest req : requests) {
 
             Problem current = cache.get(req.getExternalId());
-
-            if (req.getSimilarQuestionIds() == null) continue;
-
-            for (String similarId : req.getSimilarQuestionIds()) {
-
-                Problem similar = problemRepository
-                        .findBySourceAndExternalId("LEETCODE", similarId)
-                        .orElse(null);
-
-                if (similar != null && !similar.getId().equals(current.getId())) {
-                    current.getSimilarProblems().add(similar);
-                    similar.getSimilarProblems().add(current);
-                }
-            }
+            syncSimilarProblems(current, req.getSimilarQuestionIds());
         }
 
         problemRepository.saveAll(cache.values());
@@ -380,6 +384,30 @@ public class ProblemServiceImpl implements ProblemService {
                     return map(problem, testcases);
                 })
                 .toList();
+    }
+
+    @Transactional
+    @Override
+    public ProblemResponse updateProblemSourceToLibrary(UpdateProblemSourceRequest request) {
+        Problem problem = problemRepository.findById(request.getProblemId())
+                .orElseThrow(() -> new RuntimeException("Problem not found"));
+
+        if (!"SYSTEM".equals(problem.getSource())) {
+            throw new RuntimeException("Only SYSTEM problems can be converted to LEETCODE");
+        }
+
+        validateLeetCodeExternalId(request.getExternalId(), problem.getId());
+
+        problem.setSource("LEETCODE");
+        problem.setType(ProblemType.LEETCODE);
+        problem.setExternalId(request.getExternalId());
+
+        problemRepository.save(problem);
+
+        List<TestcaseResponse> testcases =
+                testcaseService.getTestcasesByProblem(problem.getId());
+
+        return map(problem, testcases);
     }
 
     private void saveTestcases(UUID problemId, List<TestcaseDto> testcases) {
@@ -426,6 +454,35 @@ public class ProblemServiceImpl implements ProblemService {
                 .toList();
 
         problemTagRepository.saveAll(problemTags);
+    }
+
+    private void syncSimilarProblems(Problem problem, List<String> similarQuestionIds) {
+        if (similarQuestionIds == null) {
+            return;
+        }
+
+        for (String similarId : similarQuestionIds) {
+            Problem similar = problemRepository
+                    .findBySourceAndExternalId("LEETCODE", similarId)
+                    .orElse(null);
+
+            if (similar != null && !similar.getId().equals(problem.getId())) {
+                problem.getSimilarProblems().add(similar);
+                similar.getSimilarProblems().add(problem);
+            }
+        }
+    }
+
+    private void validateLeetCodeExternalId(String externalId, UUID currentProblemId) {
+        if (externalId == null || externalId.isBlank()) {
+            throw new RuntimeException("externalId is required for LEETCODE problem");
+        }
+
+        problemRepository.findBySourceAndExternalId("LEETCODE", externalId)
+                .filter(existing -> currentProblemId == null || !existing.getId().equals(currentProblemId))
+                .ifPresent(existing -> {
+                    throw new RuntimeException("LeetCode problem with externalId already exists");
+                });
     }
     
 }
