@@ -75,7 +75,7 @@ services:
       start_period: 40s
 
   review-agent:
-    build: review-agent/
+    build: code-review-ai/
     container_name: review-agent
     ports:
       - "8000:8000"

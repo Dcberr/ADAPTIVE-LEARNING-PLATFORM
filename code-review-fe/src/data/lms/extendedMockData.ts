@@ -96,7 +96,7 @@ export interface ProblemBankEntry {
   id: string
   title: string
   description: string
-  difficulty: "Easy" | "Medium" | "Hard"
+  difficulty: "Easy" | "Medium" | "Hard" | "EASY" | "MEDIUM" | "HARD" | string
   topics: string[]
   estimatedMinutes: number
   recommendedForCourseIds: string[]

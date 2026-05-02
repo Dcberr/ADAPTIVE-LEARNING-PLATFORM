@@ -738,6 +738,7 @@ export default function CodeProblemPage({
           <EditorWorkspaceCard
             language={language}
             code={activeCode}
+            review={review}
             runningAction={runningAction}
             canRequestReview={canRequestReview}
             onCodeChange={setCode}
@@ -763,31 +764,6 @@ export default function CodeProblemPage({
                 flexBasis: collapsedPane === "right" ? "100%" : `${leftPaneWidth}%`,
               }}
             >
-              <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-                {collapsedPane === "right" ? (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="bg-white/95"
-                    onClick={expandSplitLayout}
-                    aria-label="Mở lại code editor"
-                  >
-                    <PanelRightOpen className="size-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="bg-white/95"
-                    onClick={collapseRightPane}
-                    aria-label="Ẩn code editor"
-                  >
-                    <ChevronRight className="size-4" />
-                  </Button>
-                )}
-              </div>
               <ProblemWorkspaceTabs
                 problem={problem}
                 activeTab={activeTab}
@@ -836,34 +812,10 @@ export default function CodeProblemPage({
                 flexBasis: collapsedPane === "left" ? "100%" : `${100 - leftPaneWidth}%`,
               }}
             >
-              <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
-                {collapsedPane === "left" ? (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="bg-white/95"
-                    onClick={expandSplitLayout}
-                    aria-label="Mở lại panel bài tập"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="bg-white/95"
-                    onClick={collapseLeftPane}
-                    aria-label="Ẩn panel bài tập"
-                  >
-                    <ChevronLeft className="size-4" />
-                  </Button>
-                )}
-              </div>
               <EditorWorkspaceCard
                 language={language}
                 code={activeCode}
+                review={review}
                 runningAction={runningAction}
                 canRequestReview={canRequestReview}
                 onCodeChange={setCode}
