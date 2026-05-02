@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.example.demo.problem.entity.Problem;
+import com.example.demo.problem.entity.ProblemType;
 
 @Repository
 public interface ProblemRepository
@@ -17,6 +18,6 @@ public interface ProblemRepository
 
         Optional<Problem> findBySourceAndExternalId(String source, String externalId);
 
-        Page<Problem> findAllBySourceOrderByCreatedAtDesc(String source, Pageable pageable);
+        Page<Problem> findAllByTypeOrderByCreatedAtDesc(ProblemType type, Pageable pageable);
 
 }

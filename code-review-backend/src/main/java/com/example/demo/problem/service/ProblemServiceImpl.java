@@ -23,6 +23,7 @@ import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemLibraryRequest;
+import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.dto.TestcaseResponse;
@@ -135,20 +136,17 @@ public class ProblemServiceImpl implements ProblemService {
     }
 
     @Override
-    public PageResponse<ProblemResponse> getAllLeetCodeProblems(int page, int size) {
-        Page<Problem> problemPage = problemRepository.findAllBySourceOrderByCreatedAtDesc(
-                "LEETCODE",
+    public PageResponse<ProblemOverviewResponse> getAllLibraryProblems(int page, int size) {
+        Page<Problem> problemPage = problemRepository.findAllByTypeOrderByCreatedAtDesc(
+                ProblemType.LIBRARY,
                 PageRequest.of(page, size)
         );
 
-        List<ProblemResponse> content = problemPage.getContent().stream()
-                .map(problem -> map(
-                    problem,
-                    testcaseService.getTestcasesByProblem(problem.getId())
-                ))
+        List<ProblemOverviewResponse> content = problemPage.getContent().stream()
+                .map(this::mapOverview)
                 .toList();
 
-        return PageResponse.<ProblemResponse>builder()
+        return PageResponse.<ProblemOverviewResponse>builder()
                 .content(content)
                 .page(problemPage.getNumber())
                 .size(problemPage.getSize())
@@ -206,6 +204,16 @@ public class ProblemServiceImpl implements ProblemService {
                 .similarQuestionIds(similarIds)
                 .tags(getProblemTags(problem.getId()))
                 .testcases(testcases)
+                .build();
+    }
+
+    private ProblemOverviewResponse mapOverview(Problem problem) {
+        return ProblemOverviewResponse.builder()
+                .id(problem.getId())
+                .externalId(problem.getExternalId())
+                .title(problem.getTitle())
+                .difficulty(problem.getDifficulty())
+                .tags(getProblemTags(problem.getId()))
                 .build();
     }
 

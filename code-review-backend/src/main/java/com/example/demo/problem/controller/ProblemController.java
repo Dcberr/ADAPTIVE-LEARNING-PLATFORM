@@ -12,6 +12,7 @@ import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.ProblemLibraryRequest;
+import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
@@ -50,14 +51,14 @@ public class ProblemController {
         );
     }
 
-    @Operation(summary = "Get paged LeetCode problems")
-    @GetMapping("/leetcode")
-    public ApiResponse<PageResponse<ProblemResponse>> getAllLeetCodeProblems(
+    @Operation(summary = "Get paged library problems")
+    @GetMapping("/library")
+    public ApiResponse<PageResponse<ProblemOverviewResponse>> getAllLibraryProblems(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         return ApiResponse.success(
-                problemService.getAllLeetCodeProblems(page, size)
+                problemService.getAllLibraryProblems(page, size)
         );
     }
 
