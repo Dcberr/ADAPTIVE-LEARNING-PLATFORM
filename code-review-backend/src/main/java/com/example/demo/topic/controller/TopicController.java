@@ -13,6 +13,7 @@ import com.example.demo.topic.dto.CreateTopicRequest;
 import com.example.demo.topic.dto.TopicDetailResponse;
 import com.example.demo.topic.dto.TopicOverviewResponse;
 import com.example.demo.topic.dto.TopicResponse;
+import com.example.demo.topic.dto.UpdateTopicRequest;
 import com.example.demo.topic.service.TopicService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,18 @@ public class TopicController {
     ) {
         return ApiResponse.success(
                 topicService.createTopic(request)
+        );
+    }
+
+    @Operation(summary = "Update topic")
+    @PutMapping("/{topicId}")
+    public ApiResponse<TopicResponse> updateTopic(
+            @Parameter(description = "Topic ID")
+            @PathVariable UUID topicId,
+            @RequestBody UpdateTopicRequest request
+    ) {
+        return ApiResponse.success(
+                topicService.updateTopic(topicId, request)
         );
     }
 
@@ -69,5 +82,15 @@ public class TopicController {
         return ApiResponse.success(
                 topicService.addLeetCodeProblemToTopic(topicId, request)
         );
+    }
+
+    @Operation(summary = "Soft delete topic")
+    @DeleteMapping("/{topicId}")
+    public ApiResponse<?> deleteTopic(
+            @Parameter(description = "Topic ID")
+            @PathVariable UUID topicId
+    ) {
+        topicService.deleteTopic(topicId);
+        return ApiResponse.success(null);
     }
 }

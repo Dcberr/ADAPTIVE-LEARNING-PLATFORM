@@ -1,49 +1,23 @@
 from typing import TypedDict
 
-from code_review_ai.api.review_code_schema import ReviewResponse
+from code_review_ai.api.recommendation_schema import (
+    RecommendationReviewRequest,
+    RecommendationSubmissionRequest,
+)
 from code_review_ai.models.exercise_record import ExerciseRecord
-from code_review_ai.models.knowledge_graph import AssignedPath
-from code_review_ai.models.recommendation_framework import RecommendationScoringFramework
-from code_review_ai.models.review_record import ReviewRecord
-from code_review_ai.models.submission_record import SubmissionRecord
 
 
 class RecommendationState(TypedDict):
     student_id: str
     exercise_id: str
-    base_context: dict
-    context_plan: dict
-    context_plan_valid: bool
-    loaded_blocks: list[str]
-    anchor_concept: str
-    anchor_concept_weight: float
-    current_concept: str
-    review: ReviewResponse | None
-    review_record: ReviewRecord | None
-    review_history: list[ReviewRecord]
-    latest_submission: SubmissionRecord | None
-    previous_review_payload: dict | None
-    previous_submission_payload: dict | None
-    mastered_concepts: list[str]
+    exercise: ExerciseRecord
+    focus_concept_ids: list[str]
+    review: RecommendationReviewRequest | None
+    submission: RecommendationSubmissionRequest | None
     attempted_exercise_ids: list[str]
-    assigned_exercise_ids: list[str]
-    critical_errors: int
-    latest_submission_improvement_ratio: float
-    latest_submission_regression_ratio: float
-    exercise_graph: dict
-    assigned_path: AssignedPath
-    path_decision_valid: bool
-    path_decision_confidence: float
-    path_decision_reason: str
-    focus_concept_id: str
-    reasoning: dict
-    explanation_valid: bool
-    framework: RecommendationScoringFramework
-    graph_summary: dict
     retrieved_candidates: list[dict]
+    rerank_query: dict
+    rerank_overview: str
     reranked_candidates: list[dict]
-    roadmap_selection_valid: bool
-    selected_candidates: list[dict]
-    selected_exercises: list[ExerciseRecord]
-    roadmap_directives: list[str]
-    roadmap_summary: dict
+    roadmap_summary: str
+    roadmap_steps: list[dict]

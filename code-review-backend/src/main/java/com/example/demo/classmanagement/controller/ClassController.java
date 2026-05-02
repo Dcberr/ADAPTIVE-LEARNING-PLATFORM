@@ -7,26 +7,24 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.demo.classmanagement.dto.AddStudentRequest;
 import com.example.demo.classmanagement.dto.ClassDetailResponse;
 import com.example.demo.classmanagement.dto.ClassOverviewResponse;
 import com.example.demo.classmanagement.dto.ClassResponse;
 import com.example.demo.classmanagement.dto.CreateClassRequest;
+import com.example.demo.classmanagement.dto.UpdateClassRequest;
 import com.example.demo.classmanagement.service.ClassService;
 import com.example.demo.common.response.ApiResponse;
 import com.example.demo.user.dto.UserResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
@@ -69,6 +67,24 @@ public class ClassController {
         return ApiResponse.success(
                 classService.getMyClasses(userId)
         );
+    }
+
+    @Operation(summary = "Update class")
+    @PutMapping(value = "/{classId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ClassResponse> updateClass(
+            @PathVariable UUID classId,
+            @RequestPart(value = "name", required = false) String name,
+            @RequestPart(value = "description", required = false) String description,
+            @RequestPart(value = "schedule", required = false) String schedule,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        UpdateClassRequest request = new UpdateClassRequest();
+        request.setName(name);
+        request.setDescription(description);
+        request.setSchedule(schedule);
+        request.setImage(image);
+
+        return ApiResponse.success(classService.updateClass(classId, request));
     }
 
 //     @Operation(summary = "Add student to class")
@@ -129,6 +145,13 @@ public class ClassController {
             @PathVariable String userCode
     ) {
         classService.removeStudentFromClassByUserCode(classId, userCode);
-        return ApiResponse.success(null);        
+        return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "Soft delete class")
+    @DeleteMapping("/{classId}")
+    public ApiResponse<?> deleteClass(@PathVariable UUID classId) {
+        classService.deleteClass(classId);
+        return ApiResponse.success(null);
     }
 }

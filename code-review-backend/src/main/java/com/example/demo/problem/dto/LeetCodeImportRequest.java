@@ -24,6 +24,8 @@ public class LeetCodeImportRequest {
 
     private List<String> similarQuestionIds;
 
+    private List<String> tags;
+
     // @Data
     // public static class TestcaseRequest {
     //     private String input;

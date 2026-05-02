@@ -35,4 +35,6 @@ public class Document {
     private String type; // PDF | VIDEO
 
     private Instant createdAt;
+
+    private Instant deletedAt;
 }

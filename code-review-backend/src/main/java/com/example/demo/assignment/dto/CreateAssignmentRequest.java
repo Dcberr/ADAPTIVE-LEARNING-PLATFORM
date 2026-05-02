@@ -53,8 +53,8 @@ public class CreateAssignmentRequest {
         private String problemConstraint;
 
         private Map<String, String> starterCodes;
-        private String leetCodeCodeSnippet;
-        private String leetCodeLanguage;
+        // private String leetCodeCodeSnippet;
+        // private String leetCodeLanguage;
 
         private List<TestcaseDto> testcases;
     }

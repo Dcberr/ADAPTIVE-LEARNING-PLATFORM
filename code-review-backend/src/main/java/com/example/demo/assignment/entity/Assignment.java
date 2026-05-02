@@ -49,6 +49,8 @@ public class Assignment {
 
     private Instant createdAt;
 
+    private Instant deletedAt;
+
     @Enumerated(EnumType.STRING)
     private AssigmentDifficulty difficulty; 
 

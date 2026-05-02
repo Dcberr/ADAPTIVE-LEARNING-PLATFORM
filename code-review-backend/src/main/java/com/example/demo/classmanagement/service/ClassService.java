@@ -10,6 +10,8 @@ public interface ClassService {
 
     ClassResponse createClass(UUID instructorId, CreateClassRequest request);
 
+    ClassResponse updateClass(UUID classId, UpdateClassRequest request);
+
     List<ClassOverviewResponse> getClassesForInstructor(UUID instructorId);
 
     List<ClassOverviewResponse> getClassesForStudent(UUID studentId);
@@ -26,5 +28,7 @@ public interface ClassService {
 
     ClassDetailResponse getClassDetail(UUID classId);
 
-    List<UserResponse> getEnrolledStudents(UUID classId);   
+    List<UserResponse> getEnrolledStudents(UUID classId);
+
+    void deleteClass(UUID classId);
 }

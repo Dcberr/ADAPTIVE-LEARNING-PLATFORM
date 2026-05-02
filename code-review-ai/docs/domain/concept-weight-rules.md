@@ -109,7 +109,6 @@ How to use in recommendation:
 
 Recommended supporting fields on the same relation:
 
-- `relation_type`: why the relation exists
 - `target_concept_id`: main concept explaining the relation
 - `shared_concept_ids`: concepts both exercises share
 - `difficulty_gap`: difficulty jump from source to target

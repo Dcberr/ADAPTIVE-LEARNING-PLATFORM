@@ -1,0 +1,155 @@
+{
+  "student_id": "33934013-d252-41c3-a2c4-8f8572abec1d",
+  "current_exercise_id": "1696ef9f-5d5d-4d3d-81ae-6f61ff7ad012",
+  "focus_concept_ids": [
+    "array"
+  ],
+  "summary": "This roadmap focuses on array and moves from reinforcement into broader follow-up practice. The earlier steps are meant to stabilize the student's current weakness, while the later steps gradually widen the challenge without losing concept continuity.",
+  "roadmap": [
+    {
+      "step": 1,
+      "summary": "Start with close practice that reinforces the main pattern, gives the student a cleaner chance to apply the same idea, and reduces the risk of repeating the current mistake.",
+      "target_concepts": [
+        "array"
+      ],
+      "exercises": [
+        {
+          "priority": 1,
+          "reason": "A relevant reinforcement exercise chosen from similar problem patterns, so the student can keep practicing the same ideas in a fresh but still familiar setting.",
+          "exercise": {
+            "exercise_id": "2fa59ad1-a5d8-48cf-b839-dd65ff4d9694",
+            "slug": "find-pivot-index",
+            "title": "Find Pivot Index",
+            "description": "<p>Given an array of integers <code>nums</code>, calculate the <strong>pivot index</strong> of this array.</p>\n\n<p>The <strong>pivot index</strong> is the index where the sum of all the numbers <strong>strictly</strong> to the left of the index is equal to the sum of all the numbers <strong>strictly</strong> to the index's right.</p>\n\n<p>If the index is on the left edge of the array, then the left sum is <code>0</code> because there are no elements to the left. This also applies to the right edge of the array.</p>\n\n<p>Return <em>the <strong>leftmost pivot index</strong></em>. If no such index exists, return <code>-1</code>.</p>\n\n<p>\u00a0</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [1,7,3,6,5,6]\n<strong>Output:</strong> 3\n<strong>Explanation:</strong>\nThe pivot index is 3.\nLeft sum = nums[0] + nums[1] + nums[2] = 1 + 7 + 3 = 11\nRight sum = nums[4] + nums[5] = 5 + 6 = 11\n</pre>\n\n<p><strong class=\"example\">Example 2:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [1,2,3]\n<strong>Output:</strong> -1\n<strong>Explanation:</strong>\nThere is no index that satisfies the conditions in the problem statement.</pre>\n\n<p><strong class=\"example\">Example 3:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [2,1,-1]\n<strong>Output:</strong> 0\n<strong>Explanation:</strong>\nThe pivot index is 0.\nLeft sum = 0 (no elements to the left of index 0)\nRight sum = nums[1] + nums[2] = 1 + -1 = 0\n</pre>\n\n<p>\u00a0</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>1 <= nums.length <= 10<sup>4</sup></code></li>\n\t<li><code>-1000 <= nums[i] <= 1000</code></li>\n</ul>\n\n<p>\u00a0</p>\n<p><strong>Note:</strong> This question is the same as\u00a01991:\u00a0<a href=\"https://leetcode.com/problems/find-the-middle-index-in-array/\" target=\"_blank\">https://leetcode.com/problems/find-the-middle-index-in-array/</a></p>",
+            "content": "",
+            "difficulty": "Easy",
+            "concept_slugs": [
+              "array"
+            ],
+            "concept_ids": [
+              "array"
+            ]
+          }
+        },
+        {
+          "priority": 2,
+          "reason": "A strong next step because it stays directly connected to the current concept and gives the student a clearer chance to reinforce the same core reasoning pattern.",
+          "exercise": {
+            "exercise_id": "a673164b-863d-4f2c-9200-209d61c278a0",
+            "slug": "two-sum-iii-data-structure-design",
+            "title": "Two Sum III - Data structure design",
+            "description": "",
+            "content": "",
+            "difficulty": "Easy",
+            "concept_slugs": [
+              "array",
+              "hash-table"
+            ],
+            "concept_ids": [
+              "array",
+              "hash-table"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "summary": "Move into broader follow-up problems that still stay close to the same concepts, but ask for stronger planning and more deliberate control over the solution steps.",
+      "target_concepts": [
+        "array"
+      ],
+      "exercises": [
+        {
+          "priority": 1,
+          "reason": "A relevant reinforcement exercise chosen from similar problem patterns, so the student can keep practicing the same ideas in a fresh but still familiar setting.",
+          "exercise": {
+            "exercise_id": "5124996e-256b-4be1-9766-7b8c2093d02f",
+            "slug": "finding-pairs-with-a-certain-sum",
+            "title": "Finding Pairs With a Certain Sum",
+            "description": "<p>You are given two integer arrays <code>nums1</code> and <code>nums2</code>. You are tasked to implement a data structure that supports queries of two types:</p>\n\n<ol>\n\t<li><strong>Add</strong> a positive integer to an element of a given index in the array <code>nums2</code>.</li>\n\t<li><strong>Count</strong> the number of pairs <code>(i, j)</code> such that <code>nums1[i] + nums2[j]</code> equals a given value (<code>0 <= i < nums1.length</code> and <code>0 <= j < nums2.length</code>).</li>\n</ol>\n\n<p>Implement the <code>FindSumPairs</code> class:</p>\n\n<ul>\n\t<li><code>FindSumPairs(int[] nums1, int[] nums2)</code> Initializes the <code>FindSumPairs</code> object with two integer arrays <code>nums1</code> and <code>nums2</code>.</li>\n\t<li><code>void add(int index, int val)</code> Adds <code>val</code> to <code>nums2[index]</code>, i.e., apply <code>nums2[index] += val</code>.</li>\n\t<li><code>int count(int tot)</code> Returns the number of pairs <code>(i, j)</code> such that <code>nums1[i] + nums2[j] == tot</code>.</li>\n</ul>\n\n<p>\u00a0</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input</strong>\n[\"FindSumPairs\", \"count\", \"add\", \"count\", \"count\", \"add\", \"add\", \"count\"]\n[[[1, 1, 2, 2, 2, 3], [1, 4, 5, 2, 5, 4]], [7], [3, 2], [8], [4], [0, 1], [1, 1], [7]]\n<strong>Output</strong>\n[null, 8, null, 2, 1, null, null, 11]\n\n<strong>Explanation</strong>\nFindSumPairs findSumPairs = new FindSumPairs([1, 1, 2, 2, 2, 3], [1, 4, 5, 2, 5, 4]);\nfindSumPairs.count(7);  // return 8; pairs (2,2), (3,2), (4,2), (2,4), (3,4), (4,4) make 2 + 5 and pairs (5,1), (5,5) make 3 + 4\nfindSumPairs.add(3, 2); // now nums2 = [1,4,5,<strong><u>4</u></strong><code>,5,4</code>]\nfindSumPairs.count(8);  // return 2; pairs (5,2), (5,4) make 3 + 5\nfindSumPairs.count(4);  // return 1; pair (5,0) makes 3 + 1\nfindSumPairs.add(0, 1); // now nums2 = [<strong><u><code>2</code></u></strong>,4,5,4<code>,5,4</code>]\nfindSumPairs.add(1, 1); // now nums2 = [<code>2</code>,<strong><u>5</u></strong>,5,4<code>,5,4</code>]\nfindSumPairs.count(7);  // return 11; pairs (2,1), (2,2), (2,4), (3,1), (3,2), (3,4), (4,1), (4,2), (4,4) make 2 + 5 and pairs (5,3), (5,5) make 3 + 4\n</pre>\n\n<p>\u00a0</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>1 <= nums1.length <= 1000</code></li>\n\t<li><code>1 <= nums2.length <= 10<sup>5</sup></code></li>\n\t<li><code>1 <= nums1[i] <= 10<sup>9</sup></code></li>\n\t<li><code>1 <= nums2[i] <= 10<sup>5</sup></code></li>\n\t<li><code>0 <= index < nums2.length</code></li>\n\t<li><code>1 <= val <= 10<sup>5</sup></code></li>\n\t<li><code>1 <= tot <= 10<sup>9</sup></code></li>\n\t<li>At most <code>1000</code> calls are made to <code>add</code> and <code>count</code> <strong>each</strong>.</li>\n</ul>",
+            "content": "",
+            "difficulty": "Medium",
+            "concept_slugs": [
+              "array",
+              "hash-table"
+            ],
+            "concept_ids": [
+              "array",
+              "hash-table"
+            ]
+          }
+        },
+        {
+          "priority": 2,
+          "reason": "A relevant reinforcement exercise chosen from similar problem patterns, so the student can keep practicing the same ideas in a fresh but still familiar setting.",
+          "exercise": {
+            "exercise_id": "fcbdb88f-e86e-4289-b6a2-8c7535d018b4",
+            "slug": "count-the-number-of-fair-pairs",
+            "title": "Count the Number of Fair Pairs",
+            "description": "<p>Given a <strong>0-indexed</strong> integer array <code>nums</code> of size <code>n</code> and two integers <code>lower</code> and <code>upper</code>, return <em>the number of fair pairs</em>.</p>\n\n<p>A pair <code>(i, j)</code> is <b>fair </b>if:</p>\n\n<ul>\n\t<li><code>0 <= i < j < n</code>, and</li>\n\t<li><code>lower <= nums[i] + nums[j] <= upper</code></li>\n</ul>\n\n<p>\u00a0</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [0,1,7,4,4,5], lower = 3, upper = 6\n<strong>Output:</strong> 6\n<strong>Explanation:</strong> There are 6 fair pairs: (0,3), (0,4), (0,5), (1,3), (1,4), and (1,5).\n</pre>\n\n<p><strong class=\"example\">Example 2:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [1,7,9,2,5], lower = 11, upper = 11\n<strong>Output:</strong> 1\n<strong>Explanation:</strong> There is a single fair pair: (2,3).\n</pre>\n\n<p>\u00a0</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>1 <= nums.length <= 10<sup>5</sup></code></li>\n\t<li><code>nums.length == n</code></li>\n\t<li><code><font face=\"monospace\">-10<sup>9</sup></font>\u00a0<= nums[i] <= 10<sup>9</sup></code></li>\n\t<li><code><font face=\"monospace\">-10<sup>9</sup>\u00a0<= lower <= upper <= 10<sup>9</sup></font></code></li>\n</ul>",
+            "content": "",
+            "difficulty": "Medium",
+            "concept_slugs": [
+              "array",
+              "sorting"
+            ],
+            "concept_ids": [
+              "array",
+              "sorting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "summary": "Continue with the next strongest exercises from the recommendation pool so the student can keep building confidence while extending the same core ideas into a slightly broader setting.",
+      "target_concepts": [
+        "array"
+      ],
+      "exercises": [
+        {
+          "priority": 1,
+          "reason": "A strong next step because it stays directly connected to the current concept and gives the student a clearer chance to reinforce the same core reasoning pattern.",
+          "exercise": {
+            "exercise_id": "23f99cfd-2237-494e-98f2-177726571676",
+            "slug": "find-subarrays-with-equal-sum",
+            "title": "Find Subarrays With Equal Sum",
+            "description": "<p>Given a <strong>0-indexed</strong> integer array <code>nums</code>, determine whether there exist <strong>two</strong> subarrays of length <code>2</code> with <strong>equal</strong> sum. Note that the two subarrays must begin at <strong>different</strong> indices.</p>\n\n<p>Return <code>true</code><em> if these subarrays exist, and </em><code>false</code><em> otherwise.</em></p>\n\n<p>A <b>subarray</b> is a contiguous non-empty sequence of elements within an array.</p>\n\n<p>\u00a0</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [4,2,4]\n<strong>Output:</strong> true\n<strong>Explanation:</strong> The subarrays with elements [4,2] and [2,4] have the same sum of 6.\n</pre>\n\n<p><strong class=\"example\">Example 2:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [1,2,3,4,5]\n<strong>Output:</strong> false\n<strong>Explanation:</strong> No two subarrays of size 2 have the same sum.\n</pre>\n\n<p><strong class=\"example\">Example 3:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [0,0,0]\n<strong>Output:</strong> true\n<strong>Explanation:</strong> The subarrays [nums[0],nums[1]] and [nums[1],nums[2]] have the same sum of 0. \nNote that even though the subarrays have the same content, the two subarrays are considered different because they are in different positions in the original array.\n</pre>\n\n<p>\u00a0</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>2 <= nums.length <= 1000</code></li>\n\t<li><code>-10<sup>9</sup> <= nums[i] <= 10<sup>9</sup></code></li>\n</ul>",
+            "content": "<p>Given a <strong>0-indexed</strong> integer array <code>nums</code>, determine whether there exist <strong>two</strong> subarrays of length <code>2</code> with <strong>equal</strong> sum. Note that the two subarrays must begin at <strong>different</strong> indices.</p>\n\n<p>Return <code>true</code><em> if these subarrays exist, and </em><code>false</code><em> otherwise.</em></p>\n\n<p>A <b>subarray</b> is a contiguous non-empty sequence of elements within an array.</p>\n\n<p>\u00a0</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [4,2,4]\n<strong>Output:</strong> true\n<strong>Explanation:</strong> The subarrays with elements [4,2] and [2,4] have the same sum of 6.\n</pre>\n\n<p><strong class=\"example\">Example 2:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [1,2,3,4,5]\n<strong>Output:</strong> false\n<strong>Explanation:</strong> No two subarrays of size 2 have the same sum.\n</pre>\n\n<p><strong class=\"example\">Example 3:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [0,0,0]\n<strong>Output:</strong> true\n<strong>Explanation:</strong> The subarrays [nums[0],nums[1]] and [nums[1],nums[2]] have the same sum of 0. \nNote that even though the subarrays have the same content, the two subarrays are considered different because they are in different positions in the original array.\n</pre>\n\n<p>\u00a0</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>2 <= nums.length <= 1000</code></li>\n\t<li><code>-10<sup>9</sup> <= nums[i] <= 10<sup>9</sup></code></li>\n</ul>",
+            "difficulty": "Easy",
+            "concept_slugs": [
+              "array",
+              "hash-table"
+            ],
+            "concept_ids": [
+              "array",
+              "hash-table"
+            ]
+          }
+        },
+        {
+          "priority": 2,
+          "reason": "A relevant reinforcement exercise chosen from similar problem patterns, so the student can keep practicing the same ideas in a fresh but still familiar setting.",
+          "exercise": {
+            "exercise_id": "90ddc239-6ae7-4c57-ba19-2adc5704118f",
+            "slug": "find-two-non-overlapping-sub-arrays-each-with-target-sum",
+            "title": "Find Two Non-overlapping Sub-arrays Each With Target Sum",
+            "description": "<p>You are given an array of integers <code>arr</code> and an integer <code>target</code>.</p>\n\n<p>You have to find <strong>two non-overlapping sub-arrays</strong> of <code>arr</code> each with a sum equal <code>target</code>. There can be multiple answers so you have to find an answer where the sum of the lengths of the two sub-arrays is <strong>minimum</strong>.</p>\n\n<p>Return <em>the minimum sum of the lengths</em> of the two required sub-arrays, or return <code>-1</code> if you cannot find such two sub-arrays.</p>\n\n<p>\u00a0</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input:</strong> arr = [3,2,2,4,3], target = 3\n<strong>Output:</strong> 2\n<strong>Explanation:</strong> Only two sub-arrays have sum = 3 ([3] and [3]). The sum of their lengths is 2.\n</pre>\n\n<p><strong class=\"example\">Example 2:</strong></p>\n\n<pre>\n<strong>Input:</strong> arr = [7,3,4,7], target = 7\n<strong>Output:</strong> 2\n<strong>Explanation:</strong> Although we have three non-overlapping sub-arrays of sum = 7 ([7], [3,4] and [7]), but we will choose the first and third sub-arrays as the sum of their lengths is 2.\n</pre>\n\n<p><strong class=\"example\">Example 3:</strong></p>\n\n<pre>\n<strong>Input:</strong> arr = [4,3,2,6,2,3,4], target = 6\n<strong>Output:</strong> -1\n<strong>Explanation:</strong> We have only one sub-array of sum = 6.\n</pre>\n\n<p>\u00a0</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>1 <= arr.length <= 10<sup>5</sup></code></li>\n\t<li><code>1 <= arr[i] <= 1000</code></li>\n\t<li><code>1 <= target <= 10<sup>8</sup></code></li>\n</ul>",
+            "content": "",
+            "difficulty": "Medium",
+            "concept_slugs": [
+              "array",
+              "hash-table"
+            ],
+            "concept_ids": [
+              "array",
+              "hash-table"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

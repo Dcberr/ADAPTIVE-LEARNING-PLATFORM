@@ -124,4 +124,9 @@ public class SubmissionServiceImpl implements SubmissionService {
 
             return submissionRepository.getSubmissionOverviewByProblem(problemId);      
         }
+
+        @Override
+        public List<Submission> getAllSubmissionsByProblemIdAndUserId(UUID userId, UUID problemId) {
+            return submissionRepository.getAllSubmissionsByProblemIdAndUserId(userId, problemId);
+        }
 }

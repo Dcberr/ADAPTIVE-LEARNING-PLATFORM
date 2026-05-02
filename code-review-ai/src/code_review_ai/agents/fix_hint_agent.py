@@ -63,7 +63,6 @@ class FixHintAgent:
         """Create a specific fallback hint when the model returns no structured JSON."""
         cause_type = issue.get("cause_type", "").strip()
         diagnosis_parts = [
-            f"Focus on testcase `{issue.get('evidence', '')}`.",
             testcase_context,
             f"The current issue is: {issue.get('issue', '')}",
             (

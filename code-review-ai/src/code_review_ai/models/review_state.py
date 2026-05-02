@@ -1,4 +1,4 @@
-from typing import TypedDict, Any, Dict, List
+from typing import TypedDict, Dict, List
 
 from code_review_ai.api.review_code_schema import ReviewItem
 from code_review_ai.models.improvement_note import ImprovementNote
@@ -29,7 +29,6 @@ class ReviewState(TypedDict):
     review_links: List[ReviewLink]
     overview: str
     review_items: List[ReviewItem]
-    scorecard: Dict[str, Any]
 
 
 def create_initial_state(
@@ -85,5 +84,4 @@ def create_initial_state(
         "needs_improvement": False,
         "overview": "",
         "review_items": [],
-        "scorecard": [],
     }

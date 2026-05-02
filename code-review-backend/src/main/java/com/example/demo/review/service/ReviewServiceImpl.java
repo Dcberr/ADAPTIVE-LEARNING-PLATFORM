@@ -391,7 +391,16 @@ public class ReviewServiceImpl implements ReviewService {
         }
     }
 
-    private String normalize(String output) {
-        return output == null ? "" : output.trim();
-}
+        private String normalize(String output) {
+                return output == null ? "" : output.trim();
+        }
+
+        @Override
+        public List<ReviewResponse> getReviewByUserIdAndProblemId(UUID userId, UUID problemId) {
+            return codeReviewRepository.findByProblemIdAndUserId(problemId, userId)
+                    .stream()
+                    .map(r -> deserializeReview(r.getReviewItemsJson()))
+                    .toList();
+        }
+
 }

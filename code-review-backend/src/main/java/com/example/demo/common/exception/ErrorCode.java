@@ -15,6 +15,8 @@ public enum ErrorCode {
 
     ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Assignment not found"),
 
+    DOCUMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Document not found"),
+
     PROBLEM_NOT_FOUND(HttpStatus.NOT_FOUND, "Problem not found"),
 
     SUBMISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "Submission not found"),

@@ -11,6 +11,8 @@ import com.example.demo.classmanagement.entity.Class;
 @Repository
 public interface ClassRepository extends JpaRepository<Class, UUID> {
 
-    List<Class> findByInstructorId(UUID instructorId);
+    List<Class> findByInstructorIdAndDeletedAtIsNull(UUID instructorId);
+
+    java.util.Optional<Class> findByIdAndDeletedAtIsNull(UUID id);
 
 }

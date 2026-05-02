@@ -26,9 +26,19 @@ public class UpdateAssignmentRequest {
     
     private AssignmentStatus status;
 
+    private Instant startTime;
+
     private Instant deadline;
 
+    private Long timeLimit;
+
+    private float maxScore;
+
+    private int maxSubmission;
+
     private AssigmentDifficulty difficulty;
+
+    private List<String> tags;
 
     private ProblemRequest problem;
     

@@ -33,4 +33,6 @@ public class Topic {
     private String description;
 
     private Instant createdAt;
+
+    private Instant deletedAt;
 }

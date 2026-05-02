@@ -82,6 +82,8 @@ def build_logic_messages(
                 - If the test fails because a branch, validation step, or case is missing, set "code_snippet" to null.
                 - Use "anchor_snippet" to point to the nearest relevant code when behavior is missing.
                 - Return one item per testcase in the same order they were listed above.
+                - Do NOT mention testcase IDs, submission IDs, UUIDs, or any identifier-like labels in `issue`, `why_test_failed`, or `missing_behavior`.
+                - If you refer to a testcase, use its shown input/output text or behavior description instead of any ID.
                 Make your explanations concise and beginner-friendly.
                 """
             ).strip(),

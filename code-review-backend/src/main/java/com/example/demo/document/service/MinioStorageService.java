@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.demo.common.exception.AppException;
+import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.document.dto.UploadFilleResponse;
 import com.example.demo.document.entity.Document;
 import com.example.demo.document.repository.DocumentRepository;
@@ -125,8 +127,8 @@ public class MinioStorageService {
 
     public ResponseEntity<Resource> stream(String documentId, String rangeHeader) {
 
-        Document document = documentRepository.findById(UUID.fromString(documentId))
-                .orElseThrow(() -> new RuntimeException("Document not found"));
+        Document document = documentRepository.findByIdAndDeletedAtIsNull(UUID.fromString(documentId))
+                .orElseThrow(() -> new AppException(ErrorCode.DOCUMENT_NOT_FOUND));
 
         try {
             String objectName = extractObjectName(document.getFileUrl());
