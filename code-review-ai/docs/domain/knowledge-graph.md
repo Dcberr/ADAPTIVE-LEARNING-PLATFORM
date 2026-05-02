@@ -186,7 +186,6 @@ Purpose:
 Weights:
 
 - `weight`
-- `relation_type`
 - `target_concept_id`
 - `shared_concept_ids`
 - `difficulty_gap`
@@ -198,7 +197,6 @@ Meaning of weight:
 - `weight` represents how strongly the related exercise should be considered a close neighbor of the main exercise
 - high `weight` means the exercises are strongly connected by concept focus or learning progression
 - low `weight` means the relation is weak and should only lightly influence ranking
-- `relation_type` explains why the exercises are connected
 - `target_concept_id` identifies the main concept that best explains the relation
 - `shared_concept_ids` lists concepts that both exercises meaningfully share
 - `difficulty_gap` is negative when the related exercise is easier and positive when it is harder
@@ -210,14 +208,6 @@ Suggested scale:
 - `1.0` for very close sibling or follow-up exercise
 - `0.5` to `0.8` for useful related practice
 - `0.1` to `0.4` for weak similarity or optional extension
-
-Suggested `relation_type` values:
-
-- `SIMILAR_PRACTICE`
-- `NEXT_STEP`
-- `PREREQUISITE_REVIEW`
-- `SAME_CONCEPT_HARDER`
-- `SAME_CONCEPT_EASIER`
 
 ### `(:Concept)-[:PREREQUISITE_OF]->(:Concept)`
 

@@ -14,10 +14,8 @@ class ExerciseRelationScoringService:
     STRONG_WEIGHT_THRESHOLD = 0.85
     MEDIUM_WEIGHT_THRESHOLD = 0.5
     DEFAULT_WEIGHT = 0.7
-    DEFAULT_RELATION_TYPE = "SIMILAR_PRACTICE"
     DEFAULT_RELATION_METADATA = {
         "weight": DEFAULT_WEIGHT,
-        "relation_type": DEFAULT_RELATION_TYPE,
         "difficulty_gap": 0.0,
         "progression_score": DEFAULT_WEIGHT,
         "similarity_score": DEFAULT_WEIGHT,
@@ -136,7 +134,7 @@ class ExerciseRelationScoringService:
         difficulty_alignment_score: float,
         progression_score: float,
         similarity_score: float,
-        relation_type: str,
+        relation_bonus: float = 0.0,
     ) -> float:
         raw_weight = (
             0.35 * similarity_score
@@ -144,10 +142,7 @@ class ExerciseRelationScoringService:
             + 0.20 * solution_pattern_score
             + 0.15 * difficulty_alignment_score
         )
-        if relation_type in {"NEXT_STEP", "SAME_CONCEPT_HARDER", "SAME_CONCEPT_EASIER"}:
-            raw_weight += 0.05
-        elif relation_type == "PREREQUISITE_REVIEW":
-            raw_weight -= 0.05
+        raw_weight += relation_bonus
         return self._normalize_weight(max(0.0, min(1.0, raw_weight)))
 
     def _score_related_exercise_pair(
@@ -170,7 +165,7 @@ class ExerciseRelationScoringService:
                 if concept_slug.strip()
             },
         )
-        title_overlap = self._jaccard_similarity(
+        text_overlap = self._jaccard_similarity(
             self._tokenize_exercise(main_exercise),
             self._tokenize_exercise(related_exercise),
         )
@@ -186,7 +181,7 @@ class ExerciseRelationScoringService:
         similarity_score = self._clamp_score(
             0.45 * embedding_similarity
             + 0.35 * concept_overlap
-            + 0.10 * title_overlap
+            + 0.10 * text_overlap
         )
         progression_fit = self._progression_fit(difficulty_gap)
         progression_score = self._clamp_score(
@@ -195,21 +190,19 @@ class ExerciseRelationScoringService:
             + 0.20 * difficulty_alignment_score
             + 0.10 * embedding_similarity
         )
-        relation_type = self._classify_relation_type(
-            concept_overlap=concept_overlap,
-            difficulty_gap=difficulty_gap,
-            progression_score=progression_score,
-            similarity_score=similarity_score,
-        )
         return {
             "weight": self._compute_related_weight(
                 solution_pattern_score=solution_pattern_score,
                 difficulty_alignment_score=difficulty_alignment_score,
                 progression_score=progression_score,
                 similarity_score=similarity_score,
-                relation_type=relation_type,
+                relation_bonus=self._related_weight_adjustment(
+                    concept_overlap=concept_overlap,
+                    difficulty_gap=difficulty_gap,
+                    progression_score=progression_score,
+                    similarity_score=similarity_score,
+                ),
             ),
-            "relation_type": relation_type,
             "difficulty_gap": difficulty_gap,
             "progression_score": progression_score,
             "similarity_score": similarity_score,
@@ -306,25 +299,25 @@ class ExerciseRelationScoringService:
         cosine = dot_product / (left_norm * right_norm)
         return max(0.0, min(1.0, (cosine + 1.0) / 2.0))
 
-    def _classify_relation_type(
-        self,
+    @staticmethod
+    def _related_weight_adjustment(
         *,
         concept_overlap: float,
         difficulty_gap: float,
         progression_score: float,
         similarity_score: float,
-    ) -> str:
+    ) -> float:
         if concept_overlap >= 0.6 and difficulty_gap >= 1.0:
-            return "SAME_CONCEPT_HARDER"
+            return 0.05
         if concept_overlap >= 0.6 and difficulty_gap <= -1.0:
-            return "SAME_CONCEPT_EASIER"
+            return 0.05
         if progression_score >= 0.72 and difficulty_gap > 0.0:
-            return "NEXT_STEP"
+            return 0.05
         if progression_score >= 0.58 and difficulty_gap < 0.0:
-            return "PREREQUISITE_REVIEW"
+            return -0.05
         if similarity_score >= 0.7:
-            return "SIMILAR_PRACTICE"
-        return self.DEFAULT_RELATION_TYPE
+            return 0.0
+        return 0.0
 
     def _score_concept_weight(
         self,

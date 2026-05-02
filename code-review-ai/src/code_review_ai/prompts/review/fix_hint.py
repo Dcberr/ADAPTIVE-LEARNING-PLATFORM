@@ -61,9 +61,6 @@ def build_fix_hint_messages(
                 FAILING TESTCASE DETAILS:
                 {testcase_context}
 
-                EVIDENCE:
-                Test case ID {issue.get('evidence')}
-
                 HISTORY STATUS:
                 {issue.get('history_status', 'unknown')}
 
@@ -84,6 +81,8 @@ def build_fix_hint_messages(
                 - Do not rewrite the whole program.
                 - Do not provide the final full solution.
                 - Ground the hint in the failing testcase details.
+                - Do NOT include testcase IDs, submission IDs, evidence IDs, UUIDs, or any identifier-like labels.
+                - If you refer to a testcase, use the testcase text, input, expected output, actual output, or described behavior instead of any ID.
 
                 Output must be valid JSON:
                 {{

@@ -209,7 +209,6 @@ Graph signals returned per candidate include:
 - `path_weight`
 - `tests_weight`
 - `related_weight`
-- `relation_type`
 - `difficulty_gap`
 - `progression_score`
 - `similarity_score`

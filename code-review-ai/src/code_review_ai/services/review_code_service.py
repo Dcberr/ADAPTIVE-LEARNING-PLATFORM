@@ -6,9 +6,8 @@ from code_review_ai.agents.improvement_agent import ImprovementAgent
 from code_review_ai.agents.logic_agent import LogicAgent
 from code_review_ai.agents.overview_agent import OverviewAgent
 from code_review_ai.agents.review_link_agent import ReviewLinkAgent
-from code_review_ai.agents.scoring_agent import ScoringAgent
 from code_review_ai.models.review_state import ReviewState
-from code_review_ai.utils.debug_logging import summarize_state
+from code_review_ai.utils.debug_logging import snapshot_review_state, summarize_state
 from langgraph.graph import StateGraph
 from typing import cast
 
@@ -24,14 +23,12 @@ class ReviewCodeService:
         improvement_agent: ImprovementAgent,
         review_link_agent: ReviewLinkAgent,
         overview_agent: OverviewAgent,
-        scoring_agent: ScoringAgent,
     ):
         self.logic_agent = logic_agent
         self.fix_hint_agent = fix_hint_agent
         self.improvement_agent = improvement_agent
         self.review_link_agent = review_link_agent
         self.overview_agent = overview_agent
-        self.scoring_agent = scoring_agent
 
         # Build the workflow graph
         self.workflow = self.create_review_graph()
@@ -58,10 +55,6 @@ class ReviewCodeService:
         workflow.add_node(
             "overview",
             self._instrument_node("overview", self.overview_agent.analyze),
-        )
-        workflow.add_node(
-            "scoring",
-            self._instrument_node("scoring", self.scoring_agent.analyze),
         )
 
         workflow.set_entry_point("logic")
@@ -105,13 +98,8 @@ class ReviewCodeService:
             lambda s: "overview",
             {"overview": "overview"},
         )
-        workflow.add_conditional_edges(
-            "overview",
-            lambda s: "scoring",
-            {"scoring": "scoring"},
-        )
 
-        workflow.set_finish_point("scoring")
+        workflow.set_finish_point("overview")
 
         return workflow.compile()
 
@@ -132,6 +120,11 @@ class ReviewCodeService:
                     elapsed_ms,
                     summarize_state(result),
                 )
+                logger.debug(
+                    "State snapshot after node '%s': %s",
+                    node_name,
+                    snapshot_review_state(result),
+                )
                 return result
 
             return wrapped
@@ -150,6 +143,11 @@ class ReviewCodeService:
                 node_name,
                 elapsed_ms,
                 summarize_state(result),
+            )
+            logger.debug(
+                "State snapshot after node '%s': %s",
+                node_name,
+                snapshot_review_state(result),
             )
             return result
 

@@ -536,10 +536,6 @@ components:
           type: number
           title: Weight
           default: 1.0
-        relation_type:
-          type: string
-          title: Relation Type
-          default: ""
         difficulty_gap:
           type: number
           title: Difficulty Gap

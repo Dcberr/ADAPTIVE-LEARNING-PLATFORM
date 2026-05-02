@@ -108,39 +108,25 @@ class KnowledgeGraphModelConfig:
 
 @dataclass(frozen=True)
 class RecommendationModelConfig:
-    context_planner: FireworksStageConfig = field(
-        default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/gpt-oss-20b",
-            temperature=0.1,
-            max_tokens=900,
-        )
-    )
-    path_decider: FireworksStageConfig = field(
+    rerank_context_builder: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
             model_name="fireworks/deepseek-v3p2",
             temperature=0.1,
-            max_tokens=900,
+            max_tokens=1200,
+        )
+    )
+    reranker: FireworksStageConfig = field(
+        default_factory=lambda: FireworksStageConfig(
+            model_name="accounts/fireworks/models/qwen3-reranker-8b",
+            temperature=0.0,
+            max_tokens=0,
         )
     )
     roadmap_builder: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
             model_name="fireworks/deepseek-v3p2",
             temperature=0.2,
-            max_tokens=1200,
-        )
-    )
-    candidate_reranker: FireworksStageConfig = field(
-        default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/deepseek-v3p2",
-            temperature=0.0,
-            max_tokens=1000,
-        )
-    )
-    explanation_builder: FireworksStageConfig = field(
-        default_factory=lambda: FireworksStageConfig(
-            model_name="fireworks/deepseek-v3p2",
-            temperature=0.2,
-            max_tokens=1400,
+            max_tokens=1800,
         )
     )
     default: FireworksStageConfig = field(
@@ -153,11 +139,9 @@ class RecommendationModelConfig:
 
     def as_stage_map(self) -> dict[str, FireworksStageConfig]:
         return {
-            "context_planner": self.context_planner,
-            "path_decider": self.path_decider,
-            "candidate_reranker": self.candidate_reranker,
+            "rerank_context_builder": self.rerank_context_builder,
+            "reranker": self.reranker,
             "roadmap_builder": self.roadmap_builder,
-            "explanation_builder": self.explanation_builder,
             "default": self.default,
         }
 

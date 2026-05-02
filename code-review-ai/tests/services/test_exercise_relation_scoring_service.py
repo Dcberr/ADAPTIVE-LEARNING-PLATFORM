@@ -129,7 +129,7 @@ class ExerciseRelationScoringServiceTests(unittest.TestCase):
 
         self.assertIn("exercise-2", result[2])
         self.assertIn("exercise-3", result[2])
-        self.assertEqual(result[2]["exercise-3"]["relation_type"], "SAME_CONCEPT_HARDER")
+        self.assertEqual(result[2]["exercise-3"]["difficulty_gap"], 1.0)
 
     def test_compute_related_weight_prefers_high_similarity_progression_pairs(self):
         agent = ExerciseRelationScoringService()
@@ -139,7 +139,6 @@ class ExerciseRelationScoringServiceTests(unittest.TestCase):
             difficulty_alignment_score=0.8,
             progression_score=0.9,
             similarity_score=0.95,
-            relation_type="NEXT_STEP",
         )
 
         self.assertEqual(weight, 1.0)
@@ -152,7 +151,6 @@ class ExerciseRelationScoringServiceTests(unittest.TestCase):
             difficulty_alignment_score=0.4,
             progression_score=0.25,
             similarity_score=0.3,
-            relation_type="SIMILAR_PRACTICE",
         )
 
         self.assertEqual(weight, 0.3)
@@ -189,8 +187,8 @@ class ExerciseRelationScoringServiceTests(unittest.TestCase):
         )
 
         metadata = result[2]["exercise-2"]
-        self.assertEqual(metadata["relation_type"], "SAME_CONCEPT_HARDER")
         self.assertEqual(metadata["weight"], 1.0)
+        self.assertEqual(metadata["difficulty_gap"], 1.0)
         self.assertGreaterEqual(metadata["similarity_score"], 0.8)
 
     def test_concept_scoring_uses_exercise_text_and_tags(self):
