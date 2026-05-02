@@ -147,7 +147,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public AssignmentResponse addLeetCodeProblemToAssignment(UUID topicId, UUID assignmentId, UUID problemId) {
+    public AssignmentResponse addLibraryProblemToAssignment(UUID topicId, UUID assignmentId, UUID problemId) {
 
         Assignment assignment = getActiveAssignment(assignmentId);
 
@@ -158,7 +158,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         Problem problem = problemRepository.findById(problemId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
 
-        if (problem.getType() != ProblemType.LEETCODE || !"LEETCODE".equals(problem.getSource())) {
+        if (problem.getType() != ProblemType.LIBRARY || !"LEETCODE".equals(problem.getSource())) {
             throw new AppException(ErrorCode.VALIDATION_ERROR);
         }
 

@@ -76,7 +76,7 @@ public class AssignmentController {
             @RequestBody AddProblemToAssignmentRequest request
     ) {
         return ApiResponse.success(
-                assignmentService.addLeetCodeProblemToAssignment(
+                assignmentService.addLibraryProblemToAssignment(
                         topicId,
                         assignmentId,
                         request.getProblemId()

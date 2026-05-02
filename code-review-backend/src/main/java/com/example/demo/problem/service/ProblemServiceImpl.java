@@ -218,7 +218,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .difficulty(request.getDifficulty())
                 .problemConstraint(request.getProblemConstraint())
                 .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
-                .type(ProblemType.MANUAL)
+                .type(ProblemType.CLASS)
                 .source("SYSTEM")
                 .createdAt(Instant.now())
                 .build();
@@ -247,7 +247,7 @@ public class ProblemServiceImpl implements ProblemService {
                 .difficulty(request.getDifficulty())
                 .problemConstraint(request.getConstraints())
                 .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
-                .type(ProblemType.MANUAL)
+                .type(ProblemType.LIBRARY)
                 .source("SYSTEM")
                 // .externalId(request.getExternalId())
                 .createdAt(Instant.now())
@@ -287,7 +287,7 @@ public class ProblemServiceImpl implements ProblemService {
                                 .difficulty(req.getDifficulty())
                                 .problemConstraint(req.getConstraints())
                                 .starterCodes(normalizeStarterCodes(req.getStarterCodes()))
-                                .type(ProblemType.LEETCODE)
+                                .type(ProblemType.LIBRARY)
                                 .source("LEETCODE")
                                 .externalId(req.getExternalId())
                                 .createdAt(Instant.now())
@@ -343,7 +343,7 @@ public class ProblemServiceImpl implements ProblemService {
             Problem problem = problemRepository
                     .findBySourceAndExternalId("LEETCODE", req.getExternalId())
                     .orElseGet(() -> Problem.builder()
-                            .type(ProblemType.LEETCODE)
+                            .type(ProblemType.LIBRARY)
                             .source("LEETCODE")
                             .externalId(req.getExternalId())
                             .createdAt(Instant.now())
@@ -354,7 +354,7 @@ public class ProblemServiceImpl implements ProblemService {
             problem.setDifficulty(req.getDifficulty());
             problem.setProblemConstraint(req.getConstraints());
             problem.setStarterCodes(normalizeStarterCodes(req.getStarterCodes()));
-            problem.setType(ProblemType.LEETCODE);
+            problem.setType(ProblemType.LIBRARY);
             problem.setSource("LEETCODE");
             problem.setExternalId(req.getExternalId());
             problem.getSimilarProblems().clear();
@@ -399,7 +399,7 @@ public class ProblemServiceImpl implements ProblemService {
         validateLeetCodeExternalId(request.getExternalId(), problem.getId());
 
         problem.setSource("LEETCODE");
-        problem.setType(ProblemType.LEETCODE);
+        problem.setType(ProblemType.LIBRARY);
         problem.setExternalId(request.getExternalId());
 
         problemRepository.save(problem);

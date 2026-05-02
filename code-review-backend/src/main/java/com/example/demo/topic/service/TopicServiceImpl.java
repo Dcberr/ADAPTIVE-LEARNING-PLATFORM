@@ -138,7 +138,7 @@ public class TopicServiceImpl implements TopicService {
         Problem problem = problemRepository.findById(request.getProblemId())
                 .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
 
-        if (problem.getType() != ProblemType.LEETCODE || !"LEETCODE".equals(problem.getSource())) {
+        if (problem.getType() != ProblemType.LIBRARY || !"LEETCODE".equals(problem.getSource())) {
             throw new AppException(ErrorCode.VALIDATION_ERROR);
         }
 

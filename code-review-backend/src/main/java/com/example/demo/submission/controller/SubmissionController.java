@@ -93,4 +93,20 @@ public class SubmissionController {
                 submissionService.getAllSubmissionsByProblemIdAndUserId(userId, problemId)
         );
     }
+
+    @Operation(summary = "Get my submissions for a problem")
+    @GetMapping("/problem/{problemId}/me")
+    public ApiResponse<List<Submission>> getUserSubmissionsByProblemIdAndUserId(
+            Authentication auth,    
+            @PathVariable UUID problemId
+    ) {
+
+        UUID userId = (UUID) auth.getPrincipal();
+
+        return ApiResponse.success(
+                submissionService.getAllSubmissionsByProblemIdAndUserId(userId, problemId)
+        );
+    }
+
+    
 }
