@@ -112,6 +112,14 @@ function formatSubmissionScore(score: string, maxScore?: number | null) {
   return `${formattedScore} trên ${formattedMaxScore} (${percentage}%)`
 }
 
+function formatAttemptLimit(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "Không giới hạn"
+  }
+
+  return `${value}`
+}
+
 export default function AssignmentDetailPage({
   id,
   role = "student",
@@ -161,9 +169,17 @@ export default function AssignmentDetailPage({
 
     return rightTime - leftTime
   })
-  const attemptsUsed = submissions.length
-  const attemptsAllowed = assignment.maxSubmission ?? 0
-  const attemptsLeft = attemptsAllowed > 0 ? Math.max(attemptsAllowed - attemptsUsed, 0) : null
+  const attemptsUsed =
+    typeof assignment.attemptsUsed === "number" && Number.isFinite(assignment.attemptsUsed)
+      ? assignment.attemptsUsed
+      : submissions.length
+  const attemptsAllowed =
+    typeof assignment.maxSubmission === "number" && Number.isFinite(assignment.maxSubmission)
+      ? assignment.maxSubmission
+      : null
+  const attemptsLeft =
+    attemptsAllowed === null ? null : Math.max(attemptsAllowed - attemptsUsed, 0)
+  const canStartAttempt = attemptsLeft === null || attemptsLeft > 0
 
   return (
     <div className="space-y-6">
@@ -197,7 +213,7 @@ export default function AssignmentDetailPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-sm font-semibold text-slate-500">Số lần nộp tối đa</p>
-                <p className="mt-1 text-lg text-slate-900">{attemptsAllowed || "Không giới hạn"}</p>
+                <p className="mt-1 text-lg text-slate-900">{formatAttemptLimit(attemptsAllowed)}</p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-500">Còn lại</p>
@@ -229,11 +245,18 @@ export default function AssignmentDetailPage({
                 ? `Đã có ${attemptsUsed} lần nộp ${role === "lecturer" ? "trong lớp này" : "của bạn"}.`
                 : "Chưa có lịch sử nộp bài."}
             </p>
+            {!canStartAttempt ? (
+              <p className="mt-2 text-sm font-medium text-rose-600">
+                Đã hết số lượt làm bài.
+              </p>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild className="rounded-2xl bg-[#030391] px-6 text-white hover:bg-[#030391]/90">
-                <Link href={attemptHref}>Bắt đầu</Link>
-              </Button>
+              {canStartAttempt ? (
+                <Button asChild className="rounded-2xl bg-[#030391] px-6 text-white hover:bg-[#030391]/90">
+                  <Link href={attemptHref}>Bắt đầu</Link>
+                </Button>
+              ) : null}
               <Link href={backHref}>
                 <Button variant="outline" className="rounded-2xl">
                   Quay lại khóa học

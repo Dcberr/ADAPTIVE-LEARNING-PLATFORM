@@ -265,11 +265,6 @@ function TopicSectionCardComponent({
                           <p className="truncate text-sm font-semibold text-[#030391]">
                             {assignment.title}
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {assignment.deadline
-                              ? `Hạn nộp ${assignment.deadline} • ${assignment.difficulty}`
-                              : assignment.difficulty}
-                          </p>
                         </div>
                       </div>
 

@@ -17,6 +17,12 @@ import { cn } from "@/lib/utils"
 
 type ActiveTab = "description" | "testcases" | "result" | "review"
 
+function toRecommendedDifficulty(value: string): "Easy" | "Medium" | "Hard" {
+  if (value === "HARD" || value === "Hard") return "Hard"
+  if (value === "MEDIUM" || value === "Medium") return "Medium"
+  return "Easy"
+}
+
 function normalizeRichText(content: string) {
   return content
     .replace(/\\n/g, "\n")
@@ -115,6 +121,8 @@ function ProblemWorkspaceTabsComponent({
   runningAction,
   canRequestReview,
   onLoadReview,
+  reviewEmptyMessage,
+  showExamplesSection = false,
 }: {
   problem: CodingProblem
   activeTab: ActiveTab
@@ -128,11 +136,17 @@ function ProblemWorkspaceTabsComponent({
   runningAction: "run" | "submit" | "review" | null
   canRequestReview: boolean
   onLoadReview: () => void
+  reviewEmptyMessage?: string
+  showExamplesSection?: boolean
 }) {
   const handleValueChange = (value: string) => {
     const nextTab = value as ActiveTab
     onTabChange(nextTab)
   }
+  const normalizedRecommendedProblems = recommendedProblems.map((problem) => ({
+    ...problem,
+    difficulty: toRecommendedDifficulty(problem.difficulty),
+  }))
 
   return (
     <Card className="min-h-[640px]">
@@ -165,26 +179,28 @@ function ProblemWorkspaceTabsComponent({
               </div>
             ) : null}
 
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-[#030391]">Examples</h3>
-              <div className="space-y-3">
-                {problem.examples.map((example, index) => (
-                  <div key={index} className="rounded-2xl border border-slate-200 p-4 text-sm">
-                    <p>
-                      <strong>Input:</strong> {example.input}
-                    </p>
-                    <p className="mt-2">
-                      <strong>Output:</strong> {example.output}
-                    </p>
-                    {example.explanation ? (
-                      <p className="mt-2 text-slate-600">
-                        <strong>Explanation:</strong> {example.explanation}
+            {showExamplesSection ? (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-[#030391]">Examples</h3>
+                <div className="space-y-3">
+                  {problem.examples.map((example, index) => (
+                    <div key={index} className="rounded-2xl border border-slate-200 p-4 text-sm">
+                      <p>
+                        <strong>Input:</strong> {example.input}
                       </p>
-                    ) : null}
-                  </div>
-                ))}
+                      <p className="mt-2">
+                        <strong>Output:</strong> {example.output}
+                      </p>
+                      {example.explanation ? (
+                        <p className="mt-2 text-slate-600">
+                          <strong>Explanation:</strong> {example.explanation}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
           </TabsContent>
 
           <TabsContent
@@ -247,21 +263,30 @@ function ProblemWorkspaceTabsComponent({
                   <Progress className="mt-4" value={displayedExecution.percentage} />
                 </div>
 
-                <div className="space-y-3">
-                  {displayedExecution.results.map((item) => (
-                    <div key={item.idx} className="rounded-2xl border border-slate-200 p-4 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className={item.passed ? "text-emerald-600" : "text-rose-600"}>
-                          Test {item.idx}: {item.passed ? "Passed" : "Failed"}
-                        </p>
-                        {item.hidden ? <Badge variant="outline">Hidden</Badge> : null}
+                {displayedExecution.status === "COMPILE_ERROR" && displayedExecution.errorMessage ? (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                    <p className="text-sm font-semibold text-rose-700">Compile Error</p>
+                    <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-xl bg-white/80 p-4 font-mono text-sm leading-6 text-rose-900">
+                      {displayedExecution.errorMessage}
+                    </pre>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {displayedExecution.results.map((item) => (
+                      <div key={item.idx} className="rounded-2xl border border-slate-200 p-4 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className={item.passed ? "text-emerald-600" : "text-rose-600"}>
+                            Test {item.idx}: {item.passed ? "Passed" : "Failed"}
+                          </p>
+                          {item.hidden ? <Badge variant="outline">Hidden</Badge> : null}
+                        </div>
+                        <p className="mt-2 text-slate-600">Input: {item.input}</p>
+                        <p className="mt-1 text-slate-600">Expected: {item.expected}</p>
+                        <p className="mt-1 text-slate-600">Actual: {item.actual}</p>
                       </div>
-                      <p className="mt-2 text-slate-600">Input: {item.input}</p>
-                      <p className="mt-1 text-slate-600">Expected: {item.expected}</p>
-                      <p className="mt-1 text-slate-600">Actual: {item.actual}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
@@ -277,12 +302,13 @@ function ProblemWorkspaceTabsComponent({
             className="pt-4"
           >
             {review ? (
-              <CodeReviewPanel review={review} recommendedProblems={recommendedProblems} />
+              <CodeReviewPanel review={review} recommendedProblems={normalizedRecommendedProblems} />
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                {canRequestReview
-                  ? "Use Review Code to generate AI feedback and personalized recommendations."
-                  : "AI review unlocks after you pass at least 70% of the executed test cases."}
+                {reviewEmptyMessage ??
+                  (canRequestReview
+                    ? "Use Review Code to generate AI feedback and personalized recommendations."
+                    : "AI review unlocks after you pass at least 70% of the executed test cases.")}
               </div>
             )}
           </TabsContent>

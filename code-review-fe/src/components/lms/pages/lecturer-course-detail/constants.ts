@@ -40,6 +40,7 @@ export const emptyAssignmentDraft: AssignmentDraft = {
   topicId: "",
   title: "",
   description: "",
+  saveToLibrary: false,
   difficulty: "EASY",
   score: "100",
   timeLimit: "90",

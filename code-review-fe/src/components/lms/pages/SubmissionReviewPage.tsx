@@ -11,16 +11,19 @@ import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Assignment, CodingProblem } from "@/data/lms/mockData"
 import type { ExecutionSummary } from "@/services/lms/mockLmsService"
+import { useAppSelector } from "@/store/redux/hooks"
 import {
   type AssignmentContext,
   type AssignmentProblemResponse,
   type AssignmentSubmissionResponse,
   type AssignmentTestcaseResponse,
+  type CodeReviewResponse,
   type SubmissionDetailResponse,
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
   useGetAssignmentSubmissionsQuery,
   useGetAssignmentTestcasesQuery,
+  useGetProblemReviewsByUserQuery,
   useGetSubmissionByIdQuery,
 } from "@/store/redux/api/lmsApi"
 
@@ -112,6 +115,45 @@ function mapSubmissionDetailToExecution(
   }
 }
 
+function mapCodeReviewResponseToFeedback(
+  assignmentId: string,
+  response: CodeReviewResponse
+) {
+  const positiveItems = response.review_items.filter((item) => item.type.toLowerCase() === "info")
+  const negativeItems = response.review_items.filter((item) => item.type.toLowerCase() !== "info")
+
+  return {
+    assignmentId,
+    strengths: positiveItems.map((item) => item.issue).filter(Boolean),
+    weaknesses: negativeItems.map((item) => item.issue).filter(Boolean),
+    improvements: response.review_items
+      .map((item) => item.fix_suggestion)
+      .filter((item): item is string => Boolean(item)),
+    summary: response.summary,
+    detail: response.detail,
+    reviewId: response.review_id,
+    reviewItems: response.review_items.map((item) => ({
+      line: item.line,
+      column: item.column,
+      type: item.type,
+      issue: item.issue,
+      codeSnippet: item.code_snippet,
+      fixSuggestion: item.fix_suggestion,
+      reviewLink: item.review_link
+        ? {
+            currentIssue: item.review_link.current_issue,
+            currentCodeSnippet: item.review_link.current_code_snippet,
+            previousSubmissionIndexes: item.review_link.previous_submission_indexes,
+            previousCodeSnippet: item.review_link.previous_code_snippet,
+            whatImproved: item.review_link.what_improved,
+            whatStillNeedsWork: item.review_link.what_still_needs_work,
+            relationSummary: item.review_link.relation_summary,
+          }
+        : undefined,
+    })),
+  }
+}
+
 export default function SubmissionReviewPage({
   assignmentId,
   submissionId,
@@ -122,6 +164,7 @@ export default function SubmissionReviewPage({
   role: UserRole
 }) {
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
+  const currentUserId = useAppSelector((state) => state.auth.user?.id ?? "")
   const { data: assignmentContext, isLoading: isLoadingAssignment, error: assignmentError } =
     useGetAssignmentContextQuery(assignmentId)
   const {
@@ -141,6 +184,15 @@ export default function SubmissionReviewPage({
   } = useGetAssignmentTestcasesQuery(assignmentId)
   const { data: submissionDetail, isLoading: isLoadingDetail, error: detailError } =
     useGetSubmissionByIdQuery(submissionId)
+  const { data: reviews = [], isLoading: isLoadingReviews } = useGetProblemReviewsByUserQuery(
+    {
+      problemId: assignmentProblem?.id ?? "",
+      userId: currentUserId,
+    },
+    {
+      skip: !assignmentProblem?.id || !currentUserId,
+    }
+  )
 
   const submission = submissions.find((item) => item.submissionId === submissionId)
   const assignment = useMemo(
@@ -159,6 +211,12 @@ export default function SubmissionReviewPage({
       submission && submissionDetail ? mapSubmissionDetailToExecution(submission, submissionDetail) : null,
     [submission, submissionDetail]
   )
+  const latestReview = reviews.length > 0 ? reviews[reviews.length - 1] : null
+  const review = useMemo(
+    () =>
+      latestReview ? mapCodeReviewResponseToFeedback(assignmentId, latestReview) : null,
+    [assignmentId, latestReview]
+  )
   const code = submissionDetail?.code ?? ""
   const language = submissionDetail?.language ?? "cpp"
   const backHref = `/${role}/assignments/${assignmentId}`
@@ -169,7 +227,8 @@ export default function SubmissionReviewPage({
     isLoadingSubmissions ||
     isLoadingProblem ||
     isLoadingTestcases ||
-    isLoadingDetail
+    isLoadingDetail ||
+    isLoadingReviews
   ) {
     return <AttemptWorkspaceSkeleton title="Đang tải bài làm đã nộp..." />
   }
@@ -217,11 +276,13 @@ export default function SubmissionReviewPage({
           onTabChange={handleTabChange}
           hasMounted={hasMounted}
           displayedExecution={execution}
-          review={null}
+          review={review}
           recommendedProblems={[]}
           runningAction={null}
           canRequestReview={false}
           onLoadReview={() => {}}
+          reviewEmptyMessage="Không có review cho bài làm này."
+          showExamplesSection={false}
         />
 
         <EditorWorkspaceCard

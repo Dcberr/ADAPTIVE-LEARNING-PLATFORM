@@ -38,6 +38,7 @@ export type AssignmentDraft = {
   topicId: string
   title: string
   description: string
+  saveToLibrary: boolean
   difficulty: "EASY" | "MEDIUM" | "HARD"
   score: string
   timeLimit: string
