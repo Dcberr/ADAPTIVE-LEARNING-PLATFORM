@@ -2,6 +2,10 @@
 
 import Link from "next/link"
 
+import {
+  AssignmentDetailSkeleton,
+  SubmissionHistorySkeleton,
+} from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -125,13 +129,7 @@ export default function AssignmentDetailPage({
   })
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Đang tải bài tập...</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <AssignmentDetailSkeleton />
   }
 
   if (error || !assignment) {
@@ -258,11 +256,7 @@ export default function AssignmentDetailPage({
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-[#030391]">Lịch sử làm bài</h2>
         {isLoadingSubmissions ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-slate-500">
-              Đang tải lịch sử nộp bài...
-            </CardContent>
-          </Card>
+          <SubmissionHistorySkeleton />
         ) : submissions.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-slate-500">

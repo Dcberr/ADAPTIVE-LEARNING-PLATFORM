@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 
+import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
 import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/AssignmentAttemptHeader"
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
@@ -174,13 +175,7 @@ export default function SubmissionReviewPage({
     isLoadingTestcases ||
     isLoadingDetail
   ) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Đang tải bài làm đã nộp...</CardTitle>
-        </CardHeader>
-      </Card>
-    )
+    return <AttemptWorkspaceSkeleton title="Đang tải bài làm đã nộp..." />
   }
 
   if (

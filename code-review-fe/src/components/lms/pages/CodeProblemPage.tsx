@@ -1,8 +1,17 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react"
 import { useRouter } from "next/navigation"
+import { ChevronLeft, ChevronRight, GripVertical, PanelLeftOpen, PanelRightOpen } from "lucide-react"
 
+import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { CodeReviewFeedback } from "@/data/lms/extendedMockData"
 import AssignmentAttemptHeader from "@/components/lms/pages/code-problem/AssignmentAttemptHeader"
 import EditorWorkspaceCard from "@/components/lms/pages/code-problem/EditorWorkspaceCard"
@@ -35,11 +44,11 @@ import {
   useJudgeExecutionMutation,
   useReviewCodeMutation,
 } from "@/store/redux/api/lmsApi"
+import { useToast } from "@/components/ui/toast-provider"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-const mockLanguages = ["python", "javascript", "java", "cpp"] as const
-const cppOnlyLanguages = ["cpp"] as const
-
-type Language = (typeof mockLanguages)[number]
+type Language = "cpp"
 type ActiveTab = "description" | "testcases" | "result" | "review"
 type DynamicTestcase = {
   input: string
@@ -47,6 +56,11 @@ type DynamicTestcase = {
   explanation: string
   hidden: boolean
 }
+type CollapsedPane = "none" | "left" | "right"
+
+const DEFAULT_LEFT_PANE_WIDTH = 52
+const MIN_LEFT_PANE_WIDTH = 28
+const MAX_LEFT_PANE_WIDTH = 72
 
 function toDifficultyLabel(value: string): "Easy" | "Medium" | "Hard" {
   if (value === "HARD") return "Hard"
@@ -324,18 +338,23 @@ export default function CodeProblemPage({
     [assignmentContext, assignmentProblem, assignmentTestcases, cachedProblem, mockBundle.problem]
   )
   const [startedAtMs] = useState(() => Date.now())
-  const [language, setLanguage] = useState<Language>(hasMockBundle ? "python" : "cpp")
+  const language: Language = "cpp"
   const [code, setCode] = useState<string | null>(null)
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const [execution, setExecution] = useState<ExecutionSummary | null>(null)
   const [review, setReview] = useState<CodeReviewFeedback | null>(null)
-  const [actionFeedback, setActionFeedback] = useState<string | null>(null)
   const [recommendedProblems, setRecommendedProblems] = useState<
     Awaited<ReturnType<typeof getRecommendedProblems>>
   >([])
   const [runningAction, setRunningAction] = useState<"run" | "submit" | "review" | null>(null)
+  const [collapsedPane, setCollapsedPane] = useState<CollapsedPane>("none")
+  const [leftPaneWidth, setLeftPaneWidth] = useState(DEFAULT_LEFT_PANE_WIDTH)
+  const [isDesktopLayout, setIsDesktopLayout] = useState(false)
+  const { toast } = useToast()
   const submissions = useAppSelector((state) => state.lms.submissions)
-  const availableLanguages = hasMockBundle ? mockLanguages : cppOnlyLanguages
+  const workspaceRef = useRef<HTMLDivElement | null>(null)
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const timeLimitMinutes =
     assignmentContext?.timeLimit ??
     (assignment?.difficulty === "Hard" ? 60 : assignment?.difficulty === "Medium" ? 45 : 30)
@@ -384,25 +403,101 @@ export default function CodeProblemPage({
     (hasMockBundle
       ? (latestSubmission?.score ?? 0) >= 70
       : Number(latestBackendSubmission?.score ?? 0) >= 70)
-  const activeCode = code ?? (problem ? problem.functionSkeleton[language] ?? "" : "")
+  const activeCode = code ?? (problem ? problem.functionSkeleton.cpp ?? "" : "")
 
   const getElapsedSeconds = useCallback(
     () => Math.floor((Date.now() - startedAtMs) / 1000),
     [startedAtMs]
   )
 
-  const handleLanguageChange = useCallback(
-    (nextLanguage: string) => {
-      if (!problem) {
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1280px)")
+    const syncLayoutMode = () => setIsDesktopLayout(mediaQuery.matches)
+
+    syncLayoutMode()
+    mediaQuery.addEventListener("change", syncLayoutMode)
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncLayoutMode)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isDragging) {
+      return
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const container = workspaceRef.current
+      const dragState = dragStateRef.current
+
+      if (!container || !dragState) {
         return
       }
 
-      const selectedLanguage = nextLanguage as Language
-      setLanguage(selectedLanguage)
-      setCode(problem.functionSkeleton[selectedLanguage] ?? "")
+      const containerWidth = container.getBoundingClientRect().width
+
+      if (containerWidth <= 0) {
+        return
+      }
+
+      const deltaPercent = ((event.clientX - dragState.startX) / containerWidth) * 100
+      const nextWidth = Math.min(
+        MAX_LEFT_PANE_WIDTH,
+        Math.max(MIN_LEFT_PANE_WIDTH, dragState.startWidth + deltaPercent)
+      )
+
+      setLeftPaneWidth(nextWidth)
+    }
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null
+      setIsDragging(false)
+    }
+
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerup", handlePointerUp)
+
+    return () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerup", handlePointerUp)
+    }
+  }, [isDragging])
+
+  const handleDividerPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (collapsedPane !== "none") {
+        return
+      }
+
+      dragStateRef.current = {
+        startX: event.clientX,
+        startWidth: leftPaneWidth,
+      }
+      setIsDragging(true)
+      event.preventDefault()
     },
-    [problem]
+    [collapsedPane, leftPaneWidth]
   )
+
+  const expandSplitLayout = useCallback(() => {
+    setCollapsedPane("none")
+  }, [])
+
+  const collapseLeftPane = useCallback(() => {
+    setCollapsedPane("left")
+  }, [])
+
+  const collapseRightPane = useCallback(() => {
+    setCollapsedPane("right")
+  }, [])
 
   const loadReview = useCallback(async () => {
     if (!assignment) {
@@ -457,9 +552,10 @@ export default function CodeProblemPage({
       setRecommendedProblems(recommendations)
       handleTabChange("review")
     } catch (error) {
-      setActionFeedback(
-        error instanceof Error ? error.message : "Không thể lấy AI review từ backend."
-      )
+      toast({
+        tone: "error",
+        description: error instanceof Error ? error.message : "Không thể lấy AI review từ backend.",
+      })
       handleTabChange("result")
     } finally {
       setRunningAction(null)
@@ -476,6 +572,7 @@ export default function CodeProblemPage({
     activeCode,
     language,
     reviewCode,
+    toast,
   ])
 
   const handleExecute = useCallback(
@@ -485,7 +582,6 @@ export default function CodeProblemPage({
       }
 
       setRunningAction(mode)
-      setActionFeedback(null)
       let summary: ExecutionSummary
 
       try {
@@ -536,6 +632,10 @@ export default function CodeProblemPage({
           setRecommendedProblems([])
           handleTabChange("result")
           setRunningAction(null)
+          toast({
+            tone: "success",
+            description: "Đã nộp bài thành công.",
+          })
           router.push(`/${role}/assignments/${assignment.id}`)
           return
         } else {
@@ -565,7 +665,10 @@ export default function CodeProblemPage({
         setRecommendedProblems([])
         handleTabChange("result")
       } catch (error) {
-        setActionFeedback(error instanceof Error ? error.message : "Không thể thực hiện thao tác này.")
+        toast({
+          tone: "error",
+          description: error instanceof Error ? error.message : "Không thể thực hiện thao tác này.",
+        })
       } finally {
         setRunningAction(null)
       }
@@ -587,24 +690,21 @@ export default function CodeProblemPage({
       role,
       router,
       startedAtMs,
+      toast,
     ]
   )
+
+  if (isLoadingContext || isLoadingProblem || isLoadingTestcases) {
+    return <AttemptWorkspaceSkeleton title="Hệ thống đang chuẩn bị dữ liệu cho màn làm bài." />
+  }
 
   if (!assignment || !problem) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>
-            {isLoadingContext || isLoadingProblem || isLoadingTestcases
-              ? "Đang tải bài tập..."
-              : "Không tìm thấy bài tập"}
-          </CardTitle>
+          <CardTitle>Không tìm thấy bài tập</CardTitle>
         </CardHeader>
-        <CardContent>
-          {isLoadingContext || isLoadingProblem || isLoadingTestcases
-            ? "Hệ thống đang chuẩn bị dữ liệu cho màn làm bài."
-            : "Assignment is unavailable."}
-        </CardContent>
+        <CardContent>Assignment is unavailable.</CardContent>
       </Card>
     )
   }
@@ -618,39 +718,113 @@ export default function CodeProblemPage({
         startedAtMs={startedAtMs}
         timeLimitMinutes={timeLimitMinutes}
         language={language}
-        languages={availableLanguages}
-        onLanguageChange={handleLanguageChange}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <ProblemWorkspaceTabs
-          problem={problem}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          hasMounted={hasMounted}
-          displayedExecution={displayedExecution}
-          review={review}
-          recommendedProblems={recommendedProblems}
-          runningAction={runningAction}
-          canRequestReview={canRequestReview}
-          onLoadReview={loadReview}
-        />
+      {!isDesktopLayout ? (
+        <div className="grid gap-4">
+          <ProblemWorkspaceTabs
+            problem={problem}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            hasMounted={hasMounted}
+            displayedExecution={displayedExecution}
+            review={review}
+            recommendedProblems={recommendedProblems}
+            runningAction={runningAction}
+            canRequestReview={canRequestReview}
+            onLoadReview={loadReview}
+          />
 
-        <EditorWorkspaceCard
-          language={language}
-          code={activeCode}
-          runningAction={runningAction}
-          canRequestReview={canRequestReview}
-          onCodeChange={setCode}
-          onRun={() => handleExecute("run")}
-          onSubmit={() => handleExecute("submit")}
-          onReview={loadReview}
-        />
-      </div>
+          <EditorWorkspaceCard
+            language={language}
+            code={activeCode}
+            review={review}
+            runningAction={runningAction}
+            canRequestReview={canRequestReview}
+            onCodeChange={setCode}
+            onRun={() => handleExecute("run")}
+            onSubmit={() => handleExecute("submit")}
+            onReview={loadReview}
+          />
+        </div>
+      ) : null}
 
-      {actionFeedback ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {actionFeedback}
+      {isDesktopLayout ? (
+        <div
+          ref={workspaceRef}
+          className={cn(
+            "hidden min-h-[640px] xl:flex xl:items-stretch",
+            isDragging ? "xl:cursor-col-resize" : ""
+          )}
+        >
+          {collapsedPane !== "left" ? (
+            <div
+              className="relative min-w-0 shrink-0"
+              style={{
+                flexBasis: collapsedPane === "right" ? "100%" : `${leftPaneWidth}%`,
+              }}
+            >
+              <ProblemWorkspaceTabs
+                problem={problem}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                hasMounted={hasMounted}
+                displayedExecution={displayedExecution}
+                review={review}
+                recommendedProblems={recommendedProblems}
+                runningAction={runningAction}
+                canRequestReview={canRequestReview}
+                onLoadReview={loadReview}
+              />
+            </div>
+          ) : null}
+
+          {collapsedPane === "none" ? (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize workspace panels"
+              className="group relative flex w-5 shrink-0 cursor-col-resize items-center justify-center"
+              onPointerDown={handleDividerPointerDown}
+            >
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="absolute left-1/2 top-4 z-10 size-8 -translate-x-1/2 rounded-full border border-slate-200 bg-white/95 text-slate-600 shadow-sm hover:bg-white"
+                onClick={collapseLeftPane}
+                aria-label="Ẩn panel bài tập"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="flex h-full w-[3px] items-center justify-center rounded-full bg-slate-200 transition group-hover:bg-[#1488D8]/50">
+                  <GripVertical className="size-4 -translate-x-[6.5px] text-slate-400" />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {collapsedPane !== "right" ? (
+            <div
+              className="relative min-w-0 shrink-0"
+              style={{
+                flexBasis: collapsedPane === "left" ? "100%" : `${100 - leftPaneWidth}%`,
+              }}
+            >
+              <EditorWorkspaceCard
+                language={language}
+                code={activeCode}
+                review={review}
+                runningAction={runningAction}
+                canRequestReview={canRequestReview}
+                onCodeChange={setCode}
+                onRun={() => handleExecute("run")}
+                onSubmit={() => handleExecute("submit")}
+                onReview={loadReview}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -7,16 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
-
 export default function CreateClassCard({
   draft,
-  feedback,
   isCreating,
   onChange,
   onSubmit,
@@ -27,7 +19,6 @@ export default function CreateClassCard({
     image: File | null
     schedule: string
   }
-  feedback: FeedbackState
   isCreating: boolean
   onChange: (
     patch: Partial<{ name: string; description: string; image: File | null; schedule: string }>
@@ -95,18 +86,6 @@ export default function CreateClassCard({
           placeholder="Mon, Wed 09:00 - 11:00"
         />
       </div>
-
-      {feedback ? (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            feedback.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
 
       <Button
         type="submit"

@@ -33,6 +33,30 @@ export type TopicAssignmentResponse = {
   tags?: string[] | null
   status: string
 }
+export type PaginatedResponse<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+export type ProblemBankApiProblemResponse = {
+  id: string
+  externalId: string
+  title: string
+  description: string
+  difficulty: string
+  problemConstraint: string
+  type: string
+  functionSkeletons: Record<string, string>
+  testcases: AssignmentTestcaseResponse[]
+  similarQuestionIds: string[]
+}
+export type ProblemBankPageQuery = {
+  page?: number
+  size?: number
+}
+export type ProblemBankPageResult = PaginatedResponse<ProblemBankEntry>
 export type TopicDocumentResponse = {
   id: string
   title: string
@@ -565,8 +589,31 @@ export const lmsApi = baseApi.injectEndpoints({
       query: (courseId) => (courseId ? `/courses/${courseId}/assignments` : "/assignments"),
       providesTags: ["Assignment"],
     }),
-    getProblemBank: builder.query<ProblemBankEntry[], void>({
-      query: () => "/problem-bank",
+    getProblemBank: builder.query<ProblemBankPageResult, ProblemBankPageQuery | void>({
+      query: (params) => ({
+        url: "/problems/leetcode",
+        params: {
+          page: params?.page ?? 0,
+          size: params?.size ?? 20,
+        },
+      }),
+      transformResponse: (
+        response: ApiResponse<PaginatedResponse<ProblemBankApiProblemResponse>>
+      ) => ({
+        ...response.data,
+        content: response.data.content.map((problem) => ({
+          id: problem.id,
+          title: problem.title,
+          description: problem.description,
+          difficulty: problem.difficulty,
+          topics: [],
+          estimatedMinutes:
+            problem.difficulty === "HARD" ? 50 : problem.difficulty === "MEDIUM" ? 35 : 20,
+          recommendedForCourseIds: [],
+          solvedByStudentIds: [],
+          source: "bank",
+        })),
+      }),
       providesTags: ["ProblemBank"],
     }),
     createTopic: builder.mutation<CreatedTopic, CreateTopicRequest>({

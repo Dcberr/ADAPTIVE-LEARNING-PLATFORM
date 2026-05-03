@@ -8,20 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 
-type FeedbackState =
-  | {
-      tone: "success" | "error"
-      message: string
-    }
-  | null
-
 export default function StudentEnrollmentCard({
   instructorName,
   enrolledStudentsCount,
   createdAt,
   schedule,
   userCode,
-  feedback,
   recentStudentIds,
   isSubmitting,
   onUserCodeChange,
@@ -32,7 +24,6 @@ export default function StudentEnrollmentCard({
   createdAt: string
   schedule: string | null
   userCode: string
-  feedback: FeedbackState
   recentStudentIds: string[]
   isSubmitting: boolean
   onUserCodeChange: (value: string) => void
@@ -87,18 +78,6 @@ export default function StudentEnrollmentCard({
             )}
           </Button>
         </form>
-
-        {feedback ? (
-          <div
-            className={`rounded-2xl border px-4 py-3 text-sm ${
-              feedback.tone === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-rose-200 bg-rose-50 text-rose-700"
-            }`}
-          >
-            {feedback.message}
-          </div>
-        ) : null}
 
         {recentStudentIds.length > 0 ? (
           <div className="flex flex-wrap gap-2">
