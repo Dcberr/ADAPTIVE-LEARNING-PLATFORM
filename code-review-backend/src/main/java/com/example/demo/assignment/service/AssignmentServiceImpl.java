@@ -75,6 +75,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                         .testcases(problemReq.getTestcases())
                         .title(assignment.getTitle())
                         .difficulty(assignment.getDifficulty().toString())
+                        .saveToLibrary(problemReq.isSaveToLibrary())
                         .build()
         );
 

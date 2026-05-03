@@ -57,6 +57,8 @@ public class CreateAssignmentRequest {
         // private String leetCodeLanguage;
 
         private List<TestcaseDto> testcases;
+
+        private boolean saveToLibrary;
     }
 
 }
