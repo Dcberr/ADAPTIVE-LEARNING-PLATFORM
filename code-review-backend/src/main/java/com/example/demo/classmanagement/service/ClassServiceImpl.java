@@ -166,6 +166,7 @@ public class ClassServiceImpl implements ClassService {
                 .enrolledStudentsCount(enrolledCount)
                 .status(cls.getStatus())
                 .imageUrl(cls.getImageUrl())
+                .schedule(cls.getSchedule())
                 .build();
     }
 

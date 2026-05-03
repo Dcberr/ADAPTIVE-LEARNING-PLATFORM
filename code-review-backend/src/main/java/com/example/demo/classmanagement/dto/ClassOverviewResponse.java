@@ -22,4 +22,6 @@ public class ClassOverviewResponse {
     private ClassStatus status;
 
     private String imageUrl;
+
+    private String schedule;
 }
