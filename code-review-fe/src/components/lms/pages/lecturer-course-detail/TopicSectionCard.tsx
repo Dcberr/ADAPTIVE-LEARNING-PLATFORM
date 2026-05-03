@@ -2,30 +2,42 @@
 
 import Link from "next/link"
 import { memo } from "react"
-import { ChevronDown, ChevronRight, Download, ExternalLink, Link2, Plus, Trash2 } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  FilePenLine,
+  Link2,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+} from "lucide-react"
 
 import MaterialIcon from "@/components/lms/pages/lecturer-course-detail/MaterialIcon"
-import type {
-  AssignmentDraft,
-  TopicCard,
-} from "@/components/lms/pages/lecturer-course-detail/types"
+import type { TopicCard } from "@/components/lms/pages/lecturer-course-detail/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type TopicSectionCardProps = {
   topic: TopicCard
   collapsed: boolean
   editMode: boolean
   onToggleTopic: (topicId: string) => void
-  onUpdateTopic: (topicId: string, patch: { title?: string; summary?: string }) => void
+  onEditTopic: (topicId: string) => void
   onDeleteTopic: (topicId: string) => void
   onDeleteMaterial: (materialId: string) => void
   onOpenResourceModal: (topicId: string, materialId?: string) => void
-  onOpenAssignmentModal: (topicId: string, draft?: AssignmentDraft) => void
-  onDeleteDraftAssignment: (draftId: string) => void
+  onOpenAssignmentModal: (topicId: string, source: "manual" | "library") => void
+  onEditAssignment: (assignmentId: string) => void
+  onDeleteAssignment: (assignmentId: string) => void
   assignmentHrefPrefix?: string
 }
 
@@ -34,12 +46,13 @@ function TopicSectionCardComponent({
   collapsed,
   editMode,
   onToggleTopic,
-  onUpdateTopic,
+  onEditTopic,
   onDeleteTopic,
   onDeleteMaterial,
   onOpenResourceModal,
   onOpenAssignmentModal,
-  onDeleteDraftAssignment,
+  onEditAssignment,
+  onDeleteAssignment,
   assignmentHrefPrefix,
 }: TopicSectionCardProps) {
   const handleDownloadMaterial = async (title: string, resourceUrl: string) => {
@@ -63,8 +76,39 @@ function TopicSectionCardComponent({
     window.URL.revokeObjectURL(objectUrl)
   }
 
+  const renderActionMenu = ({
+    onEdit,
+    onDelete,
+  }: {
+    onEdit: () => void
+    onDelete: () => void
+  }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-full text-slate-500 hover:bg-slate-100 hover:text-[#030391]"
+        >
+          <MoreHorizontal className="size-4" />
+          <span className="sr-only">Mở menu thao tác</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={8}>
+        <DropdownMenuItem onClick={onEdit}>
+          <FilePenLine className="size-4" />
+          Sửa
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 className="size-4" />
+          Xóa
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   return (
-    <Card className="overflow-hidden border border-slate-200 py-0 gap-0 shadow-sm">
+    <Card className="gap-0 overflow-hidden border border-slate-200 py-0 shadow-sm">
       <CardHeader className="space-y-0 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
@@ -79,43 +123,30 @@ function TopicSectionCardComponent({
                 <ChevronDown className="size-4 text-[#1488D8]" />
               )}
             </button>
+
             <div className="min-w-0 flex-1">
-              {editMode ? (
-                <div className="space-y-3">
-                  <Input
-                    value={topic.title}
-                    onChange={(event) => onUpdateTopic(topic.id, { title: event.target.value })}
-                  />
-                  <Textarea
-                    rows={2}
-                    value={topic.summary}
-                    onChange={(event) => onUpdateTopic(topic.id, { summary: event.target.value })}
-                  />
-                </div>
-              ) : (
-                <>
-                  <CardTitle className="text-lg text-[#030391] sm:text-xl">
-                    {topic.title}
-                  </CardTitle>
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-600">{topic.summary}</p>
-                </>
-              )}
+              <CardTitle className="text-lg text-[#030391] sm:text-xl">{topic.title}</CardTitle>
+              <p className="mt-1 line-clamp-2 text-sm text-slate-600">{topic.summary}</p>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
-            {editMode ? (
+          {editMode ? (
+            <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
+              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => onEditTopic(topic.id)}>
+                <FilePenLine className="size-4" />
+                Sửa
+              </Button>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="rounded-xl text-rose-600"
+                className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                 onClick={() => onDeleteTopic(topic.id)}
               >
                 <Trash2 className="size-4" />
                 Xóa
               </Button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       </CardHeader>
 
@@ -124,7 +155,7 @@ function TopicSectionCardComponent({
           <div className="grid gap-5 lg:grid-cols-2">
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-lg font-semibold text-[#030391]">Tài liệu</p>
+                <p className="text-lg font-semibold text-[#030391]">Tài liệu</p>
                 {editMode ? (
                   <Button
                     variant="outline"
@@ -162,7 +193,14 @@ function TopicSectionCardComponent({
                           </a>
                         </div>
                       </div>
+
                       <div className="ml-3 flex shrink-0 items-center gap-1">
+                        {editMode
+                          ? renderActionMenu({
+                              onEdit: () => onOpenResourceModal(topic.id, material.id),
+                              onDelete: () => onDeleteMaterial(material.id),
+                            })
+                          : null}
                         <Button asChild variant="ghost" size="sm">
                           <a href={material.resourceUrl} target="_blank" rel="noreferrer">
                             <ExternalLink className="size-4" />
@@ -179,25 +217,6 @@ function TopicSectionCardComponent({
                         >
                           <Download className="size-4" />
                         </Button>
-                        {editMode ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onOpenResourceModal(topic.id, material.id)}
-                            >
-                              Sửa
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-rose-600"
-                              onClick={() => onDeleteMaterial(material.id)}
-                            >
-                              Xóa
-                            </Button>
-                          </>
-                        ) : null}
                       </div>
                     </div>
                   ))
@@ -207,17 +226,26 @@ function TopicSectionCardComponent({
 
             <div>
               <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-lg font-semibold text-[#030391]">Bài tập</p>
+                <p className="text-lg font-semibold text-[#030391]">Bài tập</p>
                 {editMode ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => onOpenAssignmentModal(topic.id)}
-                  >
-                    <Plus className="size-4" />
-                    Thêm bài tập
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-xl">
+                        <Plus className="size-4" />
+                        Thêm bài tập
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" sideOffset={8}>
+                      <DropdownMenuItem onClick={() => onOpenAssignmentModal(topic.id, "manual")}>
+                        <FilePenLine className="size-4" />
+                        Thêm thủ công
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onOpenAssignmentModal(topic.id, "library")}>
+                        <Link2 className="size-4" />
+                        Chọn từ kho
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : null}
               </div>
 
@@ -231,27 +259,45 @@ function TopicSectionCardComponent({
                 {topic.assignments.map((assignment) => {
                   const content = (
                     <div className="flex items-center justify-between rounded-2xl border border-[#1488D8]/15 bg-[#f8fbff] p-4 transition hover:border-[#1488D8]/40 hover:bg-white">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Link2 className="size-5 shrink-0 text-[#0f84c2]" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-[#030391]">
-                          {assignment.title}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {assignment.deadline
-                            ? `Hạn nộp ${assignment.deadline} • ${assignment.difficulty}`
-                            : assignment.difficulty}
-                        </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Link2 className="size-5 shrink-0 text-[#0f84c2]" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#030391]">
+                            {assignment.title}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {assignment.deadline
+                              ? `Hạn nộp ${assignment.deadline} • ${assignment.difficulty}`
+                              : assignment.difficulty}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <Badge variant="outline" className="ml-3 shrink-0">
-                      Bài tập
-                    </Badge>
+
+                      {editMode ? (
+                        <div className="ml-3 flex shrink-0 items-center gap-2">
+                          {renderActionMenu({
+                            onEdit: () => onEditAssignment(assignment.id),
+                            onDelete: () => onDeleteAssignment(assignment.id),
+                          })}
+                        </div>
+                      ) : (
+                        <Badge variant="outline" className="ml-3 shrink-0">
+                          Bài tập
+                        </Badge>
+                      )}
                     </div>
                   )
 
+                  if (editMode) {
+                    return <div key={assignment.id}>{content}</div>
+                  }
+
                   return assignmentHrefPrefix ? (
-                    <Link key={assignment.id} href={`${assignmentHrefPrefix}/${assignment.id}`} className="block">
+                    <Link
+                      key={assignment.id}
+                      href={`${assignmentHrefPrefix}/${assignment.id}`}
+                      className="block"
+                    >
                       {content}
                     </Link>
                   ) : (
@@ -276,29 +322,9 @@ function TopicSectionCardComponent({
                         </p>
                       </div>
                     </div>
-                    {editMode ? (
-                      <div className="ml-3 flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onOpenAssignmentModal(topic.id, assignment)}
-                        >
-                          Sửa
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-rose-600"
-                          onClick={() => onDeleteDraftAssignment(assignment.id)}
-                        >
-                          Xóa
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge className="ml-3 shrink-0 bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
-                        Bài tập nháp
-                      </Badge>
-                    )}
+                    <Badge className="ml-3 shrink-0 bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
+                      Bài tập nháp
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -327,7 +353,11 @@ function areEqual(left: TopicSectionCardProps, right: TopicSectionCardProps) {
     return false
   }
 
-  if (left.topic.id !== right.topic.id || left.topic.title !== right.topic.title || left.topic.summary !== right.topic.summary) {
+  if (
+    left.topic.id !== right.topic.id ||
+    left.topic.title !== right.topic.title ||
+    left.topic.summary !== right.topic.summary
+  ) {
     return false
   }
 

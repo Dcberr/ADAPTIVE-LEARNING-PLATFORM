@@ -28,7 +28,6 @@ export type CourseBrowserItem = {
 type CourseBrowserProps = {
   items: CourseBrowserItem[]
   title: string
-  description: string
   emptyTitle: string
   emptyDescription: string
   searchPlaceholder: string
@@ -41,7 +40,6 @@ type ViewMode = "grid" | "list"
 export default function CourseBrowser({
   items,
   title,
-  description,
   emptyTitle,
   emptyDescription,
   searchPlaceholder,
@@ -74,7 +72,6 @@ export default function CourseBrowser({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-[#0b6673]">{title}</h2>
-            <p className="mt-1 text-sm text-slate-500">{description}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button

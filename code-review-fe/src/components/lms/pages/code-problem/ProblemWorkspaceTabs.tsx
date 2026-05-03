@@ -2,6 +2,7 @@
 
 import { memo } from "react"
 import { LoaderCircle, Sparkles } from "lucide-react"
+import { Streamdown } from "streamdown"
 
 import type { CodeReviewFeedback } from "@/data/lms/extendedMockData"
 import CodeReviewPanel from "@/components/lms/CodeReviewPanel"
@@ -12,8 +13,96 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { CodingProblem } from "@/data/lms/mockData"
 import type { ExecutionSummary } from "@/services/lms/mockLmsService"
+import { cn } from "@/lib/utils"
 
 type ActiveTab = "description" | "testcases" | "result" | "review"
+
+function normalizeRichText(content: string) {
+  return content
+    .replace(/\\n/g, "\n")
+    .replace(/^\s*<\/p>\s*/i, "")
+    .replace(/\s*<p>\s*$/i, "")
+    .replace(/<p>(?:&nbsp;|\s|<br\s*\/?>)*<\/p>/gi, "")
+    .trim()
+}
+
+function MarkdownBlock({ content }: { content: string }) {
+  return (
+    <Streamdown
+      mode="static"
+      controls={false}
+      components={{
+        pre: ({ children, className, ...props }) => (
+          <pre
+            className={cn(
+              "my-4 overflow-x-auto whitespace-pre-wrap border-l-4 border-slate-200 pl-4 font-mono text-[15px] leading-8 text-slate-600",
+              className
+            )}
+            {...props}
+          >
+            {children}
+          </pre>
+        ),
+        img: ({ alt, className, style, ...props }) => (
+          // Keep raw HTML image sizing from the source but normalize the surrounding look.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt={alt ?? ""}
+            className={cn("my-3 h-auto max-w-full rounded-xl border border-slate-200 bg-white", className)}
+            style={style}
+            {...props}
+          />
+        ),
+        p: ({ children, className, ...props }) => (
+          <p className={cn("leading-7", className)} {...props}>
+            {children}
+          </p>
+        ),
+        ul: ({ children, className, ...props }) => (
+          <ul className={cn("my-3 list-disc space-y-2 pl-6", className)} {...props}>
+            {children}
+          </ul>
+        ),
+        ol: ({ children, className, ...props }) => (
+          <ol className={cn("my-3 list-decimal space-y-2 pl-6", className)} {...props}>
+            {children}
+          </ol>
+        ),
+        li: ({ children, className, ...props }) => (
+          <li className={cn("leading-7 marker:text-slate-500", className)} {...props}>
+            {children}
+          </li>
+        ),
+        code: ({ children, className, ...props }) => (
+          <code
+            className={cn(
+              "rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.95em] text-slate-800",
+              className
+            )}
+            {...props}
+          >
+            {children}
+          </code>
+        ),
+      }}
+      className="
+        text-sm text-slate-700
+        [&_[data-streamdown='heading-1']]:mt-0
+        [&_[data-streamdown='heading-2']]:mt-0
+        [&_[data-streamdown='heading-3']]:mt-0
+        [&_strong.example]:text-[15px]
+        [&_strong.example]:font-semibold
+        [&_p]:leading-6
+        [&_ul]:list-disc
+        [&_ul]:pl-6
+        [&_ol]:list-decimal
+        [&_ol]:pl-6
+      "
+    >
+      {normalizeRichText(content)}
+    </Streamdown>
+  )
+}
 
 function ProblemWorkspaceTabsComponent({
   problem,
@@ -65,20 +154,16 @@ function ProblemWorkspaceTabsComponent({
             hidden={activeTab !== "description"}
             className="space-y-4 pt-4"
           >
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="whitespace-pre-line text-sm text-slate-700">{problem.description}</p>
+            <div>
+              <MarkdownBlock content={problem.description} />
             </div>
 
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-[#030391]">Constraints</h3>
-              <div className="space-y-2">
-                {problem.constraints.map((constraint) => (
-                  <div key={constraint} className="rounded-xl border border-slate-200 p-3 text-sm">
-                    {constraint}
-                  </div>
-                ))}
+            {problem.problemConstraint ? (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-[#030391]">Constraints</h3>
+                  <MarkdownBlock content={problem.problemConstraint} />
               </div>
-            </div>
+            ) : null}
 
             <div>
               <h3 className="mb-3 text-sm font-semibold text-[#030391]">Examples</h3>

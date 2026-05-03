@@ -52,6 +52,19 @@ export type AssignmentDraft = {
   testCases: EditableTestCase[]
 }
 
+export type AssignmentSettingsDraft = {
+  id: string
+  topicId: string
+  title: string
+  difficulty: "EASY" | "MEDIUM" | "HARD"
+  score: string
+  timeLimit: string
+  openAt: string
+  deadline: string
+  attemptsAllowed: string
+  tags: string
+}
+
 export type TopicCard = TopicBundle & {
   customAssignments: AssignmentDraft[]
 }

@@ -259,12 +259,13 @@ export default function CourseDetailPage({ courseId }: { courseId: string }) {
                     [topicId]: !state[topicId],
                   }))
                 }
-                onUpdateTopic={() => undefined}
+                onEditTopic={() => undefined}
                 onDeleteTopic={() => undefined}
                 onDeleteMaterial={() => undefined}
                 onOpenResourceModal={() => undefined}
                 onOpenAssignmentModal={() => undefined}
-                onDeleteDraftAssignment={() => undefined}
+                onEditAssignment={() => undefined}
+                onDeleteAssignment={() => undefined}
               />
             ))
           )}

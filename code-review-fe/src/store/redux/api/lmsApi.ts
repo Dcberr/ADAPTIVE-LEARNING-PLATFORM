@@ -44,13 +44,8 @@ export type ProblemBankApiProblemResponse = {
   id: string
   externalId: string
   title: string
-  description: string
   difficulty: string
-  problemConstraint: string
-  type: string
-  functionSkeletons: Record<string, string>
-  testcases: AssignmentTestcaseResponse[]
-  similarQuestionIds: string[]
+  tags?: string[] | null
 }
 export type ProblemBankPageQuery = {
   page?: number
@@ -76,6 +71,12 @@ type CreateTopicRequest = {
   title: string
   description: string
 }
+type UpdateTopicRequest = {
+  classId: string
+  topicId: string
+  title: string
+  description: string
+}
 type CreatedTopic = {
   id: string
   classId: string
@@ -83,12 +84,26 @@ type CreatedTopic = {
   description: string
 }
 type CreateDocumentRequest = {
+  classId: string
   topicId: string
   title: string
   description: string
   file: File
 }
+type UpdateDocumentRequest = {
+  classId: string
+  topicId: string
+  documentId: string
+  title?: string
+  description?: string
+  file?: File | null
+}
+type DeleteDocumentRequest = {
+  classId: string
+  documentId: string
+}
 type CreateAssignmentRequest = {
+  classId: string
   topicId: string
   title: string
   startTime: string
@@ -110,13 +125,23 @@ type CreateAssignmentRequest = {
     }>
   }
 }
-type UpdateTopicRequest = {
-  id: string
-  patch: Partial<{
-    title: string
-    summary: string
-    order: number
-  }>
+type UpdateAssignmentRequest = {
+  classId: string
+  assignmentId: string
+  topicId?: string
+  title?: string
+  status?: string
+  startTime?: string
+  deadline?: string
+  timeLimit?: number
+  maxScore?: number
+  maxSubmission?: number
+  difficulty?: "EASY" | "MEDIUM" | "HARD"
+  tags?: string[]
+}
+type DeleteAssignmentRequest = {
+  classId: string
+  assignmentId: string
 }
 type CreateMaterialRequest = Omit<CourseMaterial, "id">
 type UpdateMaterialRequest = {
@@ -134,6 +159,13 @@ type CreateClassRequest = {
   description: string
   image: File | null
   schedule: string
+}
+type UpdateClassRequest = {
+  classId: string
+  name?: string
+  description?: string
+  image?: File | null
+  schedule?: string
 }
 type CreatedClass = {
   id: string
@@ -187,10 +219,12 @@ export type AssignmentContext = TopicAssignmentResponse & {
 export type AssignmentSubmissionResponse = {
   submissionId: string
   status: string
-  startedAt: string
+  startedAt: string | null
   submittedAt: string
   score: string
   studentName: string
+  language?: string
+  runtime?: number | null
 }
 export type SubmissionDetailTestcaseResponse = {
   testcaseId: string
@@ -212,6 +246,19 @@ export type AssignmentProblemResponse = {
   description: string
   problemConstraint: string
   functionSkeletons: Record<string, string>
+}
+export type ProblemDetailResponse = {
+  id: string
+  externalId: string
+  title: string
+  description: string
+  difficulty: string
+  problemConstraint: string | null
+  type: string
+  functionSkeletons: Record<string, string>
+  testcases: AssignmentTestcaseResponse[]
+  similarQuestionIds: string[]
+  tags: string[]
 }
 export type AssignmentTestcaseResponse = {
   id: string
@@ -296,6 +343,40 @@ type GetAssignmentSubmissionsRequest = {
   assignmentId: string
   scope: "me" | "all" | "user"
   userId?: string
+}
+
+function toClassSummaryFromCreate(
+  createdClass: CreatedClass,
+  request: CreateClassRequest
+): LecturerClassSummary {
+  return {
+    id: createdClass.id,
+    name: createdClass.name,
+    instructorName: "Bạn",
+    enrolledStudentsCount: 0,
+    status: "PLANNED",
+    schedule: request.schedule || null,
+    imageUrl: createdClass.imageUrl ?? null,
+  }
+}
+
+function updateClassTopicsTopic(
+  topics: TopicDetailResponse[],
+  topicId: string,
+  updater: (topic: TopicDetailResponse) => TopicDetailResponse
+) {
+  const index = topics.findIndex((topic) => topic.id === topicId)
+  if (index === -1) {
+    return
+  }
+
+  topics[index] = updater(topics[index])
+}
+
+function removeAssignmentFromTopics(topics: TopicDetailResponse[], assignmentId: string) {
+  topics.forEach((topic) => {
+    topic.assignments = topic.assignments.filter((assignment) => assignment.id !== assignmentId)
+  })
 }
 
 export const lmsApi = baseApi.injectEndpoints({
@@ -498,11 +579,40 @@ export const lmsApi = baseApi.injectEndpoints({
         { type: "Assignment" as const, id: `PROBLEM-${assignmentId}` },
       ],
     }),
+    getProblemById: builder.query<ProblemDetailResponse, string>({
+      query: (problemId) => `/problems/${problemId}`,
+      transformResponse: (response: ApiResponse<ProblemDetailResponse>) => response.data,
+      providesTags: (_result, _error, problemId) => [{ type: "ProblemBank" as const, id: problemId }],
+    }),
     getAssignmentTestcases: builder.query<AssignmentTestcaseResponse[], string>({
       query: (assignmentId) => `/testcases/assignment/${assignmentId}`,
       transformResponse: (response: ApiResponse<AssignmentTestcaseResponse[]>) => response.data,
       providesTags: (_result, _error, assignmentId) => [
         { type: "Assignment" as const, id: `TESTCASES-${assignmentId}` },
+      ],
+    }),
+    getProblemSubmissions: builder.query<AssignmentSubmissionResponse[], string>({
+      query: (problemId) => `/submissions/problem/${problemId}/me`,
+      transformResponse: (response: ApiResponse<Array<{
+        id: string
+        language: string
+        status: string
+        runtime?: number | null
+        submittedAt: string
+        score: string
+      }>>) =>
+        (response.data ?? []).map((submission) => ({
+          submissionId: submission.id,
+          status: submission.status,
+          startedAt: null,
+          submittedAt: submission.submittedAt,
+          score: submission.score,
+          studentName: "",
+          language: submission.language,
+          runtime: submission.runtime ?? null,
+        })),
+      providesTags: (_result, _error, problemId) => [
+        { type: "Submission" as const, id: `PROBLEM-${problemId}` },
       ],
     }),
     judgeExecution: builder.mutation<JudgeExecutionResponse, JudgeExecutionRequest>({
@@ -541,7 +651,82 @@ export const lmsApi = baseApi.injectEndpoints({
         }
       },
       transformResponse: (response: ApiResponse<CreatedClass>) => response.data,
-      invalidatesTags: [{ type: "Class" as const, id: "LIST" }],
+      async onQueryStarted(request, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+              draft.unshift(toClassSummaryFromCreate(data, request))
+            })
+          )
+        } catch {}
+      },
+    }),
+    updateClass: builder.mutation<CreatedClass, UpdateClassRequest>({
+      query: ({ classId, name, description, image, schedule }) => {
+        const formData = new FormData()
+
+        if (name !== undefined) {
+          formData.append("name", name)
+        }
+
+        if (description !== undefined) {
+          formData.append("description", description)
+        }
+
+        if (schedule !== undefined) {
+          formData.append("schedule", schedule)
+        }
+
+        if (image) {
+          formData.append("image", image)
+        }
+
+        return {
+          url: `/classes/${classId}`,
+          method: "PUT",
+          body: formData,
+        }
+      },
+      transformResponse: (response: ApiResponse<CreatedClass>) => response.data,
+      async onQueryStarted({ classId, schedule }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+              const item = draft.find((classroom) => classroom.id === classId)
+              if (!item) return
+              item.name = data.name
+              item.schedule = schedule ?? item.schedule ?? null
+              item.imageUrl = data.imageUrl ?? item.imageUrl ?? null
+            })
+          )
+          dispatch(
+            baseApi.util.updateQueryData("getClassById", classId, (draft) => {
+              draft.name = data.name
+              draft.schedule = schedule ?? draft.schedule ?? null
+              draft.imageUrl = data.imageUrl ?? draft.imageUrl ?? null
+            })
+          )
+        } catch {}
+      },
+    }),
+    deleteClass: builder.mutation<void, string>({
+      query: (classId) => ({
+        url: `/classes/${classId}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      async onQueryStarted(classId, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) =>
+              draft.filter((classroom) => classroom.id !== classId)
+            )
+          )
+        } catch {}
+      },
     }),
     addStudentToClass: builder.mutation<void, AddStudentToClassRequest>({
       query: ({ classId, userCode }) => ({
@@ -549,9 +734,25 @@ export const lmsApi = baseApi.injectEndpoints({
         method: "POST",
       }),
       transformResponse: () => undefined,
+      async onQueryStarted({ classId }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+              const item = draft.find((classroom) => classroom.id === classId)
+              if (item) {
+                item.enrolledStudentsCount += 1
+              }
+            })
+          )
+          dispatch(
+            baseApi.util.updateQueryData("getClassById", classId, (draft) => {
+              draft.enrolledStudentsCount += 1
+            })
+          )
+        } catch {}
+      },
       invalidatesTags: (_result, _error, { classId }) => [
-        { type: "Class" as const, id: "LIST" },
-        { type: "Class" as const, id: classId },
         { type: "Student" as const, id: `CLASS-${classId}` },
       ],
     }),
@@ -561,11 +762,29 @@ export const lmsApi = baseApi.injectEndpoints({
         method: "DELETE",
       }),
       transformResponse: () => undefined,
-      invalidatesTags: (_result, _error, { classId }) => [
-        { type: "Class" as const, id: "LIST" },
-        { type: "Class" as const, id: classId },
-        { type: "Student" as const, id: `CLASS-${classId}` },
-      ],
+      async onQueryStarted({ classId, userCode }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassStudents", classId, (draft) =>
+              draft.filter((student) => student.userCode !== userCode)
+            )
+          )
+          dispatch(
+            baseApi.util.updateQueryData("getMyClasses", undefined, (draft) => {
+              const item = draft.find((classroom) => classroom.id === classId)
+              if (item) {
+                item.enrolledStudentsCount = Math.max(0, item.enrolledStudentsCount - 1)
+              }
+            })
+          )
+          dispatch(
+            baseApi.util.updateQueryData("getClassById", classId, (draft) => {
+              draft.enrolledStudentsCount = Math.max(0, draft.enrolledStudentsCount - 1)
+            })
+          )
+        } catch {}
+      },
     }),
     getCourses: builder.query<Course[], void>({
       query: () => "/courses",
@@ -591,7 +810,7 @@ export const lmsApi = baseApi.injectEndpoints({
     }),
     getProblemBank: builder.query<ProblemBankPageResult, ProblemBankPageQuery | void>({
       query: (params) => ({
-        url: "/problems/leetcode",
+        url: "/problems/library",
         params: {
           page: params?.page ?? 0,
           size: params?.size ?? 20,
@@ -604,9 +823,10 @@ export const lmsApi = baseApi.injectEndpoints({
         content: response.data.content.map((problem) => ({
           id: problem.id,
           title: problem.title,
-          description: problem.description,
+          description: "",
           difficulty: problem.difficulty,
-          topics: [],
+          topics: problem.tags ?? [],
+          tags: problem.tags ?? [],
           estimatedMinutes:
             problem.difficulty === "HARD" ? 50 : problem.difficulty === "MEDIUM" ? 35 : 20,
           recommendedForCourseIds: [],
@@ -614,7 +834,10 @@ export const lmsApi = baseApi.injectEndpoints({
           source: "bank",
         })),
       }),
-      providesTags: ["ProblemBank"],
+      providesTags: (result) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        ...(result?.content.map((problem) => ({ type: "ProblemBank" as const, id: problem.id })) ?? []),
+      ],
     }),
     createTopic: builder.mutation<CreatedTopic, CreateTopicRequest>({
       query: (body) => ({
@@ -623,10 +846,67 @@ export const lmsApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiResponse<CreatedTopic>) => response.data,
-      invalidatesTags: (_result, _error, { classId }) => [
-        { type: "Topic" as const, id: `CLASS-${classId}` },
-        { type: "Class" as const, id: classId },
-      ],
+      async onQueryStarted({ classId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              draft.push({
+                id: data.id,
+                title: data.title,
+                description: data.description,
+                assignments: [],
+                documents: [],
+              })
+            })
+          )
+        } catch {}
+      },
+    }),
+    updateTopic: builder.mutation<
+      CreatedTopic,
+      UpdateTopicRequest
+    >({
+        query: ({ topicId, title, description }) => ({
+          url: `/topics/${topicId}`,
+          method: "PUT",
+          body: {
+            title,
+            description,
+          },
+        }),
+        transformResponse: (response: ApiResponse<CreatedTopic>) => response.data,
+        async onQueryStarted({ classId, topicId }, { dispatch, queryFulfilled }) {
+          try {
+            const { data } = await queryFulfilled
+            dispatch(
+              baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+                updateClassTopicsTopic(draft, topicId, (topic) => ({
+                  ...topic,
+                  title: data.title,
+                  description: data.description,
+                }))
+              })
+            )
+          } catch {}
+        },
+      }),
+    deleteTopic: builder.mutation<void, { classId: string; topicId: string }>({
+      query: ({ topicId }) => ({
+        url: `/topics/${topicId}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      async onQueryStarted({ classId, topicId }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) =>
+              draft.filter((topic) => topic.id !== topicId)
+            )
+          )
+        } catch {}
+      },
     }),
     createDocument: builder.mutation<TopicDocumentResponse, CreateDocumentRequest>({
       query: ({ topicId, title, description, file }) => {
@@ -643,61 +923,166 @@ export const lmsApi = baseApi.injectEndpoints({
         }
       },
       transformResponse: (response: ApiResponse<TopicDocumentResponse>) => response.data,
-      invalidatesTags: (_result, _error, { topicId }) => [
-        { type: "Topic" as const, id: topicId },
-        "Topic",
-        "Material",
-      ],
+      async onQueryStarted({ classId, topicId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              updateClassTopicsTopic(draft, topicId, (topic) => ({
+                ...topic,
+                documents: [...topic.documents, data],
+              }))
+            })
+          )
+        } catch {}
+      },
+    }),
+    updateDocument: builder.mutation<TopicDocumentResponse, UpdateDocumentRequest>({
+      query: ({ documentId, title, description, file }) => {
+        const formData = new FormData()
+
+        if (title !== undefined) {
+          formData.append("title", title)
+        }
+
+        if (description !== undefined) {
+          formData.append("description", description)
+        }
+
+        if (file) {
+          formData.append("file", file)
+        }
+
+        return {
+          url: `/documents/${documentId}`,
+          method: "PUT",
+          body: formData,
+        }
+      },
+      transformResponse: (response: ApiResponse<TopicDocumentResponse>) => response.data,
+      async onQueryStarted({ classId, topicId, documentId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              updateClassTopicsTopic(draft, topicId, (topic) => ({
+                ...topic,
+                documents: topic.documents.map((document) =>
+                  document.id === documentId ? data : document
+                ),
+              }))
+            })
+          )
+        } catch {}
+      },
+    }),
+    deleteDocument: builder.mutation<void, DeleteDocumentRequest>({
+      query: ({ documentId }) => ({
+        url: `/documents/${documentId}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      async onQueryStarted({ classId, documentId }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              draft.forEach((topic) => {
+                topic.documents = topic.documents.filter((document) => document.id !== documentId)
+              })
+            })
+          )
+        } catch {}
+      },
     }),
     createAssignment: builder.mutation<TopicAssignmentResponse, CreateAssignmentRequest>({
-      query: ({
-        topicId,
-        title,
-        startTime,
-        deadline,
-        timeLimit,
-        maxScore,
-        maxSubmission,
-        difficulty,
-        tags,
-        problem,
-      }) => ({
+      query: (request) => ({
         url: "/assignments",
         method: "POST",
         body: {
-          topicId,
-          title,
-          startTime,
-          deadline,
-          timeLimit,
-          maxScore,
-          maxSubmission,
-          difficulty,
-          tags,
-          problem,
+          topicId: request.topicId,
+          title: request.title,
+          startTime: request.startTime,
+          deadline: request.deadline,
+          timeLimit: request.timeLimit,
+          maxScore: request.maxScore,
+          maxSubmission: request.maxSubmission,
+          difficulty: request.difficulty,
+          tags: request.tags,
+          problem: request.problem,
         },
       }),
       transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,
-      invalidatesTags: (_result, _error, { topicId }) => [
-        { type: "Topic" as const, id: topicId },
-        "Assignment",
-        "Topic",
-      ],
+      async onQueryStarted({ classId, topicId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              updateClassTopicsTopic(draft, topicId, (topic) => ({
+                ...topic,
+                assignments: [...topic.assignments, data],
+              }))
+            })
+          )
+        } catch {}
+      },
     }),
-    updateTopic: builder.mutation<CourseTopic, UpdateTopicRequest>({
-      query: ({ id, patch }) => ({
-        url: `/topics/${id}`,
-        method: "PATCH",
-        body: patch,
+    updateAssignment: builder.mutation<TopicAssignmentResponse, UpdateAssignmentRequest>({
+      query: (request) => ({
+        url: `/assignments/${request.assignmentId}`,
+        method: "PUT",
+        body: {
+          topicId: request.topicId,
+          title: request.title,
+          status: request.status,
+          startTime: request.startTime,
+          deadline: request.deadline,
+          timeLimit: request.timeLimit,
+          maxScore: request.maxScore,
+          maxSubmission: request.maxSubmission,
+          difficulty: request.difficulty,
+          tags: request.tags,
+        },
       }),
-      invalidatesTags: ["Topic", "Course"],
+      transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,
+      async onQueryStarted({ classId, assignmentId, topicId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              const currentTopic = draft.find((topic) =>
+                topic.assignments.some((assignment) => assignment.id === assignmentId)
+              )
+              const resolvedTopicId = topicId ?? currentTopic?.id
+              removeAssignmentFromTopics(draft, assignmentId)
+
+              if (resolvedTopicId) {
+                updateClassTopicsTopic(draft, resolvedTopicId, (topic) => ({
+                  ...topic,
+                  assignments: [...topic.assignments, data],
+                }))
+              }
+            })
+          )
+        } catch {}
+      },
     }),
-    deleteTopic: builder.mutation<{ success: boolean; id: string }, string>({
-      query: (id) => ({
-        url: `/topics/${id}`,
+    deleteAssignment: builder.mutation<void, DeleteAssignmentRequest>({
+      query: ({ assignmentId }) => ({
+        url: `/assignments/${assignmentId}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Topic", "Course", "Material"],
+      transformResponse: () => undefined,
+      async onQueryStarted({ classId, assignmentId }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            baseApi.util.updateQueryData("getClassTopics", classId, (draft) => {
+              removeAssignmentFromTopics(draft, assignmentId)
+            })
+          )
+        } catch {}
+      },
     }),
     createMaterial: builder.mutation<CourseMaterial, CreateMaterialRequest>({
       query: (body) => ({
@@ -728,7 +1113,10 @@ export const lmsApi = baseApi.injectEndpoints({
         method: id ? "PUT" : "POST",
         body: payload,
       }),
-      invalidatesTags: ["ProblemBank", "Assignment"],
+      invalidatesTags: (result) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        ...(result ? [{ type: "ProblemBank" as const, id: result.id }] : []),
+      ],
     }),
     createSubmission: builder.mutation<AssignmentSubmissionResponse, CreateSubmissionRequest>({
       query: (body) => ({
@@ -751,10 +1139,15 @@ export const {
   useGetAssignmentSubmissionsQuery,
   useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
+  useGetProblemByIdQuery,
+  useLazyGetProblemByIdQuery,
   useGetAssignmentTestcasesQuery,
+  useGetProblemSubmissionsQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
   useCreateClassMutation,
+  useUpdateClassMutation,
+  useDeleteClassMutation,
   useAddStudentToClassMutation,
   useRemoveStudentFromClassMutation,
   useGetCoursesQuery,
@@ -763,10 +1156,14 @@ export const {
   useGetAssignmentsQuery,
   useGetProblemBankQuery,
   useCreateTopicMutation,
-  useCreateDocumentMutation,
-  useCreateAssignmentMutation,
   useUpdateTopicMutation,
   useDeleteTopicMutation,
+  useCreateDocumentMutation,
+  useUpdateDocumentMutation,
+  useDeleteDocumentMutation,
+  useCreateAssignmentMutation,
+  useUpdateAssignmentMutation,
+  useDeleteAssignmentMutation,
   useCreateMaterialMutation,
   useUpdateMaterialMutation,
   useDeleteMaterialMutation,

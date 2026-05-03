@@ -11,13 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  useGetAssignmentContextQuery,
-  useGetAssignmentSubmissionsQuery,
+  useGetProblemByIdQuery,
+  useGetProblemSubmissionsQuery,
 } from "@/store/redux/api/lmsApi"
 
 function formatDateTime(value?: string | null) {
   if (!value) {
-    return "Chưa cấu hình"
+    return "Chưa có dữ liệu"
   }
 
   const parsed = new Date(value)
@@ -28,128 +28,56 @@ function formatDateTime(value?: string | null) {
   return parsed.toLocaleString("vi-VN")
 }
 
-function formatLongDateTime(value?: string | null) {
-  if (!value) {
-    return null
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat("vi-VN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(parsed)
-}
-
-function formatScore(value?: number | null) {
-  if (typeof value !== "number") {
-    return "Chưa cấu hình"
-  }
-
-  return `${value} điểm`
-}
-
-function formatTimeLimit(value?: number | null) {
-  if (typeof value !== "number") {
-    return "Chưa cấu hình"
-  }
-
-  return `${value} phút`
-}
-
-function formatDuration(startedAt?: string | null, submittedAt?: string | null) {
-  if (!startedAt || !submittedAt) {
-    return null
-  }
-
-  const startMs = new Date(startedAt).getTime()
-  const endMs = new Date(submittedAt).getTime()
-
-  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
-    return null
-  }
-
-  const totalSeconds = Math.floor((endMs - startMs) / 1000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-
-  if (minutes <= 0) {
-    return `${seconds} giây`
-  }
-
-  return `${minutes} phút ${seconds} giây`
-}
-
-function formatSubmissionScore(score: string, maxScore?: number | null) {
-  const numericScore = Number(score)
+function formatScore(value?: string | null) {
+  const numericScore = Number(value)
 
   if (!Number.isFinite(numericScore)) {
+    return "Chưa có dữ liệu"
+  }
+
+  return `${numericScore.toLocaleString("vi-VN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}/100`
+}
+
+function formatRuntime(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return null
   }
 
-  const formattedScore = numericScore.toLocaleString("vi-VN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-
-  if (typeof maxScore !== "number" || !Number.isFinite(maxScore) || maxScore <= 0) {
-    return formattedScore
-  }
-
-  const formattedMaxScore = maxScore.toLocaleString("vi-VN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-  const percentage = Math.round((numericScore / maxScore) * 100)
-
-  return `${formattedScore} trên ${formattedMaxScore} (${percentage}%)`
+  return `${value} ms`
 }
 
-export default function AssignmentDetailPage({
+export default function ProblemBankProblemDetailPage({
   id,
-  role = "student",
+  role = "lecturer",
 }: {
   id: string
   role?: UserRole
 }) {
-  const { data: assignment, error, isLoading } = useGetAssignmentContextQuery(id)
+  const { data: problem, error, isLoading } = useGetProblemByIdQuery(id)
   const {
     data: submissions = [],
     isLoading: isLoadingSubmissions,
-  } = useGetAssignmentSubmissionsQuery({
-    assignmentId: id,
-    scope: role === "student" ? "me" : "all",
-  })
+  } = useGetProblemSubmissionsQuery(id)
 
   if (isLoading) {
     return <AssignmentDetailSkeleton />
   }
 
-  if (error || !assignment) {
+  if (error || !problem) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Không tìm thấy bài tập</CardTitle>
+          <CardTitle>Không tìm thấy bài luyện tập</CardTitle>
         </CardHeader>
       </Card>
     )
   }
 
-  const backHref =
-    role === "student"
-      ? `/student/courses/${assignment.classId}`
-      : `/lecturer/courses/${assignment.classId}`
-  const attemptHref =
-    role === "student"
-      ? `/student/assignments/${assignment.id}/attempt`
-      : `/lecturer/assignments/${assignment.id}/attempt`
+  const backHref = `/${role}/problem-bank`
+  const attemptHref = `/${role}/problem-bank/${problem.id}/attempt`
   const bestScore = submissions.reduce((best, item) => {
     const score = Number(item.score)
     return Number.isFinite(score) ? Math.max(best, score) : best
@@ -164,25 +92,21 @@ export default function AssignmentDetailPage({
 
     return rightTime - leftTime
   })
-  const attemptsUsed = submissions.length
-  const attemptsAllowed = assignment.maxSubmission ?? 0
-  const attemptsLeft = attemptsAllowed > 0 ? Math.max(attemptsAllowed - attemptsUsed, 0) : null
 
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge className="bg-[#030391] text-white">{assignment.className}</Badge>
-          <Badge variant="outline">{assignment.topicTitle}</Badge>
-          <Badge variant="outline">{assignment.difficulty}</Badge>
-          <Badge variant="outline">{formatScore(assignment.maxScore)}</Badge>
-          {(assignment.tags ?? []).map((tag) => (
+          <Badge className="bg-[#1488D8] text-white">Problem Bank</Badge>
+          <Badge variant="outline">{problem.difficulty}</Badge>
+          <Badge variant="outline">100 điểm</Badge>
+          {(problem.tags ?? []).map((tag) => (
             <Badge key={tag} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
               {tag}
             </Badge>
           ))}
         </div>
-        <h1 className="mt-4 text-3xl font-bold text-[#030391]">{assignment.title}</h1>
+        <h1 className="mt-4 text-3xl font-bold text-[#030391]">{problem.title}</h1>
       </div>
 
       <Card>
@@ -193,30 +117,28 @@ export default function AssignmentDetailPage({
           <div className="space-y-4 rounded-3xl bg-slate-50 p-5">
             <div>
               <p className="text-sm font-semibold text-slate-500">Mở bài</p>
-              <p className="mt-1 text-lg text-slate-900">{formatDateTime(assignment.startTime)}</p>
+              <p className="mt-1 text-lg text-slate-900">Luôn sẵn sàng</p>
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500">Hạn nộp</p>
-              <p className="mt-1 text-lg text-slate-900">{formatDateTime(assignment.deadline)}</p>
+              <p className="mt-1 text-lg text-slate-900">Không giới hạn</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-sm font-semibold text-slate-500">Số lần nộp tối đa</p>
-                <p className="mt-1 text-lg text-slate-900">{attemptsAllowed || "Không giới hạn"}</p>
+                <p className="mt-1 text-lg text-slate-900">Không giới hạn</p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-500">Còn lại</p>
-                <p className="mt-1 text-lg text-slate-900">
-                  {attemptsLeft === null ? "Không giới hạn" : attemptsLeft}
-                </p>
+                <p className="mt-1 text-lg text-slate-900">Không giới hạn</p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-500">Time limit</p>
-                <p className="mt-1 text-lg text-slate-900">{formatTimeLimit(assignment.timeLimit)}</p>
+                <p className="mt-1 text-lg text-slate-900">Không giới hạn</p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-500">Điểm tối đa</p>
-                <p className="mt-1 text-lg text-slate-900">{formatScore(assignment.maxScore)}</p>
+                <p className="mt-1 text-lg text-slate-900">100 điểm</p>
               </div>
             </div>
           </div>
@@ -225,13 +147,10 @@ export default function AssignmentDetailPage({
             <p className="text-sm font-semibold uppercase tracking-wide text-[#1488D8]">
               Tổng quan lần nộp
             </p>
-            <p className="mt-3 text-5xl font-bold text-[#030391]">
-              {bestScore}
-              {typeof assignment.maxScore === "number" ? `/${assignment.maxScore}` : ""}
-            </p>
+            <p className="mt-3 text-5xl font-bold text-[#030391]">{bestScore}/100</p>
             <p className="mt-2 text-sm text-slate-500">
-              {attemptsUsed > 0
-                ? `Đã có ${attemptsUsed} lần nộp ${role === "lecturer" ? "trong lớp này" : "của bạn"}.`
+              {submissions.length > 0
+                ? `Đã có ${submissions.length} lần nộp cho bài luyện tập này.`
                 : "Chưa có lịch sử nộp bài."}
             </p>
 
@@ -241,7 +160,7 @@ export default function AssignmentDetailPage({
               </Button>
               <Link href={backHref}>
                 <Button variant="outline" className="rounded-2xl">
-                  Quay lại khóa học
+                  Quay lại Problem Bank
                 </Button>
               </Link>
             </div>
@@ -276,33 +195,11 @@ export default function AssignmentDetailPage({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3 px-5 text-sm">
-                  {role === "lecturer" ? (
-                    <div className="grid grid-cols-[120px_1fr] gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="font-semibold text-slate-600">Sinh viên</p>
-                      <p className="text-slate-900">{submission.studentName}</p>
-                    </div>
-                  ) : null}
                   {[
-                    {
-                      label: "Trạng thái",
-                      value: submission.status,
-                    },
-                    {
-                      label: "Bắt đầu vào lúc",
-                      value: formatLongDateTime(submission.startedAt),
-                    },
-                    {
-                      label: "Kết thúc lúc",
-                      value: formatLongDateTime(submission.submittedAt),
-                    },
-                    {
-                      label: "Thời gian thực hiện",
-                      value: formatDuration(submission.startedAt, submission.submittedAt),
-                    },
-                    {
-                      label: "Điểm",
-                      value: formatSubmissionScore(submission.score, assignment.maxScore),
-                    },
+                    { label: "Trạng thái", value: submission.status },
+                    { label: "Ngôn ngữ", value: submission.language },
+                    { label: "Điểm", value: formatScore(submission.score) },
+                    { label: "Runtime", value: formatRuntime(submission.runtime) },
                   ]
                     .filter((item) => item.value)
                     .map((item) => (
@@ -316,9 +213,7 @@ export default function AssignmentDetailPage({
                     ))}
                   <div className="pt-1">
                     <Button asChild variant="outline" className="w-full rounded-2xl">
-                      <Link
-                        href={`/${role}/assignments/${assignment.id}/submissions/${submission.submissionId}`}
-                      >
+                      <Link href={`/${role}/problem-bank/${problem.id}/submissions/${submission.submissionId}`}>
                         Xem lại bài làm
                       </Link>
                     </Button>

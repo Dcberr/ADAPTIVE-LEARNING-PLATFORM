@@ -49,7 +49,9 @@ export default function LmsShell({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const user = useAppSelector((state) => state.auth.user)
-  const compactWorkspace = /^\/(student|lecturer)\/assignments\/[^/]+\/attempt$/.test(pathname)
+  const compactWorkspace =
+    /^\/(student|lecturer)\/assignments\/[^/]+\/attempt$/.test(pathname) ||
+    /^\/lecturer\/problem-bank\/[^/]+\/attempt$/.test(pathname)
   const navItems = navItemsByRole[role]
   const profileHref = role === "student" ? "/student/profile" : "/lecturer/dashboard"
   const handleLogout = async () => {
@@ -396,35 +398,6 @@ export default function LmsShell({
                         </div>
                       )
                     })}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-[#030391]/5 bg-white/70 p-5 shadow-lg backdrop-blur-xl">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 font-bold text-[#030391]">
-                      <AlertTriangle className="size-5" />
-                      At-risk students
-                    </h3>
-                    <Link href="/lecturer/problem-bank">
-                      <Badge className="cursor-pointer bg-[#1488D8] text-xs text-white">
-                        <Library className="mr-1 size-3" />
-                        Problem bank
-                      </Badge>
-                    </Link>
-                  </div>
-                  <div className="space-y-3">
-                    {atRiskStudents.map((student) => (
-                      <div
-                        key={student.id}
-                        className="rounded-xl border border-amber-200 bg-amber-50 p-3"
-                      >
-                        <h4 className="text-sm font-semibold text-[#030391]">{student.name}</h4>
-                        <p className="mt-1 text-xs text-gray-500">
-                          Avg: {student.averageScore}% • Last submission{" "}
-                          {new Date(student.lastSubmissionAt).toLocaleDateString("en-GB")}
-                        </p>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </>

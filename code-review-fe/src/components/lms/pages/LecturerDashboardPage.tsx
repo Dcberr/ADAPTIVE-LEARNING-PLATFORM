@@ -122,30 +122,6 @@ export default function LecturerDashboardPage() {
             ))}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg text-[#030391]">Students needing attention</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {atRisk.map((student) => (
-              <div key={student.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-[#030391]">{student.name}</p>
-                    <p className="mt-1 text-sm text-slate-600">{student.email}</p>
-                  </div>
-                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                    {student.averageScore}%
-                  </Badge>
-                </div>
-                <p className="mt-3 text-xs text-slate-500">
-                  Latest submission {new Date(student.lastSubmissionAt).toLocaleString("en-GB")}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

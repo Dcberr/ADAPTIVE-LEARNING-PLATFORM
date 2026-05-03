@@ -12,12 +12,16 @@ export type TopicDraft = {
 export default function TopicModalForm({
   draft,
   isSubmitting,
+  submitLabel,
+  submittingLabel,
   onChange,
   onCancel,
   onSave,
 }: {
   draft: TopicDraft
   isSubmitting: boolean
+  submitLabel?: string
+  submittingLabel?: string
   onChange: (patch: Partial<TopicDraft>) => void
   onCancel: () => void
   onSave: () => void
@@ -40,7 +44,7 @@ export default function TopicModalForm({
           Hủy
         </Button>
         <Button onClick={onSave} disabled={isSubmitting}>
-          {isSubmitting ? "Đang tạo..." : "Tạo section"}
+          {isSubmitting ? (submittingLabel ?? "Đang lưu...") : (submitLabel ?? "Lưu section")}
         </Button>
       </div>
     </div>

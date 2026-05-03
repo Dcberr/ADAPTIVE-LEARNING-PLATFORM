@@ -23,13 +23,13 @@ export default function ProblemBankPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-2xl text-[#030391]">Problem Bank</CardTitle>
+        <CardTitle className="text-2xl text-[#030391]">Problem Bank</CardTitle>
           <p className="text-sm text-slate-500">
             {isTableLoading ? "Đang tải..." : `Tổng số bài: ${totalElements}`}
           </p>
         </CardHeader>
         <CardContent>
-          <ProblemBankTable problems={problems} isLoading={isTableLoading} />
+          <ProblemBankTable problems={problems} isLoading={isTableLoading} page={page} size={size} />
           <div className="mt-4 flex items-center justify-between">
             <p className="text-sm text-slate-500">
               Trang {totalPages === 0 ? 0 : page + 1} / {totalPages}
