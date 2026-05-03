@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea"
 export default function CreateClassCard({
   draft,
   isCreating,
+  submitLabel,
+  submittingLabel,
+  descriptionHint,
   onChange,
   onSubmit,
 }: {
@@ -20,6 +23,9 @@ export default function CreateClassCard({
     schedule: string
   }
   isCreating: boolean
+  submitLabel?: string
+  submittingLabel?: string
+  descriptionHint?: string
   onChange: (
     patch: Partial<{ name: string; description: string; image: File | null; schedule: string }>
   ) => void
@@ -37,7 +43,7 @@ export default function CreateClassCard({
     <form className="space-y-4" onSubmit={onSubmit}>
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-name">
-          Class name
+          Tên lớp học
         </label>
         <Input
           id="class-name"
@@ -49,19 +55,20 @@ export default function CreateClassCard({
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-description">
-          Description
+          Mô tả
         </label>
         <Textarea
           id="class-description"
           value={draft.description}
           onChange={(event) => onChange({ description: event.target.value })}
-          placeholder="Describe the class scope or notes for this section."
+          placeholder="Mô tả ngắn nội dung, phạm vi hoặc ghi chú của lớp."
         />
+        {descriptionHint ? <p className="text-xs text-slate-500">{descriptionHint}</p> : null}
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-image">
-          Class image (optional)
+          Ảnh lớp học
         </label>
         <Input
           ref={fileInputRef}
@@ -77,7 +84,7 @@ export default function CreateClassCard({
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="class-schedule">
-          Schedule
+          Lịch học
         </label>
         <Input
           id="class-schedule"
@@ -95,10 +102,10 @@ export default function CreateClassCard({
         {isCreating ? (
           <>
             <LoaderCircle className="size-4 animate-spin" />
-            Creating class...
+            {submittingLabel ?? "Đang tạo lớp..."}
           </>
         ) : (
-          "Create class"
+          submitLabel ?? "Tạo lớp"
         )}
       </Button>
     </form>

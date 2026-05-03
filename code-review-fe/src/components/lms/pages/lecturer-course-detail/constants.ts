@@ -1,5 +1,8 @@
 import type { EditableTestCase } from "@/components/lms/TestCaseManager"
-import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types"
+import type {
+  AssignmentDraft,
+  AssignmentSettingsDraft,
+} from "@/components/lms/pages/lecturer-course-detail/types"
 import type { ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 
 export const classStatusClasses: Record<string, string> = {
@@ -49,6 +52,19 @@ export const emptyAssignmentDraft: AssignmentDraft = {
     cpp: "#include <vector>\nusing namespace std;\n\nvector<int> solve(vector<int>& nums, int target) {\n    return {};\n}",
   },
   testCases: defaultDraftTests,
+}
+
+export const emptyAssignmentSettingsDraft: AssignmentSettingsDraft = {
+  id: "",
+  topicId: "",
+  title: "",
+  difficulty: "EASY",
+  score: "100",
+  timeLimit: "90",
+  openAt: "",
+  deadline: "",
+  attemptsAllowed: "2",
+  tags: "",
 }
 
 export function getClassStatusClassName(status: string) {

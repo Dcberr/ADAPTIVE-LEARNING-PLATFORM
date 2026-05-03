@@ -32,6 +32,7 @@ export interface CodingProblem {
   title: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   description: string;
+  problemConstraint?: string;
   examples: {
     input: string;
     output: string;
@@ -343,6 +344,10 @@ Bạn có thể trả về answer theo bất kỳ thứ tự nào.`,
         output: '[0,1]' 
       },
     ],
+    problemConstraint: `2 <= nums.length <= 10^4
+-10^9 <= nums[i] <= 10^9
+-10^9 <= target <= 10^9
+Chỉ có duy nhất một solution hợp lệ`,
     constraints: [
       '2 <= nums.length <= 10^4',
       '-10^9 <= nums[i] <= 10^9',
@@ -442,6 +447,7 @@ Số palindrome là số mà khi đọc từ trái sang phải và từ phải s
         explanation: 'Đọc từ phải sang trái là 01. Do đó, không phải là palindrome.'
       },
     ],
+    problemConstraint: `-2^31 <= x <= 2^31 - 1`,
     constraints: [
       '-2^31 <= x <= 2^31 - 1'
     ],
@@ -530,6 +536,8 @@ Merge Sort là một thuật toán chia để trị (divide and conquer) chia m�
         output: '[3, 9, 10, 27, 38, 43, 82]'
       },
     ],
+    problemConstraint: `0 <= arr.length <= 5000
+-10^6 <= arr[i] <= 10^6`,
     constraints: [
       '0 <= arr.length <= 5000',
       '-10^6 <= arr[i] <= 10^6'

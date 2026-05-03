@@ -2,19 +2,24 @@
 
 import { useCallback, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 import { ClassWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import ClassWorkspaceHeader from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceHeader"
-import ClassWorkspaceModals from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceModals"
+import ClassWorkspaceModals, {
+  type ClassDraft,
+  type DeleteTarget,
+} from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceModals"
 import ClassWorkspaceTabs from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceTabs"
 import {
   emptyAssignmentDraft,
+  emptyAssignmentSettingsDraft,
   emptyResourceDraft,
   formatClassDate,
 } from "@/components/lms/pages/lecturer-course-detail/constants"
 import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 import { type TopicDraft } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
-import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types"
+import type { AssignmentSettingsDraft } from "@/components/lms/pages/lecturer-course-detail/types"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { getBackendBaseUrl } from "@/lib/auth"
 import { saveCachedAssignmentProblem } from "@/lib/assignment-problem-cache"
@@ -23,10 +28,18 @@ import {
   useCreateAssignmentMutation,
   useCreateDocumentMutation,
   useCreateTopicMutation,
+  useDeleteAssignmentMutation,
+  useDeleteClassMutation,
+  useDeleteDocumentMutation,
+  useDeleteTopicMutation,
   useGetClassByIdQuery,
   useGetClassStudentsQuery,
   useGetClassTopicsQuery,
   useRemoveStudentFromClassMutation,
+  useUpdateAssignmentMutation,
+  useUpdateClassMutation,
+  useUpdateDocumentMutation,
+  useUpdateTopicMutation,
 } from "@/store/redux/api/lmsApi"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,25 +47,52 @@ import { useToast } from "@/components/ui/toast-provider"
 
 type LecturerTab = "content" | "students"
 
+function formatDateTimeLocal(value?: string | null) {
+  if (!value) {
+    return ""
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ""
+  }
+
+  const timezoneOffset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
+}
+
 export default function LecturerCourseDetailPage({ classId }: { classId: string }) {
+  const router = useRouter()
   const [editMode, setEditMode] = useState(false)
   const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({})
-  const [topicDrafts, setTopicDrafts] = useState<
-    Record<string, { title?: string; summary?: string }>
-  >({})
+  const [classModalOpen, setClassModalOpen] = useState(false)
   const [topicModalOpen, setTopicModalOpen] = useState(false)
-  const [assignmentDrafts, setAssignmentDrafts] = useState<AssignmentDraft[]>([])
   const [resourceModalOpen, setResourceModalOpen] = useState(false)
-  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
+  const [assignmentCreateModalOpen, setAssignmentCreateModalOpen] = useState(false)
+  const [assignmentEditModalOpen, setAssignmentEditModalOpen] = useState(false)
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null)
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null)
-  const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [classDraft, setClassDraft] = useState<ClassDraft>({
+    name: "",
+    description: "",
+    image: null,
+    schedule: "",
+  })
+  const [isClassDescriptionDirty, setIsClassDescriptionDirty] = useState(false)
   const [topicDraft, setTopicDraft] = useState<TopicDraft>({ title: "", description: "" })
   const [resourceDraft, setResourceDraft] = useState<ResourceDraft>(emptyResourceDraft)
   const [assignmentDraft, setAssignmentDraft] = useState(emptyAssignmentDraft)
+  const [assignmentSettingsDraft, setAssignmentSettingsDraft] = useState<AssignmentSettingsDraft>(
+    emptyAssignmentSettingsDraft
+  )
   const [userCode, setUserCode] = useState("")
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
   const [removingStudentCode, setRemovingStudentCode] = useState<string | null>(null)
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<LecturerTab>("content")
+  const shouldLoadStudents = hasMounted("students")
   const { toast } = useToast()
   const {
     data: classroom,
@@ -66,7 +106,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     isFetching: isFetchingStudents,
     isLoading: isLoadingStudents,
     refetch: refetchStudents,
-  } = useGetClassStudentsQuery(classId)
+  } = useGetClassStudentsQuery(classId, {
+    skip: !shouldLoadStudents,
+  })
   const {
     data: topicDetails = [],
     isFetching: isFetchingTopics,
@@ -76,8 +118,16 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [removeStudentFromClass, { isLoading: isRemovingStudent }] =
     useRemoveStudentFromClassMutation()
   const [createDocument, { isLoading: isCreatingDocument }] = useCreateDocumentMutation()
+  const [updateDocument, { isLoading: isUpdatingDocument }] = useUpdateDocumentMutation()
+  const [deleteDocument, { isLoading: isDeletingDocument }] = useDeleteDocumentMutation()
   const [createAssignment, { isLoading: isCreatingAssignment }] = useCreateAssignmentMutation()
+  const [updateAssignment, { isLoading: isUpdatingAssignment }] = useUpdateAssignmentMutation()
+  const [deleteAssignment, { isLoading: isDeletingAssignment }] = useDeleteAssignmentMutation()
   const [createTopic, { isLoading: isCreatingTopic }] = useCreateTopicMutation()
+  const [updateTopic, { isLoading: isUpdatingTopic }] = useUpdateTopicMutation()
+  const [deleteTopic, { isLoading: isDeletingTopic }] = useDeleteTopicMutation()
+  const [updateClass, { isLoading: isUpdatingClass }] = useUpdateClassMutation()
+  const [deleteClass, { isLoading: isDeletingClass }] = useDeleteClassMutation()
   const backendBaseUrl = getBackendBaseUrl()
 
   const bundle = useMemo(() => {
@@ -97,8 +147,8 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       id: topic.id,
       courseId: classId,
       order: index + 1,
-      title: topicDrafts[topic.id]?.title ?? topic.title,
-      summary: topicDrafts[topic.id]?.summary ?? topic.description,
+      title: topic.title,
+      summary: topic.description,
       materials: topic.documents.map((document) => ({
         id: document.id,
         title: document.title,
@@ -112,9 +162,15 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         id: assignment.id,
         title: assignment.title,
         deadline: assignment.deadline,
+        startTime: assignment.startTime,
+        timeLimit: assignment.timeLimit,
+        maxScore: assignment.maxScore,
+        maxSubmission: assignment.maxSubmission,
+        tags: assignment.tags,
         difficulty: assignment.difficulty,
         status: assignment.status,
       })),
+      customAssignments: [],
     }))
 
     return {
@@ -130,20 +186,31 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       topics,
       assignments: topics.flatMap((topic) => topic.assignments),
     }
-  }, [backendBaseUrl, classId, classroom, enrolledStudents.length, topicDetails, topicDrafts])
+  }, [backendBaseUrl, classId, classroom, enrolledStudents.length, topicDetails])
 
-  const resolvedEnrolledStudentsCount = isLoadingStudents
-    ? classroom?.enrolledStudentsCount ?? 0
-    : enrolledStudents.length
+  const resolvedEnrolledStudentsCount =
+    shouldLoadStudents && !isLoadingStudents
+      ? enrolledStudents.length
+      : classroom?.enrolledStudentsCount ?? 0
 
-  const topicCards = useMemo(
-    () =>
-      bundle?.topics.map((topic) => ({
-        ...topic,
-        customAssignments: assignmentDrafts.filter((item) => item.topicId === topic.id),
-      })) ?? [],
-    [assignmentDrafts, bundle]
-  )
+  const topicCards = useMemo(() => bundle?.topics ?? [], [bundle])
+
+  const resetClassModal = useCallback(() => {
+    setClassModalOpen(false)
+    setIsClassDescriptionDirty(false)
+    setClassDraft({
+      name: "",
+      description: "",
+      image: null,
+      schedule: "",
+    })
+  }, [])
+
+  const resetTopicModal = useCallback(() => {
+    setTopicModalOpen(false)
+    setEditingTopicId(null)
+    setTopicDraft({ title: "", description: "" })
+  }, [])
 
   const resetResourceModal = useCallback(() => {
     setResourceModalOpen(false)
@@ -151,22 +218,53 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     setResourceDraft(emptyResourceDraft)
   }, [])
 
-  const resetTopicModal = useCallback(() => {
-    setTopicModalOpen(false)
-    setTopicDraft({ title: "", description: "" })
-  }, [])
-
-  const resetAssignmentModal = useCallback(() => {
-    setAssignmentModalOpen(false)
-    setEditingDraftId(null)
+  const resetAssignmentCreateModal = useCallback(() => {
+    setAssignmentCreateModalOpen(false)
     setAssignmentDraft(emptyAssignmentDraft)
   }, [])
 
+  const resetAssignmentEditModal = useCallback(() => {
+    setAssignmentEditModalOpen(false)
+    setEditingAssignmentId(null)
+    setAssignmentSettingsDraft(emptyAssignmentSettingsDraft)
+  }, [])
+
+  const openClassModal = useCallback(() => {
+    if (!classroom) {
+      return
+    }
+
+    setClassDraft({
+      name: classroom.name,
+      description: "",
+      image: null,
+      schedule: classroom.schedule ?? "",
+    })
+    setClassModalOpen(true)
+  }, [classroom])
+
+  const openTopicModal = useCallback(
+    (topicId?: string) => {
+      const topic = topicCards.find((item) => item.id === topicId)
+
+      setEditingTopicId(topic?.id ?? null)
+      setTopicDraft(
+        topic
+          ? {
+              title: topic.title,
+              description: topic.summary,
+            }
+          : { title: "", description: "" }
+      )
+      setTopicModalOpen(true)
+    },
+    [topicCards]
+  )
+
   const openResourceModal = useCallback(
     (topicId: string, materialId?: string) => {
-      const material = topicCards
-        .flatMap((topic) => topic.materials)
-        .find((item) => item.id === materialId)
+      const topic = topicCards.find((item) => item.id === topicId)
+      const material = topic?.materials.find((item) => item.id === materialId)
 
       setEditingMaterialId(material?.id ?? null)
       setResourceDraft(
@@ -184,15 +282,157 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     [topicCards]
   )
 
-  const openAssignmentModal = useCallback((topicId: string, draft?: AssignmentDraft) => {
-    setEditingDraftId(draft?.id ?? null)
-    setAssignmentDraft(draft ? draft : { ...emptyAssignmentDraft, topicId })
-    setAssignmentModalOpen(true)
+  const openAssignmentCreateModal = useCallback((topicId: string) => {
+    setAssignmentDraft({ ...emptyAssignmentDraft, topicId })
+    setAssignmentCreateModalOpen(true)
   }, [])
 
+  const openAssignmentEditModal = useCallback(
+    (assignmentId: string) => {
+      const topic = topicCards.find((item) =>
+        item.assignments.some((assignment) => assignment.id === assignmentId)
+      )
+      const assignment = topic?.assignments.find((item) => item.id === assignmentId)
+
+      if (!topic || !assignment) {
+        toast({
+          tone: "error",
+          description: "Không tìm thấy assignment để chỉnh sửa.",
+        })
+        return
+      }
+
+      setEditingAssignmentId(assignment.id)
+      setAssignmentSettingsDraft({
+        id: assignment.id,
+        topicId: topic.id,
+        title: assignment.title,
+        difficulty: assignment.difficulty as AssignmentSettingsDraft["difficulty"],
+        score:
+          typeof assignment.maxScore === "number" && Number.isFinite(assignment.maxScore)
+            ? String(assignment.maxScore)
+            : "",
+        timeLimit:
+          typeof assignment.timeLimit === "number" && Number.isFinite(assignment.timeLimit)
+            ? String(assignment.timeLimit)
+            : "",
+        openAt: formatDateTimeLocal(assignment.startTime),
+        deadline: formatDateTimeLocal(assignment.deadline),
+        attemptsAllowed:
+          typeof assignment.maxSubmission === "number" && Number.isFinite(assignment.maxSubmission)
+            ? String(assignment.maxSubmission)
+            : "",
+        tags: (assignment.tags ?? []).join(", "),
+      })
+      setAssignmentEditModalOpen(true)
+    },
+    [toast, topicCards]
+  )
+
+  const requestDeleteClass = useCallback(() => {
+    if (!bundle) {
+      return
+    }
+
+    setDeleteTarget({
+      type: "class",
+      id: classId,
+      title: bundle.course.name,
+      description: `Lớp "${bundle.course.name}" sẽ bị xóa mềm khỏi hệ thống. Hãy chắc chắn bạn không còn cần truy cập workspace này nữa.`,
+    })
+  }, [bundle, classId])
+
+  const requestDeleteTopic = useCallback(
+    (topicId: string) => {
+      const topic = topicCards.find((item) => item.id === topicId)
+      if (!topic) {
+        return
+      }
+
+      setDeleteTarget({
+        type: "topic",
+        id: topicId,
+        title: topic.title,
+        description: `Section "${topic.title}" cùng toàn bộ tài nguyên và bài tập liên quan sẽ không còn hiển thị trong lớp.`,
+      })
+    },
+    [topicCards]
+  )
+
+  const requestDeleteDocument = useCallback(
+    (documentId: string) => {
+      const material = topicCards.flatMap((topic) => topic.materials).find((item) => item.id === documentId)
+      if (!material) {
+        return
+      }
+
+      setDeleteTarget({
+        type: "document",
+        id: documentId,
+        title: material.title,
+        description: `Tài nguyên "${material.title}" sẽ bị gỡ khỏi section hiện tại.`,
+      })
+    },
+    [topicCards]
+  )
+
+  const requestDeleteAssignment = useCallback(
+    (assignmentId: string) => {
+      const assignment = topicCards
+        .flatMap((topic) => topic.assignments)
+        .find((item) => item.id === assignmentId)
+
+      if (!assignment) {
+        return
+      }
+
+      setDeleteTarget({
+        type: "assignment",
+        id: assignmentId,
+        title: assignment.title,
+        description: `Assignment "${assignment.title}" sẽ bị xóa mềm và không còn hiển thị trong section.`,
+      })
+    },
+    [topicCards]
+  )
+
   const handleAddSection = useCallback(() => {
-    setTopicModalOpen(true)
-  }, [])
+    openTopicModal()
+  }, [openTopicModal])
+
+  const handleSaveClass = useCallback(() => {
+    const name = classDraft.name.trim()
+
+    if (!name) {
+      toast({
+        tone: "error",
+        description: "Tên lớp học là bắt buộc.",
+      })
+      return
+    }
+
+    void updateClass({
+      classId,
+      name,
+      description: isClassDescriptionDirty ? classDraft.description.trim() : undefined,
+      schedule: classDraft.schedule.trim(),
+      image: classDraft.image,
+    })
+      .unwrap()
+      .then(() => {
+        resetClassModal()
+        toast({
+          tone: "success",
+          description: "Đã cập nhật thông tin lớp học.",
+        })
+      })
+      .catch(() => {
+        toast({
+          tone: "error",
+          description: "Không thể cập nhật lớp học. Kiểm tra lại backend rồi thử lại.",
+        })
+      })
+  }, [classDraft, classId, isClassDescriptionDirty, resetClassModal, toast, updateClass])
 
   const handleSaveTopic = useCallback(() => {
     const title = topicDraft.title.trim()
@@ -206,79 +446,106 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       return
     }
 
-    void createTopic({
-      classId,
-      title,
-      description,
-    })
-      .unwrap()
+    const action = editingTopicId
+      ? updateTopic({
+          classId,
+          topicId: editingTopicId,
+          title,
+          description,
+        }).unwrap()
+      : createTopic({
+          classId,
+          title,
+          description,
+        }).unwrap()
+
+    void action
       .then(() => {
         resetTopicModal()
         toast({
           tone: "success",
-          description: "Đã thêm section mới cho lớp học.",
+          description: editingTopicId
+            ? "Đã cập nhật section."
+            : "Đã thêm section mới cho lớp học.",
         })
       })
       .catch(() => {
         toast({
           tone: "error",
-          description: "Không thể tạo topic mới. Kiểm tra lại backend rồi thử lại.",
+          description: editingTopicId
+            ? "Không thể cập nhật section. Kiểm tra lại backend rồi thử lại."
+            : "Không thể tạo topic mới. Kiểm tra lại backend rồi thử lại.",
         })
       })
-  }, [classId, createTopic, resetTopicModal, toast, topicDraft])
+  }, [classId, createTopic, editingTopicId, resetTopicModal, toast, topicDraft, updateTopic])
 
   const handleSaveMaterial = useCallback(() => {
-    if (editingMaterialId) {
-      toast({
-        tone: "error",
-        description: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
-      })
-      return
-    }
-
     const title = resourceDraft.title.trim()
     const description = resourceDraft.description.trim()
     const file = resourceDraft.file
 
-    if (!resourceDraft.topicId || !title || !description || !file) {
+    if (!resourceDraft.topicId || !title || !description) {
       toast({
         tone: "error",
-        description: "Tên tài nguyên, mô tả và file upload là bắt buộc.",
+        description: "Tên tài nguyên và mô tả là bắt buộc.",
       })
       return
     }
 
-    void createDocument({
-      topicId: resourceDraft.topicId,
-      title,
-      description,
-      file,
-    })
-      .unwrap()
+    if (!editingMaterialId && !file) {
+      toast({
+        tone: "error",
+        description: "Bạn cần chọn file khi tạo tài nguyên mới.",
+      })
+      return
+    }
+
+    const action = editingMaterialId
+      ? updateDocument({
+          classId,
+          topicId: resourceDraft.topicId,
+          documentId: editingMaterialId,
+          title,
+          description,
+          file,
+        }).unwrap()
+      : createDocument({
+          classId,
+          topicId: resourceDraft.topicId,
+          title,
+          description,
+          file: file as File,
+        }).unwrap()
+
+    void action
       .then(() => {
         resetResourceModal()
         toast({
           tone: "success",
-          description: "Đã thêm tài nguyên cho section.",
+          description: editingMaterialId
+            ? "Đã cập nhật tài nguyên."
+            : "Đã thêm tài nguyên cho section.",
         })
       })
       .catch(() => {
         toast({
           tone: "error",
-          description: "Không thể upload tài nguyên. Kiểm tra lại backend rồi thử lại.",
+          description: editingMaterialId
+            ? "Không thể cập nhật tài nguyên. Kiểm tra lại backend rồi thử lại."
+            : "Không thể upload tài nguyên. Kiểm tra lại backend rồi thử lại.",
         })
       })
-  }, [createDocument, editingMaterialId, resetResourceModal, resourceDraft, toast])
+  }, [
+    classId,
+    createDocument,
+    editingMaterialId,
+    resetResourceModal,
+    resourceDraft,
+    toast,
+    updateDocument,
+  ])
 
-  const handleSaveAssignmentDraft = useCallback(() => {
-    if (editingDraftId) {
-      toast({
-        tone: "error",
-        description: "Chưa tích hợp API chỉnh sửa assignment ở màn hình này.",
-      })
-      return
-    }
-
+  const handleSaveAssignment = useCallback(() => {
     if (
       !assignmentDraft.title.trim() ||
       !assignmentDraft.description.trim() ||
@@ -294,6 +561,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     }
 
     void createAssignment({
+      classId,
       topicId: assignmentDraft.topicId,
       title: assignmentDraft.title.trim(),
       startTime: new Date(assignmentDraft.openAt).toISOString(),
@@ -337,7 +605,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
             .map((item) => item.trim())
             .filter(Boolean),
         })
-        resetAssignmentModal()
+        resetAssignmentCreateModal()
         toast({
           tone: "success",
           description: "Đã tạo assignment cho section.",
@@ -349,7 +617,94 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           description: "Không thể tạo assignment. Kiểm tra lại payload hoặc backend rồi thử lại.",
         })
       })
-  }, [assignmentDraft, createAssignment, editingDraftId, resetAssignmentModal, toast])
+  }, [assignmentDraft, classId, createAssignment, resetAssignmentCreateModal, toast])
+
+  const handleSaveAssignmentSettings = useCallback(() => {
+    if (
+      !editingAssignmentId ||
+      !assignmentSettingsDraft.title.trim() ||
+      !assignmentSettingsDraft.openAt ||
+      !assignmentSettingsDraft.deadline
+    ) {
+      toast({
+        tone: "error",
+        description: "Tiêu đề, thời điểm mở và hạn nộp là bắt buộc.",
+      })
+      return
+    }
+
+    void updateAssignment({
+      classId,
+      assignmentId: editingAssignmentId,
+      title: assignmentSettingsDraft.title.trim(),
+      startTime: new Date(assignmentSettingsDraft.openAt).toISOString(),
+      deadline: new Date(assignmentSettingsDraft.deadline).toISOString(),
+      timeLimit: Number(assignmentSettingsDraft.timeLimit) || 0,
+      maxScore: Number(assignmentSettingsDraft.score) || 0,
+      maxSubmission: Number(assignmentSettingsDraft.attemptsAllowed) || 0,
+      difficulty: assignmentSettingsDraft.difficulty,
+      tags: assignmentSettingsDraft.tags
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    })
+      .unwrap()
+      .then(() => {
+        resetAssignmentEditModal()
+        toast({
+          tone: "success",
+          description: "Đã cập nhật assignment.",
+        })
+      })
+      .catch(() => {
+        toast({
+          tone: "error",
+          description: "Không thể cập nhật assignment. Kiểm tra lại backend rồi thử lại.",
+        })
+      })
+  }, [assignmentSettingsDraft, classId, editingAssignmentId, resetAssignmentEditModal, toast, updateAssignment])
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteTarget) {
+      return
+    }
+
+    const action =
+      deleteTarget.type === "class"
+        ? deleteClass(deleteTarget.id).unwrap()
+        : deleteTarget.type === "topic"
+          ? deleteTopic({ classId, topicId: deleteTarget.id }).unwrap()
+          : deleteTarget.type === "document"
+            ? deleteDocument({ classId, documentId: deleteTarget.id }).unwrap()
+            : deleteAssignment({ classId, assignmentId: deleteTarget.id }).unwrap()
+
+    void action
+      .then(() => {
+        const deletedType = deleteTarget.type
+        setDeleteTarget(null)
+        toast({
+          tone: "success",
+          description:
+            deletedType === "class"
+              ? "Đã xóa lớp học."
+              : deletedType === "topic"
+                ? "Đã xóa section."
+                : deletedType === "document"
+                  ? "Đã xóa tài nguyên."
+                  : "Đã xóa assignment.",
+        })
+
+        if (deletedType === "class") {
+          router.push("/lecturer/courses")
+        }
+      })
+      .catch(() => {
+        toast({
+          tone: "error",
+          description: "Không thể xóa dữ liệu. Kiểm tra lại backend rồi thử lại.",
+        })
+      })
+  }, [classId, deleteAssignment, deleteClass, deleteDocument, deleteTarget, deleteTopic, router, toast])
 
   const handleToggleTopic = useCallback((topicId: string) => {
     setCollapsedTopics((state) => ({
@@ -453,19 +808,31 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         editMode={editMode}
         isRefreshing={
           isFetching ||
-          isFetchingStudents ||
+          (shouldLoadStudents && isFetchingStudents) ||
           isFetchingTopics ||
           isCreatingTopic ||
+          isUpdatingTopic ||
+          isDeletingTopic ||
           isCreatingDocument ||
+          isUpdatingDocument ||
+          isDeletingDocument ||
           isCreatingAssignment ||
+          isUpdatingAssignment ||
+          isDeletingAssignment ||
+          isUpdatingClass ||
+          isDeletingClass ||
           isRemovingStudent
         }
         onRefresh={() => {
           void refetch()
-          void refetchStudents()
+          if (shouldLoadStudents) {
+            void refetchStudents()
+          }
           void refetchTopics()
         }}
         onToggleEditMode={() => setEditMode((value) => !value)}
+        onEditClass={openClassModal}
+        onDeleteClass={requestDeleteClass}
         onAddSection={handleAddSection}
       />
 
@@ -490,32 +857,13 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         formattedCreatedAt={formatClassDate(classroom.createdAt)}
         onTabChange={handleTabChange}
         onToggleTopic={handleToggleTopic}
-        onUpdateTopic={(topicId, patch) =>
-          setTopicDrafts((state) => ({
-            ...state,
-            [topicId]: {
-              ...state[topicId],
-              ...patch,
-            },
-          }))
-        }
-        onDeleteTopic={() =>
-          toast({
-            tone: "error",
-            description: "Chưa tích hợp API xóa topic ở màn hình này.",
-          })
-        }
-        onDeleteMaterial={() =>
-          toast({
-            tone: "error",
-            description: "Chưa tích hợp API chỉnh sửa tài nguyên ở màn hình này.",
-          })
-        }
+        onEditTopic={openTopicModal}
+        onDeleteTopic={requestDeleteTopic}
+        onDeleteMaterial={requestDeleteDocument}
         onOpenResourceModal={openResourceModal}
-        onOpenAssignmentModal={openAssignmentModal}
-        onDeleteDraftAssignment={(draftId) =>
-          setAssignmentDrafts((state) => state.filter((item) => item.id !== draftId))
-        }
+        onOpenAssignmentModal={openAssignmentCreateModal}
+        onEditAssignment={openAssignmentEditModal}
+        onDeleteAssignment={requestDeleteAssignment}
         onAddSection={handleAddSection}
         assignmentHrefPrefix="/lecturer/assignments"
         onUserCodeChange={setUserCode}
@@ -524,28 +872,56 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       />
 
       <ClassWorkspaceModals
+        classModalOpen={classModalOpen}
         topicModalOpen={topicModalOpen}
         resourceModalOpen={resourceModalOpen}
-        assignmentModalOpen={assignmentModalOpen}
+        assignmentCreateModalOpen={assignmentCreateModalOpen}
+        assignmentEditModalOpen={assignmentEditModalOpen}
+        deleteTarget={deleteTarget}
+        classDraft={classDraft}
         topicDraft={topicDraft}
+        editingTopicId={editingTopicId}
         editingMaterialId={editingMaterialId}
-        editingDraftId={editingDraftId}
         resourceDraft={resourceDraft}
         assignmentDraft={assignmentDraft}
-        isSubmittingTopic={isCreatingTopic}
-        isSubmittingResource={isCreatingDocument}
+        assignmentSettingsDraft={assignmentSettingsDraft}
+        isSubmittingClass={isUpdatingClass}
+        isSubmittingTopic={isCreatingTopic || isUpdatingTopic}
+        isSubmittingResource={isCreatingDocument || isUpdatingDocument}
         isSubmittingAssignment={isCreatingAssignment}
+        isSubmittingAssignmentSettings={isUpdatingAssignment}
+        isDeleting={
+          isDeletingClass || isDeletingTopic || isDeletingDocument || isDeletingAssignment
+        }
+        onCloseClassModal={resetClassModal}
         onCloseTopicModal={resetTopicModal}
         onCloseResourceModal={resetResourceModal}
-        onCloseAssignmentModal={resetAssignmentModal}
+        onCloseAssignmentCreateModal={resetAssignmentCreateModal}
+        onCloseAssignmentEditModal={resetAssignmentEditModal}
+        onCloseDeleteModal={() => setDeleteTarget(null)}
+        onClassDraftChange={(patch) => {
+          if (Object.prototype.hasOwnProperty.call(patch, "description")) {
+            setIsClassDescriptionDirty(true)
+          }
+
+          setClassDraft((state) => ({ ...state, ...patch }))
+        }}
         onTopicDraftChange={(patch) => setTopicDraft((state) => ({ ...state, ...patch }))}
-        onResourceDraftChange={(patch) => setResourceDraft((state) => ({ ...state, ...patch }))}
+        onResourceDraftChange={(patch) =>
+          setResourceDraft((state) => ({ ...state, ...patch }))
+        }
         onAssignmentDraftChange={(patch) =>
           setAssignmentDraft((state) => ({ ...state, ...patch }))
         }
+        onAssignmentSettingsDraftChange={(patch) =>
+          setAssignmentSettingsDraft((state) => ({ ...state, ...patch }))
+        }
+        onSaveClass={handleSaveClass}
         onSaveTopic={handleSaveTopic}
         onSaveResource={handleSaveMaterial}
-        onSaveAssignment={handleSaveAssignmentDraft}
+        onSaveAssignment={handleSaveAssignment}
+        onSaveAssignmentSettings={handleSaveAssignmentSettings}
+        onConfirmDelete={handleConfirmDelete}
       />
     </div>
   )

@@ -98,6 +98,7 @@ export interface ProblemBankEntry {
   description: string
   difficulty: "Easy" | "Medium" | "Hard" | "EASY" | "MEDIUM" | "HARD" | string
   topics: string[]
+  tags?: string[]
   estimatedMinutes: number
   recommendedForCourseIds: string[]
   solvedByStudentIds: string[]

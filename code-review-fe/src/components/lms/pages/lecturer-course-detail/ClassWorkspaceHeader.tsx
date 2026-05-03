@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, FilePenLine, Plus } from "lucide-react"
+import { ArrowLeft, FilePenLine, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { getClassCoverBackgroundImage } from "@/lib/class-cover"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,8 @@ export default function ClassWorkspaceHeader({
   isRefreshing,
   onRefresh,
   onToggleEditMode,
+  onEditClass,
+  onDeleteClass,
   onAddSection,
 }: {
   classId: string
@@ -30,6 +32,8 @@ export default function ClassWorkspaceHeader({
   isRefreshing: boolean
   onRefresh: () => void
   onToggleEditMode: () => void
+  onEditClass: () => void
+  onDeleteClass: () => void
   onAddSection: () => void
 }) {
   return (
@@ -41,9 +45,6 @@ export default function ClassWorkspaceHeader({
           </Button>
         </Link>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-2xl" onClick={onRefresh}>
-            {isRefreshing ? "Đang làm mới..." : "Làm mới lớp"}
-          </Button>
           <Button
             variant={editMode ? "default" : "outline"}
             className="rounded-2xl"
@@ -53,12 +54,19 @@ export default function ClassWorkspaceHeader({
             {editMode ? "Thoát chỉnh sửa" : "Chỉnh sửa nội dung"}
           </Button>
           {editMode ? (
+            <Button variant="outline" className="rounded-2xl" onClick={onEditClass}>
+              <Pencil className="size-4" />
+              Sửa lớp
+            </Button>
+          ) : null}
+          {editMode ? (
             <Button
-              className="rounded-2xl bg-[#1488D8] text-white hover:bg-[#1488D8]/90"
-              onClick={onAddSection}
+              variant="outline"
+              className="rounded-2xl border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              onClick={onDeleteClass}
             >
-              <Plus className="size-4" />
-              Thêm section
+              <Trash2 className="size-4" />
+              Xóa lớp
             </Button>
           ) : null}
         </div>

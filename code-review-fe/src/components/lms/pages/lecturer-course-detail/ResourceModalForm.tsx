@@ -16,12 +16,18 @@ export type ResourceDraft = {
 export default function ResourceModalForm({
   draft,
   isSubmitting,
+  submitLabel,
+  submittingLabel,
+  fileHint,
   onChange,
   onCancel,
   onSave,
 }: {
   draft: ResourceDraft
   isSubmitting: boolean
+  submitLabel?: string
+  submittingLabel?: string
+  fileHint?: string
   onChange: (patch: Partial<ResourceDraft>) => void
   onCancel: () => void
   onSave: () => void
@@ -54,7 +60,7 @@ export default function ResourceModalForm({
           onChange={(event) => onChange({ file: event.target.files?.[0] ?? null })}
         />
         <p className="text-xs text-slate-500">
-          {draft.file ? `Selected: ${draft.file.name}` : "Chọn file tài nguyên để upload."}
+          {draft.file ? `Selected: ${draft.file.name}` : (fileHint ?? "Chọn file tài nguyên để upload.")}
         </p>
       </div>
       <div className="flex justify-end gap-3">
@@ -62,7 +68,7 @@ export default function ResourceModalForm({
           Hủy
         </Button>
         <Button onClick={onSave} disabled={isSubmitting}>
-          {isSubmitting ? "Đang upload..." : "Lưu tài nguyên"}
+          {isSubmitting ? (submittingLabel ?? "Đang lưu...") : (submitLabel ?? "Lưu tài nguyên")}
         </Button>
       </div>
     </div>
