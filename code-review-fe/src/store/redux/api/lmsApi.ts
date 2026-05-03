@@ -544,6 +544,13 @@ export const lmsApi = baseApi.injectEndpoints({
         { type: "Assignment" as const, id: assignmentId },
       ],
     }),
+    getAssignmentById: builder.query<TopicAssignmentResponse, string>({
+      query: (assignmentId) => `/assignments/${assignmentId}`,
+      transformResponse: (response: ApiResponse<TopicAssignmentResponse>) => response.data,
+      providesTags: (_result, _error, assignmentId) => [
+        { type: "Assignment" as const, id: assignmentId },
+      ],
+    }),
     getAssignmentSubmissions: builder.query<
       AssignmentSubmissionResponse[],
       GetAssignmentSubmissionsRequest
@@ -1136,6 +1143,7 @@ export const {
   useGetClassStudentsQuery,
   useGetClassTopicsQuery,
   useGetAssignmentContextQuery,
+  useGetAssignmentByIdQuery,
   useGetAssignmentSubmissionsQuery,
   useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
