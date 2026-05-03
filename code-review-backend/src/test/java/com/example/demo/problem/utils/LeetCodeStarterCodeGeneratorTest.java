@@ -27,10 +27,75 @@ class LeetCodeStarterCodeGeneratorTest {
 
         String template = generator.normalizeStarterCode("cpp", rawSnippet);
 
-        assertTrue(template.contains("#include <bits/stdc++.h>"));
+        assertTrue(template.contains("#include <vector>"));
         assertTrue(template.contains("//STUDENT_CODE_HERE"));
         assertTrue(template.contains("int main()"));
         assertTrue(template.contains("Solution solution;"));
+    }
+
+    @Test
+    @DisplayName("Should avoid emitting unused C++ parse helpers for return-only types")
+    void shouldAvoidUnusedCppParseHelpersForReturnOnlyTypes() {
+        String rawSnippet = """
+                class Solution {
+                public:
+                    vector<string> addOperators(string num, int target) {
+                        
+                    }
+                };
+                """;
+
+        String template = generator.normalizeStarterCode("cpp", rawSnippet);
+
+        assertTrue(template.contains("static string parseStringValue"));
+        assertTrue(template.contains("static int parseInt"));
+        assertTrue(template.contains("printVector(result);"));
+        assertFalse(template.contains("static vector<string> parseVectorString"));
+    }
+
+    @Test
+    @DisplayName("Should generate runnable C++ template for free function snippets")
+    void shouldGenerateRunnableCppTemplateForFreeFunctionSnippets() {
+        String rawSnippet = """
+                string convertToTitle(int columnNumber) {
+                }
+                """;
+
+        String template = generator.generateCppTemplatePublic(rawSnippet);
+
+        assertTrue(template.contains("auto result = convertToTitle(columnNumber);"));
+        assertFalse(template.contains("Solution solution;"));
+    }
+
+    @Test
+    @DisplayName("Should print C++ string results as quoted JSON strings")
+    void shouldPrintCppStringResultsAsQuotedJsonStrings() {
+        String rawSnippet = """
+                string convertToTitle(int columnNumber) {
+                }
+                """;
+
+        String template = generator.generateCppTemplatePublic(rawSnippet);
+
+        assertTrue(template.contains("static void printValue(const string& value)"));
+        assertTrue(template.contains("escapeString(value)"));
+        assertTrue(template.contains("printValue(result);"));
+    }
+
+    @Test
+    @DisplayName("Should print C++ vector string results with quoted elements")
+    void shouldPrintCppVectorStringResultsWithQuotedElements() {
+        String rawSnippet = """
+                class Solution {
+                public:
+                    vector<string> addOperators(string num, int target) {
+                    }
+                };
+                """;
+
+        String template = generator.generateCppTemplatePublic(rawSnippet);
+
+        assertTrue(template.contains("printValue(values[i]);"));
     }
 
     @Test

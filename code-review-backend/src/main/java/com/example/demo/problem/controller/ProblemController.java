@@ -15,6 +15,7 @@ import com.example.demo.problem.dto.ProblemLibraryRequest;
 import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.SearchLibraryProblemRequest;
+import com.example.demo.problem.dto.UpdateLibraryProblemRequest;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
@@ -110,6 +111,22 @@ public class ProblemController {
             @RequestBody ProblemLibraryRequest request
     ) {
         return ApiResponse.success(problemService.createManualLibraryProblem(request));
+    }
+
+    @Operation(summary = "Update library problem")
+    @PutMapping("/library/{problemId}")
+    public ApiResponse<ProblemResponse> updateLibraryProblem(
+            @PathVariable UUID problemId,
+            @RequestBody UpdateLibraryProblemRequest request
+    ) {
+        return ApiResponse.success(problemService.updateLibraryProblem(problemId, request));
+    }
+
+    @Operation(summary = "Soft delete library problem")
+    @DeleteMapping("/library/{problemId}")
+    public ApiResponse<?> deleteLibraryProblem(@PathVariable UUID problemId) {
+        problemService.deleteLibraryProblem(problemId);
+        return ApiResponse.success(null);
     }
 
     @Operation(summary = "Add problem from class to library")

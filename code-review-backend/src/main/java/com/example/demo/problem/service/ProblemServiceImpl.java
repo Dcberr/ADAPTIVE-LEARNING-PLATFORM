@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.entity.AssignmentProblem;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
+import com.example.demo.common.exception.AppException;
+import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.common.response.PageResponse;
 import com.example.demo.problem.client.LeetCodeClient;
 import com.example.demo.problem.dto.CreateProblemRequest;
@@ -34,6 +36,7 @@ import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.SearchLibraryProblemRequest;
 import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.dto.TestcaseResponse;
+import com.example.demo.problem.dto.UpdateLibraryProblemRequest;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.entity.Problem;
@@ -129,8 +132,7 @@ public class ProblemServiceImpl implements ProblemService {
 
     public ProblemResponse getProblem(UUID id) {
 
-        Problem problem = problemRepository.findById(id)
-                .orElseThrow();
+        Problem problem = getActiveProblem(id);
 
         List<TestcaseResponse> testcases =
                 testcaseService.getTestcasesByProblem(id);
@@ -145,13 +147,12 @@ public class ProblemServiceImpl implements ProblemService {
         List<TestcaseResponse> testcases =
         testcaseService.getTestcasesByProblem(problem.getId());
 
-        return map(problemRepository.findById(problem.getProblemId())
-                .orElseThrow(), testcases);
+        return map(getActiveProblem(problem.getProblemId()), testcases);
     }
 
     @Override
     public PageResponse<ProblemOverviewResponse> getAllLibraryProblems(int page, int size) {
-        Page<Problem> problemPage = problemRepository.findAllByTypeOrderByCreatedAtDesc(
+        Page<Problem> problemPage = problemRepository.findAllByTypeAndDeletedAtIsNullOrderByCreatedAtDesc(
                 ProblemType.LIBRARY,
                 PageRequest.of(page, size)
         );
@@ -259,6 +260,7 @@ public class ProblemServiceImpl implements ProblemService {
 
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("type"), ProblemType.LIBRARY));
+            predicates.add(cb.isNull(root.get("deletedAt")));
 
             if (criteria.source() != null && !criteria.source().isBlank()) {
                 predicates.add(cb.equal(cb.lower(root.get("source")), criteria.source()));
@@ -488,6 +490,37 @@ public class ProblemServiceImpl implements ProblemService {
 
     @Transactional
     @Override
+    public ProblemResponse updateLibraryProblem(UUID problemId, UpdateLibraryProblemRequest request) {
+        Problem problem = getActiveLibraryProblem(problemId);
+
+        problem.setTitle(request.getTitle());
+        problem.setDescription(request.getDescription());
+        problem.setDifficulty(request.getDifficulty());
+        problem.setProblemConstraint(request.getConstraints());
+        problem.setStarterCodes(normalizeStarterCodes(request.getStarterCodes()));
+
+        problemRepository.save(problem);
+
+        testcaseRepository.deleteByProblemId(problem.getId());
+        saveTestcases(problem.getId(), request.getTestcases());
+        replaceProblemTags(problem.getId(), request.getTags());
+
+        List<TestcaseResponse> testcases =
+                testcaseService.getTestcasesByProblem(problem.getId());
+
+        return map(problem, testcases);
+    }
+
+    @Transactional
+    @Override
+    public void deleteLibraryProblem(UUID problemId) {
+        Problem problem = getActiveLibraryProblem(problemId);
+        problem.setDeletedAt(Instant.now());
+        problemRepository.save(problem);
+    }
+
+    @Transactional
+    @Override
     public List<ProblemResponse> batchInsertLeetCode(List<LeetCodeImportRequest> requests) {
 
         Map<String, Problem> cache = new HashMap<>();
@@ -609,8 +642,7 @@ public class ProblemServiceImpl implements ProblemService {
     @Transactional
     @Override
     public ProblemResponse updateProblemSourceToLibrary(UpdateProblemSourceRequest request) {
-        Problem problem = problemRepository.findById(request.getProblemId())
-                .orElseThrow(() -> new RuntimeException("Problem not found"));
+        Problem problem = getActiveProblem(request.getProblemId());
 
         if (!"SYSTEM".equals(problem.getSource())) {
             throw new RuntimeException("Only SYSTEM problems can be converted to LEETCODE");
@@ -713,6 +745,19 @@ public class ProblemServiceImpl implements ProblemService {
                 .ifPresent(existing -> {
                     throw new RuntimeException("LeetCode problem with externalId already exists");
                 });
+    }
+
+    private Problem getActiveProblem(UUID problemId) {
+        return problemRepository.findByIdAndDeletedAtIsNull(problemId)
+                .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
+    }
+
+    private Problem getActiveLibraryProblem(UUID problemId) {
+        Problem problem = getActiveProblem(problemId);
+        if (problem.getType() != ProblemType.LIBRARY) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+        return problem;
     }
     
 }

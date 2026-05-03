@@ -45,6 +45,7 @@ public class ExecutionServiceImpl implements ExecutionService {
         private static final String CPP_SIGN_COMPARE_PRAGMA = "#pragma GCC diagnostic ignored \"-Wsign-compare\"";
         private static final Pattern CPP_MAIN_INPUT_LOOP_PATTERN = Pattern
                         .compile("for \\(size_t i = 0; i < (\\d+); \\+\\+i\\)");
+        private static final Pattern CPP_SOLUTION_CLASS_PATTERN = Pattern.compile("\\bclass\\s+Solution\\b");
         private static final String CPP_BITS_STDC = "#include <bits/stdc++.h>";
         private static final String CPP_DEFAULT_INCLUDES = """
                         #include <algorithm>
@@ -262,11 +263,17 @@ public class ExecutionServiceImpl implements ExecutionService {
 
                 template = normalizeCppIncludes(template);
 
+                String solutionClass = extractCppSolutionClass(template);
+                if (solutionClass != null && shouldRegenerateCppTemplate(template)) {
+                        log.info("Detected stale generated C++ template — rebuilding runnable template from Solution class");
+                        template = leetCodeStarterCodeGenerator.generateCppTemplatePublic(solutionClass);
+                }
+
                 // If the template lacks a main() function it is a bare class skeleton stored
                 // before
                 // full template generation was implemented. Regenerate it so the code is
                 // runnable.
-if (!template.contains("int main(")) {
+                if (!template.contains("int main(")) {
                         log.info("C++ template missing main() — regenerating full runnable template");
                         template = leetCodeStarterCodeGenerator.generateCppTemplatePublic(template);
                 }
@@ -278,6 +285,53 @@ if (!template.contains("int main(")) {
                                 "$1parseVectorInt($2)$3");
 
                 return template;
+        }
+
+        private boolean shouldRegenerateCppTemplate(String template) {
+                return template.contains("int main(")
+                                && template.contains("Solution solution;")
+                                && template.contains("readLineOrDefault(");
+        }
+
+        private String extractCppSolutionClass(String template) {
+                Matcher matcher = CPP_SOLUTION_CLASS_PATTERN.matcher(template);
+                if (!matcher.find()) {
+                        return null;
+                }
+
+                int classStart = matcher.start();
+                int openBrace = template.indexOf('{', matcher.end());
+                if (openBrace == -1) {
+                        return null;
+                }
+
+                int classEnd = findMatchingBrace(template, openBrace);
+                if (classEnd == -1) {
+                        return null;
+                }
+
+                int semicolonIndex = template.indexOf(';', classEnd);
+                if (semicolonIndex == -1) {
+                        return template.substring(classStart, classEnd + 1).trim();
+                }
+
+                return template.substring(classStart, semicolonIndex + 1).trim();
+        }
+
+        private int findMatchingBrace(String code, int openBrace) {
+                int depth = 0;
+                for (int i = openBrace; i < code.length(); i++) {
+                        char current = code.charAt(i);
+                        if (current == '{') {
+                                depth++;
+                        } else if (current == '}') {
+                                depth--;
+                                if (depth == 0) {
+                                        return i;
+                                }
+                        }
+                }
+                return -1;
         }
 
         private String normalizeCppIncludes(String template) {
