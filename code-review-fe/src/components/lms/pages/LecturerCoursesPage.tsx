@@ -88,7 +88,6 @@ export default function LecturerCoursesPage() {
         <CourseBrowser
           items={[]}
           title="Lớp học của bạn"
-          description="Tìm nhanh lớp học, chuyển giữa grid và list, và giữ giao diện đồng bộ với bên sinh viên."
           isLoading={false}
           emptyTitle="Không tải được danh sách lớp."
           emptyDescription="Kiểm tra backend rồi thử refresh lại danh sách lớp."
@@ -107,7 +106,6 @@ export default function LecturerCoursesPage() {
         <CourseBrowser
           items={browserItems}
           title="Lớp học của bạn"
-          description="Tìm nhanh lớp học, chuyển giữa grid và list, và giữ giao diện đồng bộ với bên sinh viên."
           isLoading={isLoading}
           emptyTitle={isLoading ? "Đang tải lớp học..." : "Chưa có lớp học nào."}
           emptyDescription={

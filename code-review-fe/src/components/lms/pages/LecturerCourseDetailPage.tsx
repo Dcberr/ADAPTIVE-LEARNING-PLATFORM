@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { ClassWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
+import type { EditableTestCase } from "@/components/lms/TestCaseManager"
 import ClassWorkspaceHeader from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceHeader"
 import ClassWorkspaceModals, {
   type ClassDraft,
@@ -35,6 +36,7 @@ import {
   useGetClassByIdQuery,
   useGetClassStudentsQuery,
   useGetClassTopicsQuery,
+  useLazyGetProblemByIdQuery,
   useRemoveStudentFromClassMutation,
   useUpdateAssignmentMutation,
   useUpdateClassMutation,
@@ -46,6 +48,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/toast-provider"
 
 type LecturerTab = "content" | "students"
+type AssignmentCreationSource = "manual" | "library"
 
 function formatDateTimeLocal(value?: string | null) {
   if (!value) {
@@ -62,6 +65,29 @@ function formatDateTimeLocal(value?: string | null) {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
 }
 
+function toDraftDifficulty(value?: string): AssignmentSettingsDraft["difficulty"] {
+  if (value === "HARD" || value === "Hard") return "HARD"
+  if (value === "MEDIUM" || value === "Medium") return "MEDIUM"
+  return "EASY"
+}
+
+function toEditableTestCases(
+  testcases: Array<{
+    input: string
+    expectedOutput: string
+    explanation: string
+    hidden: boolean
+  }>
+): EditableTestCase[] {
+  return testcases.map((item, index) => ({
+    id: `library-test-${index + 1}-${item.input.slice(0, 12)}`,
+    input: item.input,
+    expectedOutput: item.expectedOutput,
+    explanation: item.explanation,
+    hidden: item.hidden,
+  }))
+}
+
 export default function LecturerCourseDetailPage({ classId }: { classId: string }) {
   const router = useRouter()
   const [editMode, setEditMode] = useState(false)
@@ -70,6 +96,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [topicModalOpen, setTopicModalOpen] = useState(false)
   const [resourceModalOpen, setResourceModalOpen] = useState(false)
   const [assignmentCreateModalOpen, setAssignmentCreateModalOpen] = useState(false)
+  const [assignmentLibraryDialogOpen, setAssignmentLibraryDialogOpen] = useState(false)
   const [assignmentEditModalOpen, setAssignmentEditModalOpen] = useState(false)
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null)
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null)
@@ -91,6 +118,8 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [userCode, setUserCode] = useState("")
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
   const [removingStudentCode, setRemovingStudentCode] = useState<string | null>(null)
+  const [assignmentDraftTopicId, setAssignmentDraftTopicId] = useState<string | null>(null)
+  const [importingProblemId, setImportingProblemId] = useState<string | null>(null)
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<LecturerTab>("content")
   const shouldLoadStudents = hasMounted("students")
   const { toast } = useToast()
@@ -128,6 +157,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [deleteTopic, { isLoading: isDeletingTopic }] = useDeleteTopicMutation()
   const [updateClass, { isLoading: isUpdatingClass }] = useUpdateClassMutation()
   const [deleteClass, { isLoading: isDeletingClass }] = useDeleteClassMutation()
+  const [fetchProblemById] = useLazyGetProblemByIdQuery()
   const backendBaseUrl = getBackendBaseUrl()
 
   const bundle = useMemo(() => {
@@ -221,6 +251,14 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const resetAssignmentCreateModal = useCallback(() => {
     setAssignmentCreateModalOpen(false)
     setAssignmentDraft(emptyAssignmentDraft)
+    setAssignmentDraftTopicId(null)
+    setImportingProblemId(null)
+  }, [])
+
+  const closeAssignmentLibraryDialog = useCallback(() => {
+    setAssignmentLibraryDialogOpen(false)
+    setAssignmentDraftTopicId(null)
+    setImportingProblemId(null)
   }, [])
 
   const resetAssignmentEditModal = useCallback(() => {
@@ -282,10 +320,57 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     [topicCards]
   )
 
-  const openAssignmentCreateModal = useCallback((topicId: string) => {
+  const openAssignmentCreateModal = useCallback((topicId: string, source: AssignmentCreationSource) => {
+    if (source === "library") {
+      setAssignmentDraftTopicId(topicId)
+      setAssignmentLibraryDialogOpen(true)
+      return
+    }
+
+    setAssignmentDraftTopicId(topicId)
     setAssignmentDraft({ ...emptyAssignmentDraft, topicId })
     setAssignmentCreateModalOpen(true)
   }, [])
+
+  const handleSelectAssignmentLibraryProblem = useCallback(
+    async (problemId: string) => {
+      if (!assignmentDraftTopicId) {
+        toast({
+          tone: "error",
+          description: "Không xác định được topic để gắn assignment.",
+        })
+        return
+      }
+
+      try {
+        setImportingProblemId(problemId)
+        const problem = await fetchProblemById(problemId).unwrap()
+        setAssignmentDraft({
+          ...emptyAssignmentDraft,
+          topicId: assignmentDraftTopicId,
+          title: problem.title,
+          description: problem.description ?? "",
+          difficulty: toDraftDifficulty(problem.difficulty),
+          constraints: problem.problemConstraint ?? "",
+          tags: (problem.tags ?? []).join(", "),
+          functionSkeleton: {
+            cpp: problem.functionSkeletons?.cpp ?? "",
+          },
+          testCases: problem.testcases?.length ? toEditableTestCases(problem.testcases) : [],
+        })
+        setAssignmentLibraryDialogOpen(false)
+        setAssignmentCreateModalOpen(true)
+      } catch {
+        toast({
+          tone: "error",
+          description: "Không thể lấy dữ liệu bài từ kho. Kiểm tra lại backend rồi thử lại.",
+        })
+      } finally {
+        setImportingProblemId(null)
+      }
+    },
+    [assignmentDraftTopicId, fetchProblemById, toast]
+  )
 
   const openAssignmentEditModal = useCallback(
     (assignmentId: string) => {
@@ -876,6 +961,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         topicModalOpen={topicModalOpen}
         resourceModalOpen={resourceModalOpen}
         assignmentCreateModalOpen={assignmentCreateModalOpen}
+        assignmentLibraryDialogOpen={assignmentLibraryDialogOpen}
         assignmentEditModalOpen={assignmentEditModalOpen}
         deleteTarget={deleteTarget}
         classDraft={classDraft}
@@ -889,6 +975,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         isSubmittingTopic={isCreatingTopic || isUpdatingTopic}
         isSubmittingResource={isCreatingDocument || isUpdatingDocument}
         isSubmittingAssignment={isCreatingAssignment}
+        importingProblemId={importingProblemId}
         isSubmittingAssignmentSettings={isUpdatingAssignment}
         isDeleting={
           isDeletingClass || isDeletingTopic || isDeletingDocument || isDeletingAssignment
@@ -897,6 +984,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         onCloseTopicModal={resetTopicModal}
         onCloseResourceModal={resetResourceModal}
         onCloseAssignmentCreateModal={resetAssignmentCreateModal}
+        onCloseAssignmentLibraryDialog={closeAssignmentLibraryDialog}
         onCloseAssignmentEditModal={resetAssignmentEditModal}
         onCloseDeleteModal={() => setDeleteTarget(null)}
         onClassDraftChange={(patch) => {
@@ -920,6 +1008,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         onSaveTopic={handleSaveTopic}
         onSaveResource={handleSaveMaterial}
         onSaveAssignment={handleSaveAssignment}
+        onSelectAssignmentLibraryProblem={handleSelectAssignmentLibraryProblem}
         onSaveAssignmentSettings={handleSaveAssignmentSettings}
         onConfirmDelete={handleConfirmDelete}
       />

@@ -1,6 +1,7 @@
 "use client"
 
 import AssignmentDraftModalForm from "@/components/lms/pages/lecturer-course-detail/AssignmentDraftModalForm"
+import AssignmentProblemLibraryDialog from "@/components/lms/pages/lecturer-course-detail/AssignmentProblemLibraryDialog"
 import AssignmentSettingsModalForm from "@/components/lms/pages/lecturer-course-detail/AssignmentSettingsModalForm"
 import ConfirmActionModal from "@/components/lms/pages/lecturer-course-detail/ConfirmActionModal"
 import ResourceModalForm, {
@@ -54,6 +55,7 @@ export default function ClassWorkspaceModals({
   topicModalOpen,
   resourceModalOpen,
   assignmentCreateModalOpen,
+  assignmentLibraryDialogOpen,
   assignmentEditModalOpen,
   deleteTarget,
   classDraft,
@@ -67,12 +69,14 @@ export default function ClassWorkspaceModals({
   isSubmittingTopic,
   isSubmittingResource,
   isSubmittingAssignment,
+  importingProblemId,
   isSubmittingAssignmentSettings,
   isDeleting,
   onCloseClassModal,
   onCloseTopicModal,
   onCloseResourceModal,
   onCloseAssignmentCreateModal,
+  onCloseAssignmentLibraryDialog,
   onCloseAssignmentEditModal,
   onCloseDeleteModal,
   onClassDraftChange,
@@ -84,6 +88,7 @@ export default function ClassWorkspaceModals({
   onSaveTopic,
   onSaveResource,
   onSaveAssignment,
+  onSelectAssignmentLibraryProblem,
   onSaveAssignmentSettings,
   onConfirmDelete,
 }: {
@@ -91,6 +96,7 @@ export default function ClassWorkspaceModals({
   topicModalOpen: boolean
   resourceModalOpen: boolean
   assignmentCreateModalOpen: boolean
+  assignmentLibraryDialogOpen: boolean
   assignmentEditModalOpen: boolean
   deleteTarget: DeleteTarget | null
   classDraft: ClassDraft
@@ -104,12 +110,14 @@ export default function ClassWorkspaceModals({
   isSubmittingTopic: boolean
   isSubmittingResource: boolean
   isSubmittingAssignment: boolean
+  importingProblemId: string | null
   isSubmittingAssignmentSettings: boolean
   isDeleting: boolean
   onCloseClassModal: () => void
   onCloseTopicModal: () => void
   onCloseResourceModal: () => void
   onCloseAssignmentCreateModal: () => void
+  onCloseAssignmentLibraryDialog: () => void
   onCloseAssignmentEditModal: () => void
   onCloseDeleteModal: () => void
   onClassDraftChange: (patch: Partial<ClassDraft>) => void
@@ -121,6 +129,7 @@ export default function ClassWorkspaceModals({
   onSaveTopic: () => void
   onSaveResource: () => void
   onSaveAssignment: () => void
+  onSelectAssignmentLibraryProblem: (problemId: string) => void
   onSaveAssignmentSettings: () => void
   onConfirmDelete: () => void
 }) {
@@ -203,6 +212,13 @@ export default function ClassWorkspaceModals({
           onSave={onSaveAssignment}
         />
       </SimpleModal>
+
+      <AssignmentProblemLibraryDialog
+        open={assignmentLibraryDialogOpen}
+        importingProblemId={importingProblemId}
+        onClose={onCloseAssignmentLibraryDialog}
+        onSelectProblem={onSelectAssignmentLibraryProblem}
+      />
 
       <SimpleModal
         open={assignmentEditModalOpen}

@@ -1140,6 +1140,7 @@ export const {
   useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
   useGetProblemByIdQuery,
+  useLazyGetProblemByIdQuery,
   useGetAssignmentTestcasesQuery,
   useGetProblemSubmissionsQuery,
   useJudgeExecutionMutation,

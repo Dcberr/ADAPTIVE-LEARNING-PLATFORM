@@ -35,7 +35,7 @@ type TopicSectionCardProps = {
   onDeleteTopic: (topicId: string) => void
   onDeleteMaterial: (materialId: string) => void
   onOpenResourceModal: (topicId: string, materialId?: string) => void
-  onOpenAssignmentModal: (topicId: string) => void
+  onOpenAssignmentModal: (topicId: string, source: "manual" | "library") => void
   onEditAssignment: (assignmentId: string) => void
   onDeleteAssignment: (assignmentId: string) => void
   assignmentHrefPrefix?: string
@@ -228,15 +228,24 @@ function TopicSectionCardComponent({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-lg font-semibold text-[#030391]">Bài tập</p>
                 {editMode ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => onOpenAssignmentModal(topic.id)}
-                  >
-                    <Plus className="size-4" />
-                    Thêm bài tập
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-xl">
+                        <Plus className="size-4" />
+                        Thêm bài tập
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" sideOffset={8}>
+                      <DropdownMenuItem onClick={() => onOpenAssignmentModal(topic.id, "manual")}>
+                        <FilePenLine className="size-4" />
+                        Thêm thủ công
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onOpenAssignmentModal(topic.id, "library")}>
+                        <Link2 className="size-4" />
+                        Chọn từ kho
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : null}
               </div>
 

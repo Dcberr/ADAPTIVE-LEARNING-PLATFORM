@@ -65,7 +65,7 @@ export default function ClassWorkspaceTabs({
   onDeleteTopic: (topicId: string) => void
   onDeleteMaterial: (materialId: string) => void
   onOpenResourceModal: (topicId: string, materialId?: string) => void
-  onOpenAssignmentModal: (topicId: string) => void
+  onOpenAssignmentModal: (topicId: string, source: "manual" | "library") => void
   onEditAssignment: (assignmentId: string) => void
   onDeleteAssignment: (assignmentId: string) => void
   onAddSection: () => void
