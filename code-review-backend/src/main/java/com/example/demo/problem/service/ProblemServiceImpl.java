@@ -432,6 +432,24 @@ public class ProblemServiceImpl implements ProblemService {
         List<TestcaseResponse> testcases =
                 testcaseService.getTestcasesByProblem(problem.getId());
 
+        if (request.isSaveToLibrary()) {
+            Problem libraryProblem = Problem.builder()
+                    .title(request.getTitle())
+                    .description(request.getDescription())
+                    .difficulty(request.getDifficulty())
+                    .problemConstraint(request.getProblemConstraint())
+                    .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
+                    .type(ProblemType.LIBRARY)
+                    .source("SYSTEM")
+                    .createdAt(Instant.now())
+                    .build();
+
+            problemRepository.save(libraryProblem);
+
+            saveTestcases(libraryProblem.getId(), request.getTestcases());
+            replaceProblemTags(libraryProblem.getId(), getProblemTags(problem.getId()));
+        }
+
         return map(problem, testcases);
 
         

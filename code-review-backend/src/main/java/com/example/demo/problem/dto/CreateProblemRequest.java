@@ -22,6 +22,8 @@ public class CreateProblemRequest {
 
     private List<TestcaseDto> testcases;
 
+    private boolean saveToLibrary;
+
     // private List<String> similarQuestionIds;
 
     // @Data
