@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class LeetCodeStarterCodeGenerator {
 
     private static final String STUDENT_CODE_PLACEHOLDER = "//STUDENT_CODE_HERE";
+    private static final Pattern CPP_SOLUTION_CLASS_PATTERN = Pattern.compile("\\bclass\\s+Solution\\b");
         private static final String CPP_DEFAULT_INCLUDES = """
                         #include <algorithm>
                         #include <cctype>
@@ -149,6 +150,7 @@ public class LeetCodeStarterCodeGenerator {
         StringBuilder builder = new StringBuilder();
         String solutionClass = replaceBraceBody(snippet, STUDENT_CODE_PLACEHOLDER).trim();
         CppFunctionSignature signature = parseCppSignature(solutionClass);
+        boolean hasSolutionClass = hasCppSolutionClass(solutionClass);
 
         if (!containsCppIncludes(snippet)) {
             builder.append(CPP_DEFAULT_INCLUDES);
@@ -175,7 +177,7 @@ public class LeetCodeStarterCodeGenerator {
             builder.append("\n\n");
             builder.append(buildCppSupportFunctions(signature));
             builder.append("\n");
-            builder.append(buildCppMain(signature));
+            builder.append(buildCppMain(signature, hasSolutionClass));
         } else if (!snippet.contains("main(")) {
             builder.append("\n\nint main() {\n");
             builder.append("    return 0;\n");
@@ -187,6 +189,10 @@ public class LeetCodeStarterCodeGenerator {
 
     private boolean containsCppIncludes(String snippet) {
         return snippet.contains("#include <") || snippet.contains("#include\"");
+    }
+
+    private boolean hasCppSolutionClass(String snippet) {
+        return CPP_SOLUTION_CLASS_PATTERN.matcher(snippet).find();
     }
 
     private String generateJavaTemplate(String snippet) {
@@ -922,7 +928,7 @@ public class LeetCodeStarterCodeGenerator {
         return builder.toString();
     }
 
-    private String buildCppMain(CppFunctionSignature signature) {
+    private String buildCppMain(CppFunctionSignature signature, boolean hasSolutionClass) {
         StringBuilder builder = new StringBuilder();
         builder.append("int main() {\n");
         builder.append("    ios::sync_with_stdio(false);\n");
@@ -948,12 +954,21 @@ public class LeetCodeStarterCodeGenerator {
                     .append(";\n");
         }
 
-        builder.append("\n    Solution solution;\n");
-        builder.append("    auto result = solution.")
-                .append(signature.functionName())
-                .append("(")
-                .append(String.join(", ", signature.parameters().stream().map(CppParameter::name).toList()))
-                .append(");\n");
+        String callArguments = String.join(", ", signature.parameters().stream().map(CppParameter::name).toList());
+        if (hasSolutionClass) {
+            builder.append("\n    Solution solution;\n");
+            builder.append("    auto result = solution.")
+                    .append(signature.functionName())
+                    .append("(")
+                    .append(callArguments)
+                    .append(");\n");
+        } else {
+            builder.append("\n    auto result = ")
+                    .append(signature.functionName())
+                    .append("(")
+                    .append(callArguments)
+                    .append(");\n");
+        }
         builder.append(buildCppPrintStatement(signature.returnType()));
         builder.append("\n    return 0;\n");
         builder.append("}\n");
