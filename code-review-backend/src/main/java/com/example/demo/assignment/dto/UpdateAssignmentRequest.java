@@ -32,9 +32,9 @@ public class UpdateAssignmentRequest {
 
     private Long timeLimit;
 
-    private float maxScore;
+    private Float maxScore;
 
-    private int maxSubmission;
+    private Integer maxSubmission;
 
     private AssigmentDifficulty difficulty;
 

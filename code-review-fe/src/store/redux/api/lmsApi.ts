@@ -31,6 +31,7 @@ export type TopicAssignmentResponse = {
   maxScore?: number | null
   maxSubmission?: number | null
   attemptsUsed?: number | null
+  remainingSubmission?: number | null
   tags?: string[] | null
   status: string
 }
