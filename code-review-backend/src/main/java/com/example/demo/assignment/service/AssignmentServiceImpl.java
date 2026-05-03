@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.CreateAssignmentRequest;
 import com.example.demo.assignment.dto.UpdateAssignmentRequest;
+import com.example.demo.assignment.dto.AssignmentDetailResponse;
+import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.entity.Assignment;
 import com.example.demo.assignment.entity.AssignmentProblem;
@@ -87,19 +89,19 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public List<AssignmentResponse> getAssignmentsByTopic(UUID topicId) {
+    public List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId) {
         topicRepository.findByIdAndDeletedAtIsNull(topicId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
 
         return assignmentRepository.findByTopicIdAndDeletedAtIsNull(topicId)
                 .stream()
-                .map(this::mapAssignment)
+                .map(this::mapAssignmentOverview)
                 .toList();
     }
 
     @Override
-    public AssignmentResponse getAssignmentById(UUID assignmentId) {
-        return mapAssignment(getActiveAssignment(assignmentId));
+    public AssignmentDetailResponse getAssignmentById(UUID assignmentId) {
+        return mapAssignmentDetail(getActiveAssignment(assignmentId));
     }
 
     @Override
@@ -121,6 +123,28 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private AssignmentResponse mapAssignment(Assignment assignment) {
         return AssignmentResponse.builder()
+                .id(assignment.getId())
+                .title(assignment.getTitle())
+                .deadline(assignment.getDeadline())
+                .difficulty(assignment.getDifficulty())
+                .startTime(assignment.getStartTime())
+                .timeLimit(assignment.getTimeLimit())
+                .maxScore(assignment.getMaxScore())
+                .maxSubmission(assignment.getMaxSubmission())
+                .tags(assignment.getTags())
+                .status(assignment.getStatus())
+                .build();
+    }
+
+    private AssignmentOverviewResponse mapAssignmentOverview(Assignment assignment) {
+        return AssignmentOverviewResponse.builder()
+                .id(assignment.getId())
+                .title(assignment.getTitle())
+                .build();
+    }
+
+    private AssignmentDetailResponse mapAssignmentDetail(Assignment assignment) {
+        return AssignmentDetailResponse.builder()
                 .id(assignment.getId())
                 .title(assignment.getTitle())
                 .deadline(assignment.getDeadline())
