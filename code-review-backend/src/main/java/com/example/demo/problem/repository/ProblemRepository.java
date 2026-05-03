@@ -19,6 +19,8 @@ public interface ProblemRepository
 
         Optional<Problem> findBySourceAndExternalId(String source, String externalId);
 
-        Page<Problem> findAllByTypeOrderByCreatedAtDesc(ProblemType type, Pageable pageable);
+        Optional<Problem> findByIdAndDeletedAtIsNull(UUID id);
+
+        Page<Problem> findAllByTypeAndDeletedAtIsNullOrderByCreatedAtDesc(ProblemType type, Pageable pageable);
 
 }

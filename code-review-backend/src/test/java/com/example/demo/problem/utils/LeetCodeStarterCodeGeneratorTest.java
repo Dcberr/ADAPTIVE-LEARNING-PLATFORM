@@ -54,6 +54,51 @@ class LeetCodeStarterCodeGeneratorTest {
     }
 
     @Test
+    @DisplayName("Should generate runnable C++ template for free function snippets")
+    void shouldGenerateRunnableCppTemplateForFreeFunctionSnippets() {
+        String rawSnippet = """
+                string convertToTitle(int columnNumber) {
+                }
+                """;
+
+        String template = generator.generateCppTemplatePublic(rawSnippet);
+
+        assertTrue(template.contains("auto result = convertToTitle(columnNumber);"));
+        assertFalse(template.contains("Solution solution;"));
+    }
+
+    @Test
+    @DisplayName("Should print C++ string results as quoted JSON strings")
+    void shouldPrintCppStringResultsAsQuotedJsonStrings() {
+        String rawSnippet = """
+                string convertToTitle(int columnNumber) {
+                }
+                """;
+
+        String template = generator.generateCppTemplatePublic(rawSnippet);
+
+        assertTrue(template.contains("static void printValue(const string& value)"));
+        assertTrue(template.contains("escapeString(value)"));
+        assertTrue(template.contains("printValue(result);"));
+    }
+
+    @Test
+    @DisplayName("Should print C++ vector string results with quoted elements")
+    void shouldPrintCppVectorStringResultsWithQuotedElements() {
+        String rawSnippet = """
+                class Solution {
+                public:
+                    vector<string> addOperators(string num, int target) {
+                    }
+                };
+                """;
+
+        String template = generator.generateCppTemplatePublic(rawSnippet);
+
+        assertTrue(template.contains("printValue(values[i]);"));
+    }
+
+    @Test
     @DisplayName("Should normalize raw Java LeetCode starter code into executable template")
     void shouldNormalizeRawJavaStarterCode() {
         String rawSnippet = """

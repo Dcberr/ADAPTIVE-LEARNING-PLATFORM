@@ -83,4 +83,6 @@ public class Problem {
     private Map<String, String> starterCodes;
 
     private Instant createdAt;
+
+    private Instant deletedAt;
 }

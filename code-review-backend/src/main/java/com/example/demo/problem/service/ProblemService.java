@@ -12,6 +12,7 @@ import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.dto.SearchLibraryProblemRequest;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
+import com.example.demo.problem.dto.UpdateLibraryProblemRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 
 public interface ProblemService {
@@ -42,5 +43,9 @@ public interface ProblemService {
     public List<ProblemResponse> batchUpdateLeetCode(List<LeetCodeImportRequest> requests);
 
     public ProblemResponse updateProblemSourceToLibrary(UpdateProblemSourceRequest request);
+
+    public ProblemResponse updateLibraryProblem(UUID problemId, UpdateLibraryProblemRequest request);
+
+    public void deleteLibraryProblem(UUID problemId);
 
 }
