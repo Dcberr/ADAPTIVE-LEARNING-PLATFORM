@@ -14,6 +14,7 @@ import com.example.demo.problem.dto.LeetCodeImportRequest;
 import com.example.demo.problem.dto.ProblemLibraryRequest;
 import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
+import com.example.demo.problem.dto.SearchLibraryProblemRequest;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
@@ -59,6 +60,21 @@ public class ProblemController {
     ) {
         return ApiResponse.success(
                 problemService.getAllLibraryProblems(page, size)
+        );
+    }
+
+    @Operation(summary = "Search library problems")
+    @GetMapping("/library/search")
+    public ApiResponse<PageResponse<ProblemOverviewResponse>> searchLibraryProblems(
+            @RequestParam(required = false, name = "q") String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        SearchLibraryProblemRequest request = new SearchLibraryProblemRequest();
+        request.setQ(query);
+
+        return ApiResponse.success(
+                problemService.searchLibraryProblems(request, page, size)
         );
     }
 

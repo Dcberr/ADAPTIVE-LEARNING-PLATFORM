@@ -44,6 +44,8 @@ class CodeReviewSubProcess(BaseSubProcess):
     def import_exercise(
         self,
         exercises: Iterable[LeetCodeProblemChange],
+        *,
+        sync_unchanged: bool = False,
     ) -> list[LeetCodeProblemChange]:
         processed_exercises: list[LeetCodeProblemChange] = []
         processed_count = 0
@@ -64,6 +66,16 @@ class CodeReviewSubProcess(BaseSubProcess):
                     exercise.exercise_id,
                 )
             else:
+                if sync_unchanged:
+                    self.logger.info(
+                        "Resyncing unchanged exercise slug=%s title=%s exercise_id=%s",
+                        exercise.question_slug,
+                        exercise.title,
+                        exercise.exercise_id,
+                    )
+                    processed_exercises.append(exercise)
+                    processed_count += 1
+                    continue
                 self.logger.info(
                     "Skipping unchanged exercise slug=%s title=%s",
                     exercise.question_slug,

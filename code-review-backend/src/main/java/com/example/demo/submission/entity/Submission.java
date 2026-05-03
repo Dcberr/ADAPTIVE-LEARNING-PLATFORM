@@ -47,6 +47,9 @@ public class Submission {
 
     private Integer totalTestcases;
 
+    @Column(name = "started_at")
+    private Instant startedAt;  
+
     @Column(name = "submitted_at")
     private Instant submittedAt;
 

@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.AddProblemToAssignmentRequest;
+import com.example.demo.assignment.dto.AssignmentDetailResponse;
+import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.dto.CreateAssignmentRequest;
 import com.example.demo.assignment.dto.UpdateAssignmentRequest;
@@ -36,9 +38,9 @@ public class AssignmentController {
         );
     }
 
-    @Operation(summary = "Get assignments by topicId")
+    @Operation(summary = "Get assignment overview by topicId")
     @GetMapping("/topic/{topicId}")
-    public ApiResponse<List<AssignmentResponse>> getAssignments(
+    public ApiResponse<List<AssignmentOverviewResponse>> getAssignments(
             @PathVariable UUID topicId
     ) {
 
@@ -47,15 +49,15 @@ public class AssignmentController {
         );
     }
 
-//     @Operation(summary = "Get assignment detail")
-//     @GetMapping("/{assignmentId}")
-//     public ApiResponse<AssignmentResponse> getAssignment(
-//             @PathVariable UUID assignmentId
-//     ) {
-//         return ApiResponse.success(
-//                 assignmentService.getAssignmentById(assignmentId)
-//         );
-//     }
+    @Operation(summary = "Get assignment detail")
+    @GetMapping("/{assignmentId}")
+    public ApiResponse<AssignmentDetailResponse> getAssignment(
+            @PathVariable UUID assignmentId
+    ) {
+        return ApiResponse.success(
+                assignmentService.getAssignmentById(assignmentId)
+        );
+    }
 
     @Operation(summary = "Update assignment")
     @PutMapping("/{assignmentId}")

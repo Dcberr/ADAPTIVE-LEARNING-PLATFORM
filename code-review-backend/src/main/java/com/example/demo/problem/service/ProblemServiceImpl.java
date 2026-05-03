@@ -1,15 +1,21 @@
 package com.example.demo.problem.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +31,7 @@ import com.example.demo.problem.dto.LeetCodeProblemPageResponse;
 import com.example.demo.problem.dto.ProblemLibraryRequest;
 import com.example.demo.problem.dto.ProblemOverviewResponse;
 import com.example.demo.problem.dto.ProblemResponse;
+import com.example.demo.problem.dto.SearchLibraryProblemRequest;
 import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.dto.TestcaseResponse;
 import com.example.demo.problem.dto.UpdateProblemSourceRequest;
@@ -40,10 +47,17 @@ import com.example.demo.problem.utils.CodeExtractor;
 import com.example.demo.problem.utils.LeetCodeStarterCodeGenerator;
 
 import jakarta.transaction.Transactional;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Subquery;
 
 @Service
 @RequiredArgsConstructor
 public class ProblemServiceImpl implements ProblemService {
+
+    private static final Pattern FILTER_PATTERN = Pattern.compile(
+            "(?i)(source|title|difficulty|externalId|external_id|tag|tags):(\"[^\"]*\"|'[^']*'|\\S+)"
+    );
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)");
 
     private final ProblemRepository problemRepository;
     private final ProblemTagRepository problemTagRepository;
@@ -156,6 +170,26 @@ public class ProblemServiceImpl implements ProblemService {
     }
 
     @Override
+    public PageResponse<ProblemOverviewResponse> searchLibraryProblems(SearchLibraryProblemRequest request, int page, int size) {
+        Page<Problem> problemPage = problemRepository.findAll(
+                buildLibrarySearchSpecification(request),
+                PageRequest.of(page, size)
+        );
+
+        List<ProblemOverviewResponse> content = problemPage.getContent().stream()
+                .map(this::mapOverview)
+                .toList();
+
+        return PageResponse.<ProblemOverviewResponse>builder()
+                .content(content)
+                .page(problemPage.getNumber())
+                .size(problemPage.getSize())
+                .totalElements(problemPage.getTotalElements())
+                .totalPages(problemPage.getTotalPages())
+                .build();
+    }
+
+    @Override
     public LeetCodeProblemPageResponse getLeetCodeProblems(int page, int limit) {
         return leetCodeClient.getProblems(page, limit);
     }
@@ -217,6 +251,166 @@ public class ProblemServiceImpl implements ProblemService {
                 .build();
     }
 
+    private Specification<Problem> buildLibrarySearchSpecification(SearchLibraryProblemRequest request) {
+        LibrarySearchCriteria criteria = parseSearchCriteria(request.getQ());
+
+        return (root, query, cb) -> {
+            query.distinct(true);
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("type"), ProblemType.LIBRARY));
+
+            if (criteria.source() != null && !criteria.source().isBlank()) {
+                predicates.add(cb.equal(cb.lower(root.get("source")), criteria.source()));
+            }
+
+            if (criteria.title() != null && !criteria.title().isBlank()) {
+                predicates.add(cb.like(
+                        cb.lower(root.get("title")),
+                        "%" + criteria.title() + "%"
+                ));
+            }
+
+            if (criteria.difficulty() != null && !criteria.difficulty().isBlank()) {
+                predicates.add(cb.equal(
+                        cb.lower(root.get("difficulty")),
+                        criteria.difficulty()
+                ));
+            }
+
+            if (criteria.externalId() != null && !criteria.externalId().isBlank()) {
+                predicates.add(cb.like(
+                        cb.lower(root.get("externalId")),
+                        "%" + criteria.externalId() + "%"
+                ));
+            }
+
+            for (String tag : criteria.tags()) {
+                Subquery<UUID> subquery = query.subquery(UUID.class);
+                var tagRoot = subquery.from(ProblemTag.class);
+                subquery.select(tagRoot.get("problemId"))
+                        .where(
+                                cb.equal(tagRoot.get("problemId"), root.get("id")),
+                                cb.equal(cb.lower(tagRoot.get("tag")), tag)
+                        );
+                predicates.add(cb.exists(subquery));
+            }
+
+            for (String keyword : criteria.keywords()) {
+                List<Predicate> keywordPredicates = new ArrayList<>();
+                String pattern = "%" + keyword + "%";
+
+                keywordPredicates.add(cb.like(cb.lower(root.get("source")), pattern));
+                keywordPredicates.add(cb.like(cb.lower(root.get("title")), pattern));
+                keywordPredicates.add(cb.like(cb.lower(root.get("difficulty")), pattern));
+                keywordPredicates.add(cb.like(cb.lower(root.get("externalId")), pattern));
+
+                Subquery<UUID> tagSubquery = query.subquery(UUID.class);
+                var tagRoot = tagSubquery.from(ProblemTag.class);
+                tagSubquery.select(tagRoot.get("problemId"))
+                        .where(
+                                cb.equal(tagRoot.get("problemId"), root.get("id")),
+                                cb.like(cb.lower(tagRoot.get("tag")), pattern)
+                        );
+                keywordPredicates.add(cb.exists(tagSubquery));
+
+                predicates.add(cb.or(keywordPredicates.toArray(new Predicate[0])));
+            }
+
+            query.orderBy(cb.desc(root.get("createdAt")));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private LibrarySearchCriteria parseSearchCriteria(String rawQuery) {
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return new LibrarySearchCriteria(null, null, null, null, List.of(), List.of());
+        }
+
+        StringBuilder freeText = new StringBuilder();
+        String query = rawQuery.trim();
+        Matcher matcher = FILTER_PATTERN.matcher(query);
+        int lastEnd = 0;
+
+        String source = null;
+        String title = null;
+        String difficulty = null;
+        String externalId = null;
+        Set<String> tags = new LinkedHashSet<>();
+
+        while (matcher.find()) {
+            freeText.append(query, lastEnd, matcher.start()).append(' ');
+
+            String key = matcher.group(1).toLowerCase();
+            String value = normalizeSearchValue(matcher.group(2));
+            if (value.isBlank()) {
+                lastEnd = matcher.end();
+                continue;
+            }
+
+            switch (key) {
+                case "source" -> source = value;
+                case "title" -> title = value;
+                case "difficulty" -> difficulty = value;
+                case "externalid", "external_id" -> externalId = value;
+                case "tag", "tags" -> {
+                    for (String tag : value.split(",")) {
+                        String normalizedTag = tag.trim().toLowerCase();
+                        if (!normalizedTag.isBlank()) {
+                            tags.add(normalizedTag);
+                        }
+                    }
+                }
+            }
+
+            lastEnd = matcher.end();
+        }
+
+        freeText.append(query.substring(lastEnd));
+
+        List<String> keywords = extractKeywords(freeText.toString());
+
+        return new LibrarySearchCriteria(
+                source,
+                title,
+                difficulty,
+                externalId,
+                List.copyOf(tags),
+                keywords
+        );
+    }
+
+    private List<String> extractKeywords(String input) {
+        List<String> keywords = new ArrayList<>();
+        Matcher matcher = TOKEN_PATTERN.matcher(input);
+
+        while (matcher.find()) {
+            String value = matcher.group(1) != null ? matcher.group(1)
+                    : matcher.group(2) != null ? matcher.group(2)
+                    : matcher.group(3);
+            String normalizedValue = normalizeSearchValue(value);
+            if (!normalizedValue.isBlank()) {
+                keywords.add(normalizedValue);
+            }
+        }
+
+        return keywords;
+    }
+
+    private String normalizeSearchValue(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = value.trim();
+        if ((normalized.startsWith("\"") && normalized.endsWith("\""))
+                || (normalized.startsWith("'") && normalized.endsWith("'"))) {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+
+        return normalized.trim().toLowerCase();
+    }
+
     @Override
     public ProblemResponse createManualProblem(CreateProblemRequest request) {
 
@@ -237,6 +431,24 @@ public class ProblemServiceImpl implements ProblemService {
 
         List<TestcaseResponse> testcases =
                 testcaseService.getTestcasesByProblem(problem.getId());
+
+        if (request.isSaveToLibrary()) {
+            Problem libraryProblem = Problem.builder()
+                    .title(request.getTitle())
+                    .description(request.getDescription())
+                    .difficulty(request.getDifficulty())
+                    .problemConstraint(request.getProblemConstraint())
+                    .starterCodes(normalizeStarterCodes(request.getStarterCodes()))
+                    .type(ProblemType.LIBRARY)
+                    .source("SYSTEM")
+                    .createdAt(Instant.now())
+                    .build();
+
+            problemRepository.save(libraryProblem);
+
+            saveTestcases(libraryProblem.getId(), request.getTestcases());
+            replaceProblemTags(libraryProblem.getId(), getProblemTags(problem.getId()));
+        }
 
         return map(problem, testcases);
 
@@ -479,6 +691,16 @@ public class ProblemServiceImpl implements ProblemService {
                 similar.getSimilarProblems().add(problem);
             }
         }
+    }
+
+    private record LibrarySearchCriteria(
+            String source,
+            String title,
+            String difficulty,
+            String externalId,
+            List<String> tags,
+            List<String> keywords
+    ) {
     }
 
     private void validateLeetCodeExternalId(String externalId, UUID currentProblemId) {

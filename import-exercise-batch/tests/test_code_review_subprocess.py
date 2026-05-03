@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from uuid import uuid4
 
 from code_review_api_client import ProblemResponse
@@ -82,6 +83,28 @@ class CodeReviewSubProcessTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "missing problems for slugs"):
             self.subprocess._merge_import_results(exercises, imported_problems)
+
+    def test_import_exercise_skips_unchanged_by_default(self) -> None:
+        exercise = _build_exercise_change(
+            exercise_id="existing-id",
+            question_slug="two-sum",
+        )
+        exercise = replace(exercise, diff_type="no_different")
+
+        imported = self.subprocess.import_exercise([exercise])
+
+        self.assertEqual([], imported)
+
+    def test_import_exercise_can_resync_unchanged(self) -> None:
+        exercise = _build_exercise_change(
+            exercise_id="existing-id",
+            question_slug="two-sum",
+        )
+        exercise = replace(exercise, diff_type="no_different")
+
+        imported = self.subprocess.import_exercise([exercise], sync_unchanged=True)
+
+        self.assertEqual([exercise], imported)
 
     def test_parse_testcases_from_content_for_multi_param_input(self) -> None:
         content = """

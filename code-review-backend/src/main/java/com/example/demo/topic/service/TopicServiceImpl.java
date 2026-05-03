@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
 import com.example.demo.assignment.entity.AssigmentDifficulty;
 import com.example.demo.assignment.entity.Assignment;
@@ -104,7 +105,7 @@ public class TopicServiceImpl implements TopicService {
 
         Topic topic = getActiveTopic(topicId);
 
-        List<AssignmentResponse> assignments = assignmentService.getAssignmentsByTopic(topicId);
+        List<AssignmentOverviewResponse> assignments = assignmentService.getAssignmentsByTopic(topicId);
 
         List<DocumentResponse> documents = documentService.getDocumentsByTopic(topicId);
 

@@ -16,6 +16,13 @@ class LeetCodeProblem:
     topic_tag_slugs: list[str]
     similar_question_slugs: list[str]
 
+    def has_full_payload(self) -> bool:
+        return bool(
+            self.content.strip()
+            and self.sample_test_case.strip()
+            and self.code_snippet.strip()
+        )
+
     def to_record(self) -> dict[str, str]:
         record = asdict(self)
         record["topic_tag_slugs"] = json.dumps(self.topic_tag_slugs, ensure_ascii=False)

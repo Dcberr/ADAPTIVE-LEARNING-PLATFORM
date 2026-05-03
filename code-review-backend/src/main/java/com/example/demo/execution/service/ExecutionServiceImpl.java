@@ -128,11 +128,12 @@ public class ExecutionServiceImpl implements ExecutionService {
                                 .orElse(JudgeStatus.ACCEPTED);
 
                 return RunCodeResponse.builder()
-.status(finalStatus)
+                                .status(finalStatus)
                                 .testcases(results)
                                 .passedTestcases(passed)
                                 .totalTestcases(testcases.size())
                                 .runtime(totalRuntime)
+                                .errorMessage(resolveRunCodeErrorMessage(finalStatus, results))
                                 .build();
         }
 
@@ -308,7 +309,33 @@ if (!template.contains("int main(")) {
                                                                 .build()))
                                 .passedTestcases(status == JudgeStatus.ACCEPTED ? 1 : 0)
                                 .totalTestcases(1)
+                                .runtime(result.getRuntime())
+                                .errorMessage(resolveRunCodeErrorMessage(status, result.getStderr()))
                                 .build();
+        }
+
+        private String resolveRunCodeErrorMessage(
+                        JudgeStatus status,
+                        List<TestcaseResult> results) {
+                if (status != JudgeStatus.COMPILE_ERROR) {
+                        return null;
+                }
+
+                return results.stream()
+                                .map(TestcaseResult::getError)
+                                .filter(error -> error != null && !error.isBlank())
+                                .findFirst()
+                                .orElse(null);
+        }
+
+        private String resolveRunCodeErrorMessage(
+                        JudgeStatus status,
+                        String errorMessage) {
+                if (status != JudgeStatus.COMPILE_ERROR) {
+                        return null;
+                }
+
+                return (errorMessage == null || errorMessage.isBlank()) ? null : errorMessage;
         }
 
         private String quoteForLog(String value) {

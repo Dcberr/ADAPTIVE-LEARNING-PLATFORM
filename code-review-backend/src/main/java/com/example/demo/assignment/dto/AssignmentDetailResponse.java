@@ -4,6 +4,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.example.demo.assignment.entity.AssigmentDifficulty;
+import com.example.demo.assignment.entity.AssignmentStatus;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,10 +18,20 @@ public class AssignmentDetailResponse {
 
     private String title;
 
-    private String description;
-
     private Instant deadline;
 
-    private List<UUID> problemIds;
+    private AssigmentDifficulty difficulty;
+
+    private Instant startTime;
+
+    private Long timeLimit;
+
+    private float maxScore;
+
+    private int maxSubmission;
+
+    private List<String> tags;
+
+    private AssignmentStatus status;
 
 }
