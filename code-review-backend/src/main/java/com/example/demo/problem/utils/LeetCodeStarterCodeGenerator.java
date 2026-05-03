@@ -660,6 +660,47 @@ public class LeetCodeStarterCodeGenerator {
                 static string readLineOrDefault(const vector<string>& lines, size_t index) {
                     return index < lines.size() ? lines[index] : "";
                 }
+
+                static string escapeString(const string& value) {
+                    string escaped;
+                    for (char ch : value) {
+                        switch (ch) {
+                            case '\\\\':
+                                escaped += '\\\\';
+                                escaped += '\\\\';
+                                break;
+                            case '"':
+                                escaped += '\\\\';
+                                escaped += '"';
+                                break;
+                            case '\\n':
+                                escaped += '\\\\';
+                                escaped += 'n';
+                                break;
+                            case '\\r':
+                                escaped += '\\\\';
+                                escaped += 'r';
+                                break;
+                            case '\\t':
+                                escaped += '\\\\';
+                                escaped += 't';
+                                break;
+                            default:
+                                escaped += ch;
+                                break;
+                        }
+                    }
+                    return escaped;
+                }
+
+                template <typename T>
+                static void printValue(const T& value) {
+                    cout << value;
+                }
+
+                static void printValue(const string& value) {
+                    cout << '"' << escapeString(value) << '"';
+                }
                 """);
 
         if (needsVectorIntParser || needsListNode) {
@@ -792,7 +833,7 @@ public class LeetCodeStarterCodeGenerator {
                             if (i > 0) {
                                 cout << ",";
                             }
-                            cout << values[i];
+                            printValue(values[i]);
                         }
                         cout << "]";
                     }
@@ -994,7 +1035,8 @@ public class LeetCodeStarterCodeGenerator {
 
     private String buildCppPrintStatement(String returnType) {
         return switch (returnType) {
-            case "int", "long", "double", "string" -> "    cout << result;\n";
+            case "int", "long", "double" -> "    cout << result;\n";
+            case "string" -> "    printValue(result);\n";
             case "bool" -> "    cout << (result ? \"true\" : \"false\");\n";
             case "vector<int>", "vector<long long>", "vector<string>" -> "    printVector(result);\n";
             case "ListNode*" -> "    printListNode(result);\n";
