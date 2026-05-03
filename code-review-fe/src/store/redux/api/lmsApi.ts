@@ -49,6 +49,7 @@ export type ProblemBankApiProblemResponse = {
   tags?: string[] | null
 }
 export type ProblemBankPageQuery = {
+  q?: string
   page?: number
   size?: number
 }
@@ -848,8 +849,9 @@ export const lmsApi = baseApi.injectEndpoints({
     }),
     getProblemBank: builder.query<ProblemBankPageResult, ProblemBankPageQuery | void>({
       query: (params) => ({
-        url: "/problems/library",
+        url: params?.q?.trim() ? "/problems/library/search" : "/problems/library",
         params: {
+          ...(params?.q?.trim() ? { q: params.q.trim() } : {}),
           page: params?.page ?? 0,
           size: params?.size ?? 20,
         },

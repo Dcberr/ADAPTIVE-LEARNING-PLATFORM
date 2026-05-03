@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import { useGetProblemBankQuery } from "@/store/redux/api/lmsApi"
 
 function formatDifficultyLabel(value: string) {
@@ -67,29 +68,16 @@ export default function AssignmentProblemLibraryDialog({
 }) {
   const [page, setPage] = useState(0)
   const [query, setQuery] = useState("")
+  const debouncedQuery = useDebouncedValue(query)
   const size = 8
   const { data, isLoading, isFetching } = useGetProblemBankQuery(
-    { page, size },
+    { page, size, q: debouncedQuery },
     { skip: !open }
   )
   const totalPages = data?.totalPages ?? 0
   const hasPreviousPage = page > 0
   const hasNextPage = totalPages > 0 && page < totalPages - 1
-
-  const filteredProblems = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    const problems = data?.content ?? []
-
-    if (!normalized) {
-      return problems
-    }
-
-    return problems.filter((problem) =>
-      `${problem.title} ${(problem.tags ?? problem.topics).join(" ")}`
-        .toLowerCase()
-        .includes(normalized)
-    )
-  }, [data?.content, query])
+  const problems = data?.content ?? []
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (!nextOpen ? onClose() : undefined)}>
@@ -107,7 +95,10 @@ export default function AssignmentProblemLibraryDialog({
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPage(0)
+              }}
               className="pl-10"
               placeholder="Tìm theo tiêu đề hoặc tag"
             />
@@ -136,14 +127,14 @@ export default function AssignmentProblemLibraryDialog({
               ))
             ) : null}
 
-            {!isLoading && filteredProblems.length === 0 ? (
+            {!isLoading && problems.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500">
                 Không có bài nào khớp với từ khóa hiện tại.
               </div>
             ) : null}
 
             {!isLoading
-              ? filteredProblems.map((problem) => (
+              ? problems.map((problem) => (
                   <div
                     key={problem.id}
                     className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#1488D8]/35"
