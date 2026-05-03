@@ -14,13 +14,12 @@ import ClassWorkspaceModals, {
 import ClassWorkspaceTabs from "@/components/lms/pages/lecturer-course-detail/ClassWorkspaceTabs"
 import {
   emptyAssignmentDraft,
-  emptyAssignmentSettingsDraft,
   emptyResourceDraft,
   formatClassDate,
 } from "@/components/lms/pages/lecturer-course-detail/constants"
 import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 import { type TopicDraft } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
-import type { AssignmentSettingsDraft } from "@/components/lms/pages/lecturer-course-detail/types"
+import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { getBackendBaseUrl } from "@/lib/auth"
 import { saveCachedAssignmentProblem } from "@/lib/assignment-problem-cache"
@@ -33,6 +32,9 @@ import {
   useDeleteClassMutation,
   useDeleteDocumentMutation,
   useDeleteTopicMutation,
+  useLazyGetAssignmentByIdQuery,
+  useLazyGetAssignmentProblemQuery,
+  useLazyGetAssignmentTestcasesQuery,
   useGetClassByIdQuery,
   useGetClassStudentsQuery,
   useGetClassTopicsQuery,
@@ -65,7 +67,7 @@ function formatDateTimeLocal(value?: string | null) {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
 }
 
-function toDraftDifficulty(value?: string): AssignmentSettingsDraft["difficulty"] {
+function toDraftDifficulty(value?: string): AssignmentDraft["difficulty"] {
   if (value === "HARD" || value === "Hard") return "HARD"
   if (value === "MEDIUM" || value === "Medium") return "MEDIUM"
   return "EASY"
@@ -112,9 +114,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [topicDraft, setTopicDraft] = useState<TopicDraft>({ title: "", description: "" })
   const [resourceDraft, setResourceDraft] = useState<ResourceDraft>(emptyResourceDraft)
   const [assignmentDraft, setAssignmentDraft] = useState(emptyAssignmentDraft)
-  const [assignmentSettingsDraft, setAssignmentSettingsDraft] = useState<AssignmentSettingsDraft>(
-    emptyAssignmentSettingsDraft
-  )
+  const [assignmentEditDraft, setAssignmentEditDraft] = useState(emptyAssignmentDraft)
   const [userCode, setUserCode] = useState("")
   const [recentStudentIds, setRecentStudentIds] = useState<string[]>([])
   const [removingStudentCode, setRemovingStudentCode] = useState<string | null>(null)
@@ -157,6 +157,9 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const [deleteTopic, { isLoading: isDeletingTopic }] = useDeleteTopicMutation()
   const [updateClass, { isLoading: isUpdatingClass }] = useUpdateClassMutation()
   const [deleteClass, { isLoading: isDeletingClass }] = useDeleteClassMutation()
+  const [fetchAssignmentById] = useLazyGetAssignmentByIdQuery()
+  const [fetchAssignmentProblem] = useLazyGetAssignmentProblemQuery()
+  const [fetchAssignmentTestcases] = useLazyGetAssignmentTestcasesQuery()
   const [fetchProblemById] = useLazyGetProblemByIdQuery()
   const backendBaseUrl = getBackendBaseUrl()
 
@@ -264,7 +267,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const resetAssignmentEditModal = useCallback(() => {
     setAssignmentEditModalOpen(false)
     setEditingAssignmentId(null)
-    setAssignmentSettingsDraft(emptyAssignmentSettingsDraft)
+    setAssignmentEditDraft(emptyAssignmentDraft)
   }, [])
 
   const openClassModal = useCallback(() => {
@@ -373,7 +376,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   )
 
   const openAssignmentEditModal = useCallback(
-    (assignmentId: string) => {
+    async (assignmentId: string) => {
       const topic = topicCards.find((item) =>
         item.assignments.some((assignment) => assignment.id === assignmentId)
       )
@@ -387,31 +390,57 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         return
       }
 
-      setEditingAssignmentId(assignment.id)
-      setAssignmentSettingsDraft({
-        id: assignment.id,
-        topicId: topic.id,
-        title: assignment.title,
-        difficulty: assignment.difficulty as AssignmentSettingsDraft["difficulty"],
-        score:
-          typeof assignment.maxScore === "number" && Number.isFinite(assignment.maxScore)
-            ? String(assignment.maxScore)
-            : "",
-        timeLimit:
-          typeof assignment.timeLimit === "number" && Number.isFinite(assignment.timeLimit)
-            ? String(assignment.timeLimit)
-            : "",
-        openAt: formatDateTimeLocal(assignment.startTime),
-        deadline: formatDateTimeLocal(assignment.deadline),
-        attemptsAllowed:
-          typeof assignment.maxSubmission === "number" && Number.isFinite(assignment.maxSubmission)
-            ? String(assignment.maxSubmission)
-            : "",
-        tags: (assignment.tags ?? []).join(", "),
-      })
-      setAssignmentEditModalOpen(true)
+      try {
+        const [assignmentDetail, assignmentProblem, assignmentTestcases] = await Promise.all([
+          fetchAssignmentById(assignmentId).unwrap(),
+          fetchAssignmentProblem(assignmentId).unwrap(),
+          fetchAssignmentTestcases(assignmentId).unwrap(),
+        ])
+
+        setEditingAssignmentId(assignment.id)
+        setAssignmentEditDraft({
+          ...emptyAssignmentDraft,
+          id: assignment.id,
+          topicId: topic.id,
+          title: assignmentDetail.title || assignmentProblem.title || assignment.title,
+          description: assignmentProblem.description ?? "",
+          saveToLibrary: false,
+          difficulty: toDraftDifficulty(assignmentDetail.difficulty ?? assignmentProblem.difficulty),
+          score:
+            typeof assignmentDetail.maxScore === "number" && Number.isFinite(assignmentDetail.maxScore)
+              ? String(assignmentDetail.maxScore)
+              : "",
+          timeLimit:
+            typeof assignmentDetail.timeLimit === "number" && Number.isFinite(assignmentDetail.timeLimit)
+              ? String(assignmentDetail.timeLimit)
+              : "",
+          openAt: formatDateTimeLocal(assignmentDetail.startTime),
+          deadline: formatDateTimeLocal(assignmentDetail.deadline),
+          attemptsAllowed:
+            typeof assignmentDetail.maxSubmission === "number" &&
+            Number.isFinite(assignmentDetail.maxSubmission)
+              ? String(assignmentDetail.maxSubmission)
+              : "",
+          constraints: assignmentProblem.problemConstraint ?? "",
+          tags: (assignmentDetail.tags ?? assignmentProblem.tags ?? []).join(", "),
+          functionSkeleton: {
+            cpp: assignmentProblem.functionSkeletons?.cpp ?? "",
+          },
+          testCases: assignmentTestcases?.length
+            ? toEditableTestCases(assignmentTestcases)
+            : assignmentProblem.testcases?.length
+              ? toEditableTestCases(assignmentProblem.testcases)
+            : [],
+        })
+        setAssignmentEditModalOpen(true)
+      } catch {
+        toast({
+          tone: "error",
+          description: "Không thể tải dữ liệu assignment để chỉnh sửa. Kiểm tra lại backend rồi thử lại.",
+        })
+      }
     },
-    [toast, topicCards]
+    [fetchAssignmentById, fetchAssignmentProblem, fetchAssignmentTestcases, toast, topicCards]
   )
 
   const requestDeleteClass = useCallback(() => {
@@ -665,6 +694,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         starterCodes: assignmentDraft.functionSkeleton.cpp.trim()
           ? { cpp: assignmentDraft.functionSkeleton.cpp }
           : {},
+        saveToLibrary: assignmentDraft.saveToLibrary,
         testcases: assignmentDraft.testCases.map((item) => ({
           input: item.input,
           expectedOutput: item.expectedOutput,
@@ -707,13 +737,15 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
   const handleSaveAssignmentSettings = useCallback(() => {
     if (
       !editingAssignmentId ||
-      !assignmentSettingsDraft.title.trim() ||
-      !assignmentSettingsDraft.openAt ||
-      !assignmentSettingsDraft.deadline
+      !assignmentEditDraft.title.trim() ||
+      !assignmentEditDraft.description.trim() ||
+      !assignmentEditDraft.openAt ||
+      !assignmentEditDraft.deadline ||
+      !assignmentEditDraft.timeLimit
     ) {
       toast({
         tone: "error",
-        description: "Tiêu đề, thời điểm mở và hạn nộp là bắt buộc.",
+        description: "Tiêu đề, mô tả, thời điểm mở, deadline và time limit là bắt buộc.",
       })
       return
     }
@@ -721,17 +753,32 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
     void updateAssignment({
       classId,
       assignmentId: editingAssignmentId,
-      title: assignmentSettingsDraft.title.trim(),
-      startTime: new Date(assignmentSettingsDraft.openAt).toISOString(),
-      deadline: new Date(assignmentSettingsDraft.deadline).toISOString(),
-      timeLimit: Number(assignmentSettingsDraft.timeLimit) || 0,
-      maxScore: Number(assignmentSettingsDraft.score) || 0,
-      maxSubmission: Number(assignmentSettingsDraft.attemptsAllowed) || 0,
-      difficulty: assignmentSettingsDraft.difficulty,
-      tags: assignmentSettingsDraft.tags
+      topicId: assignmentEditDraft.topicId,
+      title: assignmentEditDraft.title.trim(),
+      startTime: new Date(assignmentEditDraft.openAt).toISOString(),
+      deadline: new Date(assignmentEditDraft.deadline).toISOString(),
+      timeLimit: Number(assignmentEditDraft.timeLimit) || 0,
+      maxScore: Number(assignmentEditDraft.score) || 0,
+      maxSubmission: Number(assignmentEditDraft.attemptsAllowed) || 0,
+      difficulty: assignmentEditDraft.difficulty,
+      tags: assignmentEditDraft.tags
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
+      problem: {
+        description: assignmentEditDraft.description.trim(),
+        problemConstraint: assignmentEditDraft.constraints.trim(),
+        starterCodes: assignmentEditDraft.functionSkeleton.cpp.trim()
+          ? { cpp: assignmentEditDraft.functionSkeleton.cpp }
+          : {},
+        saveToLibrary: assignmentEditDraft.saveToLibrary,
+        testcases: assignmentEditDraft.testCases.map((item) => ({
+          input: item.input,
+          expectedOutput: item.expectedOutput,
+          explanation: item.explanation.trim() || "",
+          hidden: item.hidden,
+        })),
+      },
     })
       .unwrap()
       .then(() => {
@@ -747,7 +794,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           description: "Không thể cập nhật assignment. Kiểm tra lại backend rồi thử lại.",
         })
       })
-  }, [assignmentSettingsDraft, classId, editingAssignmentId, resetAssignmentEditModal, toast, updateAssignment])
+  }, [assignmentEditDraft, classId, editingAssignmentId, resetAssignmentEditModal, toast, updateAssignment])
 
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) {
@@ -970,7 +1017,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         editingMaterialId={editingMaterialId}
         resourceDraft={resourceDraft}
         assignmentDraft={assignmentDraft}
-        assignmentSettingsDraft={assignmentSettingsDraft}
+        assignmentEditDraft={assignmentEditDraft}
         isSubmittingClass={isUpdatingClass}
         isSubmittingTopic={isCreatingTopic || isUpdatingTopic}
         isSubmittingResource={isCreatingDocument || isUpdatingDocument}
@@ -1001,8 +1048,8 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         onAssignmentDraftChange={(patch) =>
           setAssignmentDraft((state) => ({ ...state, ...patch }))
         }
-        onAssignmentSettingsDraftChange={(patch) =>
-          setAssignmentSettingsDraft((state) => ({ ...state, ...patch }))
+        onAssignmentEditDraftChange={(patch) =>
+          setAssignmentEditDraft((state) => ({ ...state, ...patch }))
         }
         onSaveClass={handleSaveClass}
         onSaveTopic={handleSaveTopic}

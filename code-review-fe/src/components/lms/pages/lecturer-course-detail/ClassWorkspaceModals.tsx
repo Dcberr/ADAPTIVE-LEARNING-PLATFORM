@@ -2,7 +2,6 @@
 
 import AssignmentDraftModalForm from "@/components/lms/pages/lecturer-course-detail/AssignmentDraftModalForm"
 import AssignmentProblemLibraryDialog from "@/components/lms/pages/lecturer-course-detail/AssignmentProblemLibraryDialog"
-import AssignmentSettingsModalForm from "@/components/lms/pages/lecturer-course-detail/AssignmentSettingsModalForm"
 import ConfirmActionModal from "@/components/lms/pages/lecturer-course-detail/ConfirmActionModal"
 import ResourceModalForm, {
   type ResourceDraft,
@@ -12,7 +11,6 @@ import TopicModalForm, {
 } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
 import type {
   AssignmentDraft,
-  AssignmentSettingsDraft,
 } from "@/components/lms/pages/lecturer-course-detail/types"
 import CreateClassCard from "@/components/lms/pages/lecturer-courses/CreateClassCard"
 import SimpleModal from "@/components/lms/SimpleModal"
@@ -64,7 +62,7 @@ export default function ClassWorkspaceModals({
   editingMaterialId,
   resourceDraft,
   assignmentDraft,
-  assignmentSettingsDraft,
+  assignmentEditDraft,
   isSubmittingClass,
   isSubmittingTopic,
   isSubmittingResource,
@@ -83,7 +81,7 @@ export default function ClassWorkspaceModals({
   onTopicDraftChange,
   onResourceDraftChange,
   onAssignmentDraftChange,
-  onAssignmentSettingsDraftChange,
+  onAssignmentEditDraftChange,
   onSaveClass,
   onSaveTopic,
   onSaveResource,
@@ -105,7 +103,7 @@ export default function ClassWorkspaceModals({
   editingMaterialId: string | null
   resourceDraft: ResourceDraft
   assignmentDraft: AssignmentDraft
-  assignmentSettingsDraft: AssignmentSettingsDraft
+  assignmentEditDraft: AssignmentDraft
   isSubmittingClass: boolean
   isSubmittingTopic: boolean
   isSubmittingResource: boolean
@@ -124,7 +122,7 @@ export default function ClassWorkspaceModals({
   onTopicDraftChange: (patch: Partial<TopicDraft>) => void
   onResourceDraftChange: (patch: Partial<ResourceDraft>) => void
   onAssignmentDraftChange: (patch: Partial<AssignmentDraft>) => void
-  onAssignmentSettingsDraftChange: (patch: Partial<AssignmentSettingsDraft>) => void
+  onAssignmentEditDraftChange: (patch: Partial<AssignmentDraft>) => void
   onSaveClass: () => void
   onSaveTopic: () => void
   onSaveResource: () => void
@@ -223,13 +221,15 @@ export default function ClassWorkspaceModals({
       <SimpleModal
         open={assignmentEditModalOpen}
         title="Chỉnh sửa assignment"
-        description="Cập nhật metadata của assignment theo đúng phần backend hiện hỗ trợ."
+        description="Cập nhật nội dung assignment với cùng form như lúc tạo mới."
         onClose={onCloseAssignmentEditModal}
       >
-        <AssignmentSettingsModalForm
-          draft={assignmentSettingsDraft}
+        <AssignmentDraftModalForm
+          draft={assignmentEditDraft}
           isSubmitting={isSubmittingAssignmentSettings}
-          onChange={onAssignmentSettingsDraftChange}
+          submitLabel="Lưu thay đổi"
+          submittingLabel="Đang cập nhật..."
+          onChange={onAssignmentEditDraftChange}
           onCancel={onCloseAssignmentEditModal}
           onSave={onSaveAssignmentSettings}
         />

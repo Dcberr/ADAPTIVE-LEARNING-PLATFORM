@@ -119,7 +119,7 @@ function buildDynamicProblem(
     problemConstraint:
       assignmentProblem?.problemConstraint || cachedProblem?.problemConstraint || "",
     examples: visibleExamples,
-    constraints: cachedProblem?.constraints ?? [],
+    constraints: [],
     functionSkeleton: {
       python: "",
       javascript: "",
@@ -238,6 +238,7 @@ function mapJudgeExecutionToSummary(
   const testcaseVisibility = new Map(
     assignmentTestcases.map((item: AssignmentTestcaseResponse) => [item.id, item.hidden])
   )
+  const hasCompileError = judgeResult.status === "COMPILE_ERROR"
 
   return {
     passed,
@@ -245,14 +246,18 @@ function mapJudgeExecutionToSummary(
     percentage,
     score: Math.round(((assignment.points || 100) * percentage) / 100),
     eligibleForReview: percentage >= 70,
-    results: judgeResult.testcases.map((item: JudgeExecutionResponse["testcases"][number]) => ({
-      idx: item.index,
-      input: item.input,
-      expected: item.expectedOutput,
-      actual: item.output || item.error || "",
-      passed: item.status === "ACCEPTED",
-      hidden: item.testcaseId ? testcaseVisibility.get(item.testcaseId) ?? false : false,
-    })),
+    status: judgeResult.status,
+    errorMessage: judgeResult.errorMessage ?? null,
+    results: hasCompileError
+      ? []
+      : judgeResult.testcases.map((item: JudgeExecutionResponse["testcases"][number]) => ({
+          idx: item.index,
+          input: item.input,
+          expected: item.expectedOutput,
+          actual: item.output || item.error || "",
+          passed: item.status === "ACCEPTED",
+          hidden: item.testcaseId ? testcaseVisibility.get(item.testcaseId) ?? false : false,
+        })),
   }
 }
 
@@ -800,6 +805,7 @@ export default function CodeProblemPage({
             runningAction={runningAction}
             canRequestReview={canRequestReview}
             onLoadReview={loadReview}
+            showExamplesSection={false}
           />
 
           <EditorWorkspaceCard
@@ -841,6 +847,7 @@ export default function CodeProblemPage({
               runningAction={runningAction}
               canRequestReview={canRequestReview}
               onLoadReview={loadReview}
+              showExamplesSection={false}
             />
           </div>
 
