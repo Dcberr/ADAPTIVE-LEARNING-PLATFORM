@@ -3,6 +3,7 @@
 import Editor from "@monaco-editor/react";
 import { Streamdown } from "streamdown";
 
+import DateTimePicker from "@/components/lms/DateTimePicker";
 import TestCaseManager from "@/components/lms/TestCaseManager";
 import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,6 @@ export default function AssignmentDraftModalForm({
         </FieldBlock>
         <FieldBlock
           label="Time limit (phút)"
-          hint="Số phút tối đa cho một lần làm bài."
         >
           <Input
             type="number"
@@ -262,24 +262,23 @@ export default function AssignmentDraftModalForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <FieldBlock label="Thời điểm mở">
-          <Input
-            type="datetime-local"
+          <DateTimePicker
             value={draft.openAt}
-            onChange={(event) => onChange({ openAt: event.target.value })}
+            placeholder="Chọn ngày giờ mở bài"
+            onChange={(value) => onChange({ openAt: value })}
           />
         </FieldBlock>
         <FieldBlock label="Hạn nộp">
-          <Input
-            type="datetime-local"
+          <DateTimePicker
             value={draft.deadline}
-            onChange={(event) => onChange({ deadline: event.target.value })}
+            placeholder="Chọn hạn nộp"
+            onChange={(value) => onChange({ deadline: value })}
           />
         </FieldBlock>
       </div>
 
       <FieldBlock
         label="Ràng buộc"
-        hint="Hỗ trợ markdown hoặc HTML từ đề bài nguồn, ví dụ danh sách ul/li, code inline."
       >
         <MarkdownEditorField
           rows={6}

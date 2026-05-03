@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  useGetAssignmentContextQuery,
+  useGetAssignmentByIdQuery,
   useGetAssignmentSubmissionsQuery,
 } from "@/store/redux/api/lmsApi"
 
@@ -119,7 +119,7 @@ export default function AssignmentDetailPage({
   id: string
   role?: UserRole
 }) {
-  const { data: assignment, error, isLoading } = useGetAssignmentContextQuery(id)
+  const { data: assignment, error, isLoading } = useGetAssignmentByIdQuery(id)
   const {
     data: submissions = [],
     isLoading: isLoadingSubmissions,
@@ -142,10 +142,7 @@ export default function AssignmentDetailPage({
     )
   }
 
-  const backHref =
-    role === "student"
-      ? `/student/courses/${assignment.classId}`
-      : `/lecturer/courses/${assignment.classId}`
+  const backHref = role === "student" ? "/student/courses" : "/lecturer/courses"
   const attemptHref =
     role === "student"
       ? `/student/assignments/${assignment.id}/attempt`
@@ -172,8 +169,6 @@ export default function AssignmentDetailPage({
     <div className="space-y-6">
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge className="bg-[#030391] text-white">{assignment.className}</Badge>
-          <Badge variant="outline">{assignment.topicTitle}</Badge>
           <Badge variant="outline">{assignment.difficulty}</Badge>
           <Badge variant="outline">{formatScore(assignment.maxScore)}</Badge>
           {(assignment.tags ?? []).map((tag) => (

@@ -83,7 +83,7 @@ function toEditableTestCases(
     id: `library-test-${index + 1}-${item.input.slice(0, 12)}`,
     input: item.input,
     expectedOutput: item.expectedOutput,
-    explanation: item.explanation,
+    explanation: item.explanation ?? "",
     hidden: item.hidden,
   }))
 }
@@ -668,7 +668,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
         testcases: assignmentDraft.testCases.map((item) => ({
           input: item.input,
           expectedOutput: item.expectedOutput,
-          explanation: item.explanation.trim(),
+          explanation: item.explanation.trim() || "",
           hidden: item.hidden,
         })),
       },
@@ -682,7 +682,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           testcases: assignmentDraft.testCases.map((item) => ({
             input: item.input,
             expectedOutput: item.expectedOutput,
-            explanation: item.explanation.trim(),
+            explanation: item.explanation.trim() || "",
             hidden: item.hidden,
           })),
           tags: assignmentDraft.tags
