@@ -27,10 +27,30 @@ class LeetCodeStarterCodeGeneratorTest {
 
         String template = generator.normalizeStarterCode("cpp", rawSnippet);
 
-        assertTrue(template.contains("#include <bits/stdc++.h>"));
+        assertTrue(template.contains("#include <vector>"));
         assertTrue(template.contains("//STUDENT_CODE_HERE"));
         assertTrue(template.contains("int main()"));
         assertTrue(template.contains("Solution solution;"));
+    }
+
+    @Test
+    @DisplayName("Should avoid emitting unused C++ parse helpers for return-only types")
+    void shouldAvoidUnusedCppParseHelpersForReturnOnlyTypes() {
+        String rawSnippet = """
+                class Solution {
+                public:
+                    vector<string> addOperators(string num, int target) {
+                        
+                    }
+                };
+                """;
+
+        String template = generator.normalizeStarterCode("cpp", rawSnippet);
+
+        assertTrue(template.contains("static string parseStringValue"));
+        assertTrue(template.contains("static int parseInt"));
+        assertTrue(template.contains("printVector(result);"));
+        assertFalse(template.contains("static vector<string> parseVectorString"));
     }
 
     @Test

@@ -626,14 +626,17 @@ public class LeetCodeStarterCodeGenerator {
 
     private String buildCppSupportFunctions(CppFunctionSignature signature) {
         StringBuilder builder = new StringBuilder();
-        boolean needsVectorInt = usesCppType(signature, "vector<int>");
-        boolean needsVectorLong = usesCppType(signature, "vector<long long>");
-        boolean needsVectorString = usesCppType(signature, "vector<string>");
-        boolean needsInt = usesCppType(signature, "int");
-        boolean needsLong = usesCppType(signature, "long");
-        boolean needsBool = usesCppType(signature, "bool");
-        boolean needsDouble = usesCppType(signature, "double");
-        boolean needsString = usesCppType(signature, "string");
+        boolean needsVectorIntParser = hasCppParameterType(signature, "vector<int>");
+        boolean needsVectorLongParser = hasCppParameterType(signature, "vector<long long>");
+        boolean needsVectorStringParser = hasCppParameterType(signature, "vector<string>");
+        boolean needsIntParser = hasCppParameterType(signature, "int");
+        boolean needsLongParser = hasCppParameterType(signature, "long");
+        boolean needsBoolParser = hasCppParameterType(signature, "bool");
+        boolean needsDoubleParser = hasCppParameterType(signature, "double");
+        boolean needsStringParser = hasCppParameterType(signature, "string");
+        boolean needsVectorPrinter = isCppReturnType(signature, "vector<int>")
+                || isCppReturnType(signature, "vector<long long>")
+                || isCppReturnType(signature, "vector<string>");
         boolean needsListNode = usesListNode(signature);
         boolean needsTreeNode = usesTreeNode(signature);
 
@@ -653,7 +656,7 @@ public class LeetCodeStarterCodeGenerator {
                 }
                 """);
 
-        if (needsVectorInt || needsListNode) {
+        if (needsVectorIntParser || needsListNode) {
             builder.append("""
 
                     static vector<int> parseVectorInt(string line) {
@@ -676,7 +679,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsVectorLong) {
+        if (needsVectorLongParser) {
             builder.append("""
 
                     static vector<long long> parseVectorLong(string line) {
@@ -699,7 +702,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsVectorString) {
+        if (needsVectorStringParser) {
             builder.append("""
 
                     static vector<string> parseVectorString(string line) {
@@ -723,7 +726,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsInt) {
+        if (needsIntParser) {
             builder.append("""
 
                     static int parseInt(string line) {
@@ -732,7 +735,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsLong) {
+        if (needsLongParser) {
             builder.append("""
 
                     static long long parseLong(string line) {
@@ -741,7 +744,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsBool) {
+        if (needsBoolParser) {
             builder.append("""
 
                     static bool parseBool(string line) {
@@ -751,7 +754,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsDouble) {
+        if (needsDoubleParser) {
             builder.append("""
 
                     static double parseDouble(string line) {
@@ -760,7 +763,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if (needsString) {
+        if (needsStringParser) {
             builder.append("""
 
                     static string parseStringValue(string line) {
@@ -773,8 +776,7 @@ public class LeetCodeStarterCodeGenerator {
                     """);
         }
 
-        if ("vector<int>".equals(signature.returnType()) || "vector<long long>".equals(signature.returnType())
-                || "vector<string>".equals(signature.returnType())) {
+        if (needsVectorPrinter) {
             builder.append("""
 
                     template <typename T>
@@ -1496,6 +1498,14 @@ public class LeetCodeStarterCodeGenerator {
             return true;
         }
         return signature.parameters().stream().anyMatch(parameter -> matchesCppType(parameter.type(), type));
+    }
+
+    private boolean hasCppParameterType(CppFunctionSignature signature, String type) {
+        return signature.parameters().stream().anyMatch(parameter -> matchesCppType(parameter.type(), type));
+    }
+
+    private boolean isCppReturnType(CppFunctionSignature signature, String type) {
+        return matchesCppType(signature.returnType(), type);
     }
 
     private boolean matchesCppType(String type, String candidate) {

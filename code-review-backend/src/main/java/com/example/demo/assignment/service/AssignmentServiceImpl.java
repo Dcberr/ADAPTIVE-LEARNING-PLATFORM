@@ -22,9 +22,12 @@ import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.problem.dto.CreateProblemRequest;
+import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.ProblemType;
+import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.service.ProblemService;
 import com.example.demo.topic.repository.TopicRepository;
@@ -36,6 +39,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final ProblemRepository problemRepository;
+    private final TestcaseRepository testcaseRepository;
     private final ProblemService problemService;
     private final AssignmentMapper assignmentMapper;
     private final TopicRepository topicRepository;
@@ -187,11 +191,13 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new AppException(ErrorCode.VALIDATION_ERROR);
         }
 
-        if (!assignmentProblemRepository.existsByAssignmentIdAndProblemId(assignmentId, problemId)) {
+        ProblemResponse clonedProblem = cloneLibraryProblemForAssignment(assignment, problem);
+
+        if (!assignmentProblemRepository.existsByAssignmentIdAndProblemId(assignmentId, clonedProblem.getId())) {
             assignmentProblemRepository.save(
                     AssignmentProblem.builder()
                             .assignmentId(assignmentId)
-                            .problemId(problemId)
+                            .problemId(clonedProblem.getId())
                             .build()
             );
         }
@@ -209,5 +215,32 @@ public class AssignmentServiceImpl implements AssignmentService {
     private Assignment getActiveAssignment(UUID assignmentId) {
         return assignmentRepository.findByIdAndDeletedAtIsNull(assignmentId)
                 .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+    }
+
+    private ProblemResponse cloneLibraryProblemForAssignment(Assignment assignment, Problem libraryProblem) {
+        List<TestcaseDto> clonedTestcases = testcaseRepository.findByProblemId(libraryProblem.getId()).stream()
+                .map(this::toTestcaseDto)
+                .toList();
+
+        return problemService.createManualProblem(
+                CreateProblemRequest.builder()
+                        .title(libraryProblem.getTitle())
+                        .description(libraryProblem.getDescription())
+                        .difficulty(libraryProblem.getDifficulty())
+                        .assignmentId(assignment.getId())
+                        .problemConstraint(libraryProblem.getProblemConstraint())
+                        .starterCodes(libraryProblem.getStarterCodes())
+                        .testcases(clonedTestcases)
+                        .saveToLibrary(false)
+                        .build());
+    }
+
+    private TestcaseDto toTestcaseDto(Testcase testcase) {
+        return TestcaseDto.builder()
+                .input(testcase.getInput())
+                .expectedOutput(testcase.getExpectedOutput())
+                .isHidden(testcase.isHidden())
+                .explanation(testcase.getExplanation())
+                .build();
     }
 }
