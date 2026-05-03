@@ -110,4 +110,12 @@ public interface SubmissionRepository
     """)
     List<Submission> getAllSubmissionsByProblemIdAndUserId(UUID userId, UUID problemId);
 
+    @Query(value = """
+        SELECT COUNT(s)
+        FROM Submission s
+        JOIN AssignmentProblem ap ON ap.problemId = s.problemId
+        WHERE s.userId = :userId AND ap.assignmentId = :assignmentId
+    """)
+    long countByUserIdAndAssignmentId(UUID userId, UUID assignmentId);
+
 }
