@@ -4,24 +4,19 @@ import { memo } from "react"
 import { LoaderCircle, Sparkles } from "lucide-react"
 import { Streamdown } from "streamdown"
 
-import type { CodeReviewFeedback } from "@/data/lms/extendedMockData"
+import type { CodeReviewFeedback, UserRole } from "@/data/lms/extendedMockData"
 import CodeReviewPanel from "@/components/lms/CodeReviewPanel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { CodingProblem } from "@/data/lms/mockData"
 import type { ExecutionSummary } from "@/services/lms/mockLmsService"
+import type { RecommendationResponse } from "@/store/redux/api/lmsApi"
 import { cn } from "@/lib/utils"
 
 type ActiveTab = "description" | "testcases" | "result" | "review"
-
-function toRecommendedDifficulty(value: string): "Easy" | "Medium" | "Hard" {
-  if (value === "HARD" || value === "Hard") return "Hard"
-  if (value === "MEDIUM" || value === "Medium") return "Medium"
-  return "Easy"
-}
 
 function normalizeRichText(content: string) {
   return content
@@ -117,10 +112,14 @@ function ProblemWorkspaceTabsComponent({
   hasMounted,
   displayedExecution,
   review,
-  recommendedProblems,
+  recommendationRoadmap,
+  role,
+  isRecommendationLoading,
+  isRecommendationDialogOpen,
   runningAction,
   canRequestReview,
   onLoadReview,
+  onRecommendationDialogOpenChange,
   reviewEmptyMessage,
   showExamplesSection = false,
 }: {
@@ -130,12 +129,14 @@ function ProblemWorkspaceTabsComponent({
   hasMounted: (tab: ActiveTab) => boolean
   displayedExecution: ExecutionSummary | null
   review: CodeReviewFeedback | null
-  recommendedProblems: Awaited<
-    ReturnType<typeof import("@/services/lms/mockLmsService").getRecommendedProblems>
-  >
+  recommendationRoadmap: RecommendationResponse | null
+  role: UserRole
+  isRecommendationLoading: boolean
+  isRecommendationDialogOpen: boolean
   runningAction: "run" | "submit" | "review" | null
   canRequestReview: boolean
   onLoadReview: () => void
+  onRecommendationDialogOpenChange: (open: boolean) => void
   reviewEmptyMessage?: string
   showExamplesSection?: boolean
 }) {
@@ -143,14 +144,10 @@ function ProblemWorkspaceTabsComponent({
     const nextTab = value as ActiveTab
     onTabChange(nextTab)
   }
-  const normalizedRecommendedProblems = recommendedProblems.map((problem) => ({
-    ...problem,
-    difficulty: toRecommendedDifficulty(problem.difficulty),
-  }))
 
   return (
     <Card className="min-h-[640px]">
-      <CardContent>
+      <CardContent className="pt-6">
         <Tabs value={activeTab} onValueChange={handleValueChange}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="description">Mô tả</TabsTrigger>
@@ -298,8 +295,23 @@ function ProblemWorkspaceTabsComponent({
             hidden={activeTab !== "review"}
             className="pt-4"
           >
-            {review ? (
-              <CodeReviewPanel review={review} recommendedProblems={normalizedRecommendedProblems} />
+            {runningAction === "review" && !review ? (
+              <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                <LoaderCircle className="size-5 animate-spin text-[#1488D8]" />
+                <div>
+                  <p className="font-medium text-slate-700">Vui lòng chờ review</p>
+                  <p className="mt-1">Hệ thống đang phân tích bài làm và tạo nhận xét.</p>
+                </div>
+              </div>
+            ) : review ? (
+              <CodeReviewPanel
+                review={review}
+                recommendationRoadmap={recommendationRoadmap}
+                role={role}
+                isRecommendationLoading={isRecommendationLoading}
+                isRecommendationDialogOpen={isRecommendationDialogOpen}
+                onRecommendationDialogOpenChange={onRecommendationDialogOpenChange}
+              />
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
                 {reviewEmptyMessage ??

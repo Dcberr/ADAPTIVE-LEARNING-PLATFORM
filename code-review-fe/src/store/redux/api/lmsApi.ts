@@ -333,6 +333,37 @@ export type CodeReviewRequest = {
   code: string
   language: string
 }
+export type RecommendationRequest = {
+  student_id: string
+  current_exercise_id: string
+}
+export type RecommendationExercise = {
+  exercise_id: string
+  slug: string
+  title: string
+  description: string
+  content: string
+  difficulty: string
+  concept_ids: string[]
+}
+export type RecommendationRoadmapExercise = {
+  priority: number
+  reason: string
+  exercise: RecommendationExercise
+}
+export type RecommendationRoadmapStep = {
+  step: number
+  summary: string
+  target_concepts: string[]
+  exercises: RecommendationRoadmapExercise[]
+}
+export type RecommendationResponse = {
+  student_id: string
+  current_exercise_id: string
+  focus_concept_ids: string[]
+  summary: string
+  roadmap: RecommendationRoadmapStep[]
+}
 export type CodeReviewLineRangeResponse = {
   start: number
   end: number
@@ -681,6 +712,14 @@ export const lmsApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+    }),
+    getRecommendationRoadmap: builder.mutation<RecommendationResponse, RecommendationRequest>({
+      query: (body) => ({
+        url: "/recommendations",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<RecommendationResponse>) => response.data,
     }),
     getProblemReviewsByUser: builder.query<CodeReviewResponse[], GetProblemReviewsByUserRequest>({
       query: ({ problemId, userId }) =>
@@ -1244,6 +1283,7 @@ export const {
   useGetProblemReviewsByUserQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
+  useGetRecommendationRoadmapMutation,
   useCreateClassMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,
