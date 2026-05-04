@@ -118,4 +118,12 @@ public interface SubmissionRepository
     """)
     long countByUserIdAndAssignmentId(UUID userId, UUID assignmentId);
 
+    @Query("""
+        SELECT DISTINCT s.problemId
+        FROM Submission s
+        WHERE s.userId = :userId
+        ORDER BY s.problemId
+    """)
+    List<UUID> findDistinctProblemIdsByUserId(UUID userId);
+
 }

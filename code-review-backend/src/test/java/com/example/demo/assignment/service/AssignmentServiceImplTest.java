@@ -30,6 +30,7 @@ import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.service.ProblemService;
+import com.example.demo.submission.repository.SubmissionRepository;
 import com.example.demo.topic.repository.TopicRepository;
 
 class AssignmentServiceImplTest {
@@ -40,6 +41,7 @@ class AssignmentServiceImplTest {
     private final ProblemRepository problemRepository = org.mockito.Mockito.mock(ProblemRepository.class);
     private final TestcaseRepository testcaseRepository = org.mockito.Mockito.mock(TestcaseRepository.class);
     private final ProblemService problemService = org.mockito.Mockito.mock(ProblemService.class);
+    private final SubmissionRepository submissionRepository = org.mockito.Mockito.mock(SubmissionRepository.class);
     private final AssignmentMapper assignmentMapper = org.mockito.Mockito.mock(AssignmentMapper.class);
     private final TopicRepository topicRepository = org.mockito.Mockito.mock(TopicRepository.class);
 
@@ -49,6 +51,7 @@ class AssignmentServiceImplTest {
             problemRepository,
             testcaseRepository,
             problemService,
+            submissionRepository,
             assignmentMapper,
             topicRepository);
 

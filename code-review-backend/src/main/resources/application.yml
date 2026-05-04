@@ -33,7 +33,7 @@ review:
   url: ${REVIEW_AGENT_URL}
 
 recommend:
-  url: ${RECOMMEND_AGENT_URL:http://review-agent:8000/api/v1/recommend}
+  url: ${RECOMMEND_AGENT_URL:http://review-agent:8000/api/v1/recommendation}
 
 minio:
   url: ${MINIO_URL}
