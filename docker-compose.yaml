@@ -79,8 +79,8 @@ services:
     container_name: review-agent
     ports:
       - "8000:8000"
-    environment:
-      - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
+    env_file:
+      - ./code-review-ai/.env
     restart: always
     networks:
       - app-network
