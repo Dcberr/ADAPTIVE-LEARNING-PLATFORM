@@ -182,7 +182,7 @@ function EditorWorkspaceCardComponent({
     <Card className="min-h-[640px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Code2 className="size-4" /> Code Editor
+          <Code2 className="size-4" /> Trình soạn thảo code
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -209,7 +209,7 @@ function EditorWorkspaceCardComponent({
               ) : (
                 <Play className="size-4" />
               )}
-              Run Code
+              Chạy code
             </Button>
             <Button onClick={onSubmit} disabled={runningAction !== null}>
               {runningAction === "submit" ? (
@@ -217,7 +217,7 @@ function EditorWorkspaceCardComponent({
               ) : (
                 <Send className="size-4" />
               )}
-              Submit
+              Nộp bài
             </Button>
             <Button
               onClick={onReview}
@@ -229,18 +229,18 @@ function EditorWorkspaceCardComponent({
               ) : (
                 <Sparkles className="size-4" />
               )}
-              Review Code
+              Code Review
             </Button>
           </div>
         ) : null}
 
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <p className="font-medium text-[#030391]">{helperTitle ?? "Submission flow"}</p>
+          <p className="font-medium text-[#030391]">{helperTitle ?? "Quy trình nộp bài"}</p>
           <ul className="mt-2 space-y-2">
             {(helperLines ?? [
-              "Run Code executes the available sample tests and updates the Result tab.",
-              "Submit saves the submission, score, elapsed time, and returns to the assignment page.",
-              "Review Code becomes available after at least 70% of tests pass.",
+              "Chạy code sẽ chạy các test mẫu hiện có và cập nhật tab Kết quả.",
+              "Nộp bài sẽ lưu bài nộp, điểm số, thời gian làm và quay lại trang bài tập.",
+              "Code Review sẽ mở sau khi đạt ít nhất 70% số test.",
             ]).map((item) => (
               <li key={item}>{item}</li>
             ))}

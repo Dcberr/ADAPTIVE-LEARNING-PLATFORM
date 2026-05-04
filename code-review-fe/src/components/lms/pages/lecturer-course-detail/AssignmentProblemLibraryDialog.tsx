@@ -19,9 +19,9 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import { useGetProblemBankQuery } from "@/store/redux/api/lmsApi"
 
 function formatDifficultyLabel(value: string) {
-  if (value === "EASY") return "Easy"
-  if (value === "MEDIUM") return "Medium"
-  if (value === "HARD") return "Hard"
+  if (value === "EASY") return "Dễ"
+  if (value === "MEDIUM") return "Trung bình"
+  if (value === "HARD") return "Khó"
   return value
 }
 

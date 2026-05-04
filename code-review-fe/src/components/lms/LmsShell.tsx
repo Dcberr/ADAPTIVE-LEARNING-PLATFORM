@@ -5,14 +5,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  AlertTriangle,
   Award,
   Bell,
   BookOpen,
   Calendar as CalendarIcon,
   ChevronDown,
   Clock,
-  Library,
   Menu,
   Search,
   TrendingUp,
@@ -51,7 +49,7 @@ export default function LmsShell({
   const user = useAppSelector((state) => state.auth.user)
   const compactWorkspace =
     /^\/(student|lecturer)\/assignments\/[^/]+\/attempt$/.test(pathname) ||
-    /^\/lecturer\/problem-bank\/[^/]+\/attempt$/.test(pathname)
+    /^\/(student|lecturer)\/problem-bank\/[^/]+\/attempt$/.test(pathname)
   const navItems = navItemsByRole[role]
   const profileHref = role === "student" ? "/student/profile" : "/lecturer/dashboard"
   const handleLogout = async () => {
@@ -186,7 +184,7 @@ export default function LmsShell({
                 disabled={isSigningOut}
                 onClick={handleLogout}
               >
-                {isSigningOut ? "Signing out..." : "Sign out"}
+                {isSigningOut ? "Đang đăng xuất..." : "Đăng xuất"}
               </Button>
             </div>
           </div>

@@ -49,6 +49,13 @@ function formatRuntime(value?: number | null) {
   return `${value} ms`
 }
 
+function formatDifficultyLabel(value: string) {
+  if (value === "EASY") return "Dễ"
+  if (value === "MEDIUM") return "Trung bình"
+  if (value === "HARD") return "Khó"
+  return value
+}
+
 export default function ProblemBankProblemDetailPage({
   id,
   role = "lecturer",
@@ -98,7 +105,7 @@ export default function ProblemBankProblemDetailPage({
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <Badge className="bg-[#1488D8] text-white">Problem Bank</Badge>
-          <Badge variant="outline">{problem.difficulty}</Badge>
+          <Badge variant="outline">{formatDifficultyLabel(problem.difficulty)}</Badge>
           <Badge variant="outline">100 điểm</Badge>
           {(problem.tags ?? []).map((tag) => (
             <Badge key={tag} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
@@ -133,7 +140,7 @@ export default function ProblemBankProblemDetailPage({
                 <p className="mt-1 text-lg text-slate-900">Không giới hạn</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-500">Time limit</p>
+                <p className="text-sm font-semibold text-slate-500">Giới hạn thời gian</p>
                 <p className="mt-1 text-lg text-slate-900">Không giới hạn</p>
               </div>
               <div>
@@ -199,7 +206,7 @@ export default function ProblemBankProblemDetailPage({
                     { label: "Trạng thái", value: submission.status },
                     { label: "Ngôn ngữ", value: submission.language },
                     { label: "Điểm", value: formatScore(submission.score) },
-                    { label: "Runtime", value: formatRuntime(submission.runtime) },
+                    { label: "Thời gian chạy", value: formatRuntime(submission.runtime) },
                   ]
                     .filter((item) => item.value)
                     .map((item) => (

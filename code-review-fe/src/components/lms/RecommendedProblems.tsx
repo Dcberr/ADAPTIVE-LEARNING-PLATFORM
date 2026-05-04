@@ -18,12 +18,19 @@ export default function RecommendedProblems({
 }: {
   problems: RecommendedProblem[]
 }) {
+  const formatDifficultyLabel = (value: RecommendedProblem["difficulty"]) => {
+    if (value === "Easy") return "Dễ"
+    if (value === "Medium") return "Trung bình"
+    if (value === "Hard") return "Khó"
+    return value
+  }
+
   return (
     <Card className="border-emerald-100 bg-emerald-50/40">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base text-[#0f7a43]">
           <Sparkles className="size-4" />
-          Recommended Next Exercises
+          Bài luyện tập gợi ý tiếp theo
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -41,12 +48,12 @@ export default function RecommendedProblems({
                 </div>
                 <p className="mt-2 text-sm text-slate-600">{problem.reason}</p>
               </div>
-              <Badge variant="outline">{problem.difficulty}</Badge>
+              <Badge variant="outline">{formatDifficultyLabel(problem.difficulty)}</Badge>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
               <span className="inline-flex items-center gap-1">
                 <Clock3 className="size-3" />
-                {problem.estimatedMinutes} mins
+                {problem.estimatedMinutes} phút
               </span>
               {problem.topics.map((topic) => (
                 <Badge key={topic} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">

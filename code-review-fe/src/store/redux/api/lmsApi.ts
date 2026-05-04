@@ -169,6 +169,20 @@ type SaveProblemRequest = {
   id?: string
   payload: Omit<ProblemBankEntry, "id">
 }
+export type LibraryProblemUpsertRequest = {
+  title: string
+  description: string
+  difficulty: string
+  constraints: string
+  starterCodes: Record<string, string>
+  testcases: Array<{
+    input: string
+    expectedOutput: string
+    explanation: string
+    hidden: boolean
+  }>
+  tags: string[]
+}
 type CreateClassRequest = {
   name: string
   description: string
@@ -1159,6 +1173,44 @@ export const lmsApi = baseApi.injectEndpoints({
         ...(result ? [{ type: "ProblemBank" as const, id: result.id }] : []),
       ],
     }),
+    createLibraryProblem: builder.mutation<ProblemDetailResponse, LibraryProblemUpsertRequest>({
+      query: (body) => ({
+        url: "/problems/library/manual",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<ProblemDetailResponse>) => response.data,
+      invalidatesTags: (result) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        ...(result ? [{ type: "ProblemBank" as const, id: result.id }] : []),
+      ],
+    }),
+    updateLibraryProblem: builder.mutation<
+      ProblemDetailResponse,
+      { problemId: string; body: LibraryProblemUpsertRequest }
+    >({
+      query: ({ problemId, body }) => ({
+        url: `/problems/library/${problemId}`,
+        method: "PUT",
+        body,
+      }),
+      transformResponse: (response: ApiResponse<ProblemDetailResponse>) => response.data,
+      invalidatesTags: (_result, _error, { problemId }) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        { type: "ProblemBank" as const, id: problemId },
+      ],
+    }),
+    deleteLibraryProblem: builder.mutation<void, string>({
+      query: (problemId) => ({
+        url: `/problems/library/${problemId}`,
+        method: "DELETE",
+      }),
+      transformResponse: () => undefined,
+      invalidatesTags: (_result, _error, problemId) => [
+        { type: "ProblemBank" as const, id: "LIST" },
+        { type: "ProblemBank" as const, id: problemId },
+      ],
+    }),
     createSubmission: builder.mutation<AssignmentSubmissionResponse, CreateSubmissionRequest>({
       query: (body) => ({
         url: "/submissions",
@@ -1214,5 +1266,8 @@ export const {
   useUpdateMaterialMutation,
   useDeleteMaterialMutation,
   useSaveProblemMutation,
+  useCreateLibraryProblemMutation,
+  useUpdateLibraryProblemMutation,
+  useDeleteLibraryProblemMutation,
   useCreateSubmissionMutation,
 } = lmsApi

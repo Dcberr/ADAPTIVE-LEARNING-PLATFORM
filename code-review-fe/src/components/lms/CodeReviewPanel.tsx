@@ -1,5 +1,3 @@
-import { CheckCircle2, ShieldAlert, Wrench } from "lucide-react";
-
 import { MessageResponse } from "@/components/ai-elements/message";
 import RecommendedProblems from "@/components/lms/RecommendedProblems";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +31,7 @@ export default function CodeReviewPanel({
         {review.summary ? (
           <CardContent className="space-y-3 border-b border-slate-100 pb-0">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-500">Summary</p>
+              <p className="text-sm font-semibold text-slate-500">Tóm tắt</p>
               <MessageResponse className="mt-2 text-sm text-slate-700">
                 {review.summary}
               </MessageResponse>
@@ -46,7 +44,7 @@ export default function CodeReviewPanel({
         <Card>
           <CardHeader>
             <CardTitle className="text-base text-[#030391]">
-              Review Items
+              Các nhận xét
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -60,7 +58,7 @@ export default function CodeReviewPanel({
                     {item.type}
                   </span>
                   <span className="text-xs text-slate-500">
-                    Line {item.line.start}-{item.line.end}
+                    Dòng {item.line.start}-{item.line.end}
                   </span>
                 </div>
                 <MessageResponse className="mt-2 text-sm text-slate-700">

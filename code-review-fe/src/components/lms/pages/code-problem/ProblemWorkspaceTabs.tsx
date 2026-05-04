@@ -150,15 +150,12 @@ function ProblemWorkspaceTabsComponent({
 
   return (
     <Card className="min-h-[640px]">
-      <CardHeader>
-        <CardTitle className="text-base">Assignment Workspace</CardTitle>
-      </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={handleValueChange}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="testcases">Test Cases</TabsTrigger>
-            <TabsTrigger value="result">Result</TabsTrigger>
+            <TabsTrigger value="description">Mô tả</TabsTrigger>
+            <TabsTrigger value="testcases">Test case</TabsTrigger>
+            <TabsTrigger value="result">Kết quả</TabsTrigger>
             <TabsTrigger value="review">Code Review</TabsTrigger>
           </TabsList>
 
@@ -174,26 +171,26 @@ function ProblemWorkspaceTabsComponent({
 
             {problem.problemConstraint ? (
               <div>
-                <h3 className="mb-3 text-sm font-semibold text-[#030391]">Constraints</h3>
+                <h3 className="mb-3 text-sm font-semibold text-[#030391]">Ràng buộc</h3>
                   <MarkdownBlock content={problem.problemConstraint} />
               </div>
             ) : null}
 
             {showExamplesSection ? (
               <div>
-                <h3 className="mb-3 text-sm font-semibold text-[#030391]">Examples</h3>
+                <h3 className="mb-3 text-sm font-semibold text-[#030391]">Ví dụ</h3>
                 <div className="space-y-3">
                   {problem.examples.map((example, index) => (
                     <div key={index} className="rounded-2xl border border-slate-200 p-4 text-sm">
                       <p>
-                        <strong>Input:</strong> {example.input}
+                        <strong>Đầu vào:</strong> {example.input}
                       </p>
                       <p className="mt-2">
-                        <strong>Output:</strong> {example.output}
+                        <strong>Đầu ra:</strong> {example.output}
                       </p>
                       {example.explanation ? (
                         <p className="mt-2 text-slate-600">
-                          <strong>Explanation:</strong> {example.explanation}
+                          <strong>Giải thích:</strong> {example.explanation}
                         </p>
                       ) : null}
                     </div>
@@ -212,10 +209,10 @@ function ProblemWorkspaceTabsComponent({
             {problem.testCases.filter((item) => !item.hidden).map((item, index) => (
               <div key={index} className="rounded-2xl border border-slate-200 p-4 text-sm">
                 <p>
-                  <strong>Input:</strong> {item.input}
+                  <strong>Đầu vào:</strong> {item.input}
                 </p>
                 <p className="mt-2">
-                  <strong>Expected:</strong> {item.expectedOutput}
+                  <strong>Kết quả mong đợi:</strong> {item.expectedOutput}
                 </p>
               </div>
             ))}
@@ -232,12 +229,12 @@ function ProblemWorkspaceTabsComponent({
                 <div className="rounded-2xl border border-[#1488D8]/20 bg-[#f8fbff] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-slate-500">Execution summary</p>
+                      <p className="text-sm font-medium text-slate-500">Tóm tắt lần chạy</p>
                       <p className="mt-1 text-2xl font-semibold text-[#030391]">
-                        Passed: {displayedExecution.passed}/{displayedExecution.total}
+                        Đạt: {displayedExecution.passed}/{displayedExecution.total}
                       </p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Score estimate: {displayedExecution.score} • {displayedExecution.percentage}% passing
+                        Điểm ước tính: {displayedExecution.score} • {displayedExecution.percentage}% test đạt
                       </p>
                     </div>
                     {displayedExecution.eligibleForReview ? (
@@ -252,11 +249,11 @@ function ProblemWorkspaceTabsComponent({
                         ) : (
                           <Sparkles className="size-4" />
                         )}
-                        View AI Code Review
+                        Xem AI Code Review
                       </Button>
                     ) : (
                       <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                        Reach 70% passing to unlock review
+                        Đạt 70% test để mở AI Code Review
                       </Badge>
                     )}
                   </div>
@@ -265,7 +262,7 @@ function ProblemWorkspaceTabsComponent({
 
                 {displayedExecution.status === "COMPILE_ERROR" && displayedExecution.errorMessage ? (
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                    <p className="text-sm font-semibold text-rose-700">Compile Error</p>
+                    <p className="text-sm font-semibold text-rose-700">Lỗi biên dịch</p>
                     <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-xl bg-white/80 p-4 font-mono text-sm leading-6 text-rose-900">
                       {displayedExecution.errorMessage}
                     </pre>
@@ -276,13 +273,13 @@ function ProblemWorkspaceTabsComponent({
                       <div key={item.idx} className="rounded-2xl border border-slate-200 p-4 text-sm">
                         <div className="flex items-center justify-between gap-3">
                           <p className={item.passed ? "text-emerald-600" : "text-rose-600"}>
-                            Test {item.idx}: {item.passed ? "Passed" : "Failed"}
+                            Test {item.idx}: {item.passed ? "Đạt" : "Trượt"}
                           </p>
-                          {item.hidden ? <Badge variant="outline">Hidden</Badge> : null}
+                          {item.hidden ? <Badge variant="outline">Ẩn</Badge> : null}
                         </div>
-                        <p className="mt-2 text-slate-600">Input: {item.input}</p>
-                        <p className="mt-1 text-slate-600">Expected: {item.expected}</p>
-                        <p className="mt-1 text-slate-600">Actual: {item.actual}</p>
+                        <p className="mt-2 text-slate-600">Đầu vào: {item.input}</p>
+                        <p className="mt-1 text-slate-600">Mong đợi: {item.expected}</p>
+                        <p className="mt-1 text-slate-600">Thực tế: {item.actual}</p>
                       </div>
                     ))}
                   </div>
@@ -290,7 +287,7 @@ function ProblemWorkspaceTabsComponent({
               </>
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                Run code to view visible test results here.
+                Chạy code để xem kết quả các test hiển thị tại đây.
               </div>
             )}
           </TabsContent>
@@ -307,8 +304,8 @@ function ProblemWorkspaceTabsComponent({
               <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
                 {reviewEmptyMessage ??
                   (canRequestReview
-                    ? "Use Review Code to generate AI feedback and personalized recommendations."
-                    : "AI review unlocks after you pass at least 70% of the executed test cases.")}
+                    ? "Dùng Code Review để tạo phản hồi AI và gợi ý cá nhân hóa."
+                    : "AI Code Review sẽ mở sau khi bạn vượt qua ít nhất 70% số test đã chạy.")}
               </div>
             )}
           </TabsContent>

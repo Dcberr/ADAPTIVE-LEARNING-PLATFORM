@@ -292,7 +292,7 @@ export default function SubmissionReviewPage({
           canRequestReview={false}
           readOnly
           hideActions
-          helperTitle="Review snapshot"
+          helperTitle="Ảnh chụp bài nộp"
           onCodeChange={() => {}}
           onRun={() => {}}
           onSubmit={() => {}}
