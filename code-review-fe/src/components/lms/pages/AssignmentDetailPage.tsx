@@ -191,7 +191,11 @@ export default function AssignmentDetailPage({
       ? assignment.maxSubmission
       : null
   const attemptsLeft =
-    attemptsAllowed === null ? null : Math.max(attemptsAllowed - attemptsUsed, 0)
+    typeof assignment.remainingSubmission === "number" && Number.isFinite(assignment.remainingSubmission)
+      ? assignment.remainingSubmission
+      : attemptsAllowed === null
+        ? null
+        : Math.max(attemptsAllowed - attemptsUsed, 0)
   const canStartAttempt = attemptsLeft === null || attemptsLeft > 0
 
   return (

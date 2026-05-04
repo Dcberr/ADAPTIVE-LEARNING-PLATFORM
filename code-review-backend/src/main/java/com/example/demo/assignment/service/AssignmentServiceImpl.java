@@ -30,6 +30,7 @@ import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.service.ProblemService;
+import com.example.demo.submission.repository.SubmissionRepository;
 import com.example.demo.topic.repository.TopicRepository;
 
 @Service
@@ -41,6 +42,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final ProblemRepository problemRepository;
     private final TestcaseRepository testcaseRepository;
     private final ProblemService problemService;
+    private final SubmissionRepository submissionRepository;
     private final AssignmentMapper assignmentMapper;
     private final TopicRepository topicRepository;
 
@@ -94,7 +96,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId) {
+    public List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId, UUID userId) {
         topicRepository.findByIdAndDeletedAtIsNull(topicId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
 
@@ -105,8 +107,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public AssignmentDetailResponse getAssignmentById(UUID assignmentId) {
-        return mapAssignmentDetail(getActiveAssignment(assignmentId));
+    public AssignmentDetailResponse getAssignmentById(UUID assignmentId, UUID userId) {
+        return mapAssignmentDetail(getActiveAssignment(assignmentId), userId);
     }
 
     @Override
@@ -127,6 +129,12 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     private AssignmentResponse mapAssignment(Assignment assignment) {
+        return mapAssignment(assignment, null);
+    }
+
+    private AssignmentResponse mapAssignment(Assignment assignment, UUID userId) {
+        Integer attemptsUsed = resolveAttemptsUsed(assignment, userId);
+        Integer remainingSubmission = resolveRemainingSubmission(assignment, attemptsUsed);
         return AssignmentResponse.builder()
                 .id(assignment.getId())
                 .title(assignment.getTitle())
@@ -136,6 +144,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .timeLimit(assignment.getTimeLimit())
                 .maxScore(assignment.getMaxScore())
                 .maxSubmission(assignment.getMaxSubmission())
+                .attemptsUsed(attemptsUsed)
+                .remainingSubmission(remainingSubmission)
                 .tags(assignment.getTags())
                 .status(assignment.getStatus())
                 .build();
@@ -148,7 +158,9 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .build();
     }
 
-    private AssignmentDetailResponse mapAssignmentDetail(Assignment assignment) {
+    private AssignmentDetailResponse mapAssignmentDetail(Assignment assignment, UUID userId) {
+        Integer attemptsUsed = resolveAttemptsUsed(assignment, userId);
+        Integer remainingSubmission = resolveRemainingSubmission(assignment, attemptsUsed);
         return AssignmentDetailResponse.builder()
                 .id(assignment.getId())
                 .title(assignment.getTitle())
@@ -158,6 +170,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .timeLimit(assignment.getTimeLimit())
                 .maxScore(assignment.getMaxScore())
                 .maxSubmission(assignment.getMaxSubmission())
+                .attemptsUsed(attemptsUsed)
+                .remainingSubmission(remainingSubmission)
                 .tags(assignment.getTags())
                 .status(assignment.getStatus())
                 .build();
@@ -215,6 +229,24 @@ public class AssignmentServiceImpl implements AssignmentService {
     private Assignment getActiveAssignment(UUID assignmentId) {
         return assignmentRepository.findByIdAndDeletedAtIsNull(assignmentId)
                 .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+    }
+
+    private Integer resolveAttemptsUsed(Assignment assignment, UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+        return Math.toIntExact(submissionRepository.countByUserIdAndAssignmentId(userId, assignment.getId()));
+    }
+
+    private Integer resolveRemainingSubmission(Assignment assignment, Integer attemptsUsed) {
+        if (attemptsUsed == null) {
+            return null;
+        }
+        int maxSubmission = assignment.getMaxSubmission();
+        if (maxSubmission <= 0) {
+            return null;
+        }
+        return Math.max(maxSubmission - attemptsUsed, 0);
     }
 
     private ProblemResponse cloneLibraryProblemForAssignment(Assignment assignment, Problem libraryProblem) {

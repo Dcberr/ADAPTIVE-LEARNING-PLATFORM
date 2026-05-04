@@ -30,6 +30,10 @@ public class AssignmentDetailResponse {
 
     private int maxSubmission;
 
+    private Integer attemptsUsed;
+
+    private Integer remainingSubmission;
+
     private List<String> tags;
 
     private AssignmentStatus status;

@@ -105,7 +105,7 @@ public class TopicServiceImpl implements TopicService {
 
         Topic topic = getActiveTopic(topicId);
 
-        List<AssignmentOverviewResponse> assignments = assignmentService.getAssignmentsByTopic(topicId);
+        List<AssignmentOverviewResponse> assignments = assignmentService.getAssignmentsByTopic(topicId, null);
 
         List<DocumentResponse> documents = documentService.getDocumentsByTopic(topicId);
 

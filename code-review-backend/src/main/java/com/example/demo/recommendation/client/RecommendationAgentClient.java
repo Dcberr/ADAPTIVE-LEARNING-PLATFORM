@@ -11,7 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
-import com.example.demo.recommendation.dto.RecommendationRequest;
+import com.example.demo.recommendation.dto.RecommendationAgentRequest;
 import com.example.demo.recommendation.dto.RecommendationResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -27,11 +27,11 @@ public class RecommendationAgentClient {
     @Value("${recommend.url}")
     private String recommendUrl;
 
-    public RecommendationResponse getRecommendation(RecommendationRequest requestBody) {
+    public RecommendationResponse getRecommendation(RecommendationAgentRequest requestBody) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<RecommendationRequest> request = new HttpEntity<>(requestBody, headers);
+        HttpEntity<RecommendationAgentRequest> request = new HttpEntity<>(requestBody, headers);
 
         try {
             ResponseEntity<RecommendationResponse> response = restTemplate.postForEntity(

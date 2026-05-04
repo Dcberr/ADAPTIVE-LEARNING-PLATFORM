@@ -14,9 +14,9 @@ public interface AssignmentService {
 
     AssignmentResponse createAssignment(CreateAssignmentRequest request);
 
-    List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId);
+    List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId, UUID userId);
 
-    AssignmentDetailResponse getAssignmentById(UUID assignmentId);
+    AssignmentDetailResponse getAssignmentById(UUID assignmentId, UUID userId);
 
     public AssignmentResponse updateAssignment(UUID assignmentId, UpdateAssignmentRequest request);
 

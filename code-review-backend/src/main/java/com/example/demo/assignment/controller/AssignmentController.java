@@ -3,6 +3,7 @@ package com.example.demo.assignment.controller;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
@@ -41,21 +42,25 @@ public class AssignmentController {
     @Operation(summary = "Get assignment overview by topicId")
     @GetMapping("/topic/{topicId}")
     public ApiResponse<List<AssignmentOverviewResponse>> getAssignments(
+            Authentication auth,
             @PathVariable UUID topicId
     ) {
+        UUID userId = auth != null ? (UUID) auth.getPrincipal() : null;
 
         return ApiResponse.success(
-                assignmentService.getAssignmentsByTopic(topicId)
+                assignmentService.getAssignmentsByTopic(topicId, userId)
         );
     }
 
     @Operation(summary = "Get assignment detail")
     @GetMapping("/{assignmentId}")
     public ApiResponse<AssignmentDetailResponse> getAssignment(
+            Authentication auth,
             @PathVariable UUID assignmentId
     ) {
+        UUID userId = auth != null ? (UUID) auth.getPrincipal() : null;
         return ApiResponse.success(
-                assignmentService.getAssignmentById(assignmentId)
+                assignmentService.getAssignmentById(assignmentId, userId)
         );
     }
 

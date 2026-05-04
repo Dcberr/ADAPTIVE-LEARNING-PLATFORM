@@ -15,44 +15,17 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class RecommendationResponse {
+public class RecommendationAgentRequest {
 
     private String studentId;
 
-    private String currentExerciseId;
+    private Exercise exercise;
 
     @Builder.Default
     private List<String> focusConceptIds = List.of();
 
-    private String summary;
-
     @Builder.Default
-    private List<RoadmapStep> roadmap = List.of();
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class RoadmapStep {
-        private Integer step;
-        private String summary;
-        @Builder.Default
-        private List<String> targetConcepts = List.of();
-        @Builder.Default
-        private List<RoadmapExercise> exercises = List.of();
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class RoadmapExercise {
-        private Integer priority;
-        private String reason;
-        private Exercise exercise;
-    }
+    private List<String> attemptedExerciseIds = List.of();
 
     @Data
     @Builder
@@ -67,6 +40,6 @@ public class RecommendationResponse {
         private String content;
         private String difficulty;
         @Builder.Default
-        private List<String> conceptIds = List.of();
+        private List<String> conceptSlugs = List.of();
     }
 }
