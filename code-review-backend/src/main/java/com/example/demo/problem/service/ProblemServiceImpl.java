@@ -539,7 +539,7 @@ public class ProblemServiceImpl implements ProblemService {
                                 .description(req.getDescription())
                                 .difficulty(req.getDifficulty())
                                 .problemConstraint(req.getConstraints())
-                                .starterCodes(normalizeStarterCodes(req.getStarterCodes()))
+                                .starterCodes(generateLeetCodeStarterCodes(req))
                                 .type(ProblemType.LIBRARY)
                                 .source("LEETCODE")
                                 .externalId(req.getExternalId())
@@ -606,7 +606,7 @@ public class ProblemServiceImpl implements ProblemService {
             problem.setDescription(req.getDescription());
             problem.setDifficulty(req.getDifficulty());
             problem.setProblemConstraint(req.getConstraints());
-            problem.setStarterCodes(normalizeStarterCodes(req.getStarterCodes()));
+            problem.setStarterCodes(generateLeetCodeStarterCodes(req));
             problem.setType(ProblemType.LIBRARY);
             problem.setSource("LEETCODE");
             problem.setExternalId(req.getExternalId());
@@ -681,6 +681,13 @@ public class ProblemServiceImpl implements ProblemService {
 
     private Map<String, String> normalizeStarterCodes(Map<String, String> starterCodes) {
         return leetCodeStarterCodeGenerator.normalizeStarterCodes(starterCodes);
+    }
+
+    private Map<String, String> generateLeetCodeStarterCodes(LeetCodeImportRequest request) {
+        return leetCodeStarterCodeGenerator.generateLeetCodeStarterCodes(
+                request.getStarterCodes(),
+                request.getTags()
+        );
     }
 
     private List<String> getProblemTags(UUID problemId) {

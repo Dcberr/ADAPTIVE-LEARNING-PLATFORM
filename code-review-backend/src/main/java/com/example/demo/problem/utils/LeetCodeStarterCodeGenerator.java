@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,6 +15,17 @@ import org.springframework.stereotype.Component;
 public class LeetCodeStarterCodeGenerator {
 
     private static final String STUDENT_CODE_PLACEHOLDER = "//STUDENT_CODE_HERE";
+    private static final List<String> SUPPORTED_LEETCODE_TOPIC_SLUGS = List.of(
+            "array",
+            "string",
+            "math",
+            "simulation",
+            "counting",
+            "matrix",
+            "prefix-sum",
+            "two-pointers",
+            "recursion"
+    );
     private static final Pattern CPP_SOLUTION_CLASS_PATTERN = Pattern.compile("\\bclass\\s+Solution\\b");
         private static final String CPP_DEFAULT_INCLUDES = """
                         #include <algorithm>
@@ -79,6 +91,23 @@ public class LeetCodeStarterCodeGenerator {
         return normalized;
     }
 
+    public Map<String, String> generateLeetCodeStarterCodes(
+            Map<String, String> starterCodes,
+            List<String> topicSlugs
+    ) {
+        if (starterCodes == null) {
+            return null;
+        }
+        if (starterCodes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        if (!supportsLeetCodeTopicTemplateGeneration(topicSlugs)) {
+            return Collections.emptyMap();
+        }
+
+        return normalizeStarterCodes(starterCodes);
+    }
+
     public String normalizeStarterCode(String language, String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return snippet;
@@ -119,6 +148,25 @@ public class LeetCodeStarterCodeGenerator {
             case "java" -> "java";
             default -> normalized;
         };
+    }
+
+    private boolean supportsLeetCodeTopicTemplateGeneration(List<String> topicSlugs) {
+        if (topicSlugs == null || topicSlugs.isEmpty()) {
+            return false;
+        }
+
+        for (String topicSlug : topicSlugs) {
+            if (topicSlug == null || topicSlug.isBlank()) {
+                continue;
+            }
+
+            String normalizedTopicSlug = topicSlug.trim().toLowerCase(Locale.ROOT);
+            if (SUPPORTED_LEETCODE_TOPIC_SLUGS.contains(normalizedTopicSlug)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean isExecutableTemplate(String language, String snippet) {
@@ -575,7 +623,7 @@ public class LeetCodeStarterCodeGenerator {
     private boolean isSupportedCppReturnType(String type) {
         return switch (type) {
             case "int", "long", "bool", "double", "string",
-                    "vector<int>", "vector<long long>", "vector<string>",
+                    "vector<int>", "vector<long long>", "vector<string>", "vector<vector<int>>",
                     "ListNode*", "TreeNode*" -> true;
             default -> false;
         };
@@ -585,6 +633,7 @@ public class LeetCodeStarterCodeGenerator {
         return switch (type) {
             case "int", "long", "bool", "double", "string", "const string&",
                     "vector<int>", "vector<int>&", "const vector<int>&",
+                    "vector<vector<int>>", "vector<vector<int>>&", "const vector<vector<int>>&",
                     "vector<long long>", "vector<long long>&", "const vector<long long>&",
                     "vector<string>", "vector<string>&", "const vector<string>&",
                     "ListNode*", "TreeNode*" -> true;
@@ -633,6 +682,7 @@ public class LeetCodeStarterCodeGenerator {
     private String buildCppSupportFunctions(CppFunctionSignature signature) {
         StringBuilder builder = new StringBuilder();
         boolean needsVectorIntParser = hasCppParameterType(signature, "vector<int>");
+        boolean needsVectorIntMatrixParser = hasCppParameterType(signature, "vector<vector<int>>");
         boolean needsVectorLongParser = hasCppParameterType(signature, "vector<long long>");
         boolean needsVectorStringParser = hasCppParameterType(signature, "vector<string>");
         boolean needsIntParser = hasCppParameterType(signature, "int");
@@ -641,6 +691,7 @@ public class LeetCodeStarterCodeGenerator {
         boolean needsDoubleParser = hasCppParameterType(signature, "double");
         boolean needsStringParser = hasCppParameterType(signature, "string");
         boolean needsVectorPrinter = isCppReturnType(signature, "vector<int>")
+                || isCppReturnType(signature, "vector<vector<int>>")
                 || isCppReturnType(signature, "vector<long long>")
                 || isCppReturnType(signature, "vector<string>");
         boolean needsListNode = usesListNode(signature);
@@ -659,6 +710,34 @@ public class LeetCodeStarterCodeGenerator {
 
                 static string readLineOrDefault(const vector<string>& lines, size_t index) {
                     return index < lines.size() ? lines[index] : "";
+                }
+
+                static vector<string> splitTopLevel(string line) {
+                    vector<string> parts;
+                    string current;
+                    int depth = 0;
+
+                    for (char ch : line) {
+                        if (ch == '[') {
+                            ++depth;
+                        } else if (ch == ']') {
+                            --depth;
+                        }
+
+                        if (ch == ',' && depth == 0) {
+                            parts.push_back(current);
+                            current.clear();
+                            continue;
+                        }
+
+                        current += ch;
+                    }
+
+                    if (!current.empty()) {
+                        parts.push_back(current);
+                    }
+
+                    return parts;
                 }
 
                 static string escapeString(const string& value) {
@@ -694,6 +773,9 @@ public class LeetCodeStarterCodeGenerator {
                 }
 
                 template <typename T>
+                static void printVector(const vector<T>& values);
+
+                template <typename T>
                 static void printValue(const T& value) {
                     cout << value;
                 }
@@ -701,9 +783,14 @@ public class LeetCodeStarterCodeGenerator {
                 static void printValue(const string& value) {
                     cout << '"' << escapeString(value) << '"';
                 }
+
+                template <typename T>
+                static void printValue(const vector<T>& values) {
+                    printVector(values);
+                }
                 """);
 
-        if (needsVectorIntParser || needsListNode) {
+        if (needsVectorIntParser || needsVectorIntMatrixParser || needsListNode) {
             builder.append("""
 
                     static vector<int> parseVectorInt(string line) {
@@ -721,6 +808,32 @@ public class LeetCodeStarterCodeGenerator {
                                 values.push_back(stoi(current));
                             }
                         }
+                        return values;
+                    }
+                    """);
+        }
+
+        if (needsVectorIntMatrixParser) {
+            builder.append("""
+
+                    static vector<vector<int>> parseVectorIntMatrix(string line) {
+                        line = trim(line);
+                        if (!line.empty() && line.front() == '[' && line.back() == ']') {
+                            line = line.substr(1, line.size() - 2);
+                        }
+
+                        vector<vector<int>> values;
+                        if (line.empty()) {
+                            return values;
+                        }
+
+                        for (string current : splitTopLevel(line)) {
+                            current = trim(current);
+                            if (!current.empty()) {
+                                values.push_back(parseVectorInt(current));
+                            }
+                        }
+
                         return values;
                     }
                     """);
@@ -1025,6 +1138,7 @@ public class LeetCodeStarterCodeGenerator {
             case "double" -> "parseDouble(" + source + ")";
             case "string" -> "parseStringValue(" + source + ")";
             case "vector<int>" -> "parseVectorInt(" + source + ")";
+            case "vector<vector<int>>" -> "parseVectorIntMatrix(" + source + ")";
             case "vector<long long>" -> "parseVectorLong(" + source + ")";
             case "vector<string>" -> "parseVectorString(" + source + ")";
             case "ListNode*" -> "parseListNode(" + source + ")";
@@ -1038,7 +1152,7 @@ public class LeetCodeStarterCodeGenerator {
             case "int", "long", "double" -> "    cout << result;\n";
             case "string" -> "    printValue(result);\n";
             case "bool" -> "    cout << (result ? \"true\" : \"false\");\n";
-            case "vector<int>", "vector<long long>", "vector<string>" -> "    printVector(result);\n";
+            case "vector<int>", "vector<vector<int>>", "vector<long long>", "vector<string>" -> "    printVector(result);\n";
             case "ListNode*" -> "    printListNode(result);\n";
             case "TreeNode*" -> "    printTreeNode(result);\n";
             default -> "    // Unsupported return type for auto runner.\n";
@@ -1048,6 +1162,7 @@ public class LeetCodeStarterCodeGenerator {
     private String toCppStorageType(String type) {
         return switch (type) {
             case "vector<int>&", "const vector<int>&" -> "vector<int>";
+            case "vector<vector<int>>&", "const vector<vector<int>>&" -> "vector<vector<int>>";
             case "vector<long long>&", "const vector<long long>&" -> "vector<long long>";
             case "vector<string>&", "const vector<string>&" -> "vector<string>";
             case "const string&" -> "string";

@@ -2,7 +2,9 @@ package com.example.demo.problem.utils;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
@@ -130,5 +132,80 @@ class LeetCodeStarterCodeGeneratorTest {
         assertTrue(templates.get("cpp").contains("int main()"));
         assertTrue(templates.get("python").contains("if __name__ == \"__main__\":"));
         assertFalse(templates.get("python").contains("        pass\nif __name__"));
+    }
+
+    @Test
+    @DisplayName("Should generate LeetCode starter codes for supported topic tags")
+    void shouldGenerateLeetCodeStarterCodesForSupportedTopics() {
+        Map<String, String> templates = generator.generateLeetCodeStarterCodes(
+                Map.of("C++", """
+                        class Solution {
+                        public:
+                            int maxProfit(vector<int>& prices) {
+                            }
+                        };
+                        """),
+                List.of("array", "simulation")
+        );
+
+        assertTrue(templates.containsKey("cpp"));
+        assertTrue(templates.get("cpp").contains("int main()"));
+        assertTrue(templates.get("cpp").contains("//STUDENT_CODE_HERE"));
+    }
+
+    @Test
+    @DisplayName("Should generate matrix LeetCode starter codes for supported topic tags")
+    void shouldGenerateMatrixLeetCodeStarterCodesForSupportedTopics() {
+        Map<String, String> templates = generator.generateLeetCodeStarterCodes(
+                Map.of("cpp", """
+                        class Solution {
+                        public:
+                            vector<vector<int>> updateMatrix(vector<vector<int>>& mat) {
+                            }
+                        };
+                        """),
+                List.of("matrix")
+        );
+
+        assertTrue(templates.containsKey("cpp"));
+        assertTrue(templates.get("cpp").contains("parseVectorIntMatrix"));
+        assertTrue(templates.get("cpp").contains("printVector(result);"));
+    }
+
+    @Test
+    @DisplayName("Should generate recursion LeetCode starter codes for tree signatures")
+    void shouldGenerateRecursionLeetCodeStarterCodesForTreeSignatures() {
+        Map<String, String> templates = generator.generateLeetCodeStarterCodes(
+                Map.of("cpp", """
+                        class Solution {
+                        public:
+                            int maxDepth(TreeNode* root) {
+                            }
+                        };
+                        """),
+                List.of("recursion")
+        );
+
+        assertTrue(templates.containsKey("cpp"));
+        assertTrue(templates.get("cpp").contains("struct TreeNode"));
+        assertTrue(templates.get("cpp").contains("parseTreeNode"));
+        assertTrue(templates.get("cpp").contains("int main()"));
+    }
+
+    @Test
+    @DisplayName("Should skip LeetCode starter code generation for unsupported topic tags")
+    void shouldSkipLeetCodeStarterCodesForUnsupportedTopics() {
+        Map<String, String> templates = generator.generateLeetCodeStarterCodes(
+                Map.of("cpp", """
+                        class Solution {
+                        public:
+                            vector<vector<int>> generateMatrix(int n) {
+                            }
+                        };
+                        """),
+                List.of("graph")
+        );
+
+        assertEquals(Map.of(), templates);
     }
 }
