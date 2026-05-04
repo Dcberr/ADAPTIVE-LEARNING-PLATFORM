@@ -14,6 +14,8 @@
 
 import unittest
 
+from pydantic import ValidationError
+
 from code_review_api_client.models.problem_response import ProblemResponse
 
 class TestProblemResponse(unittest.TestCase):
@@ -48,6 +50,17 @@ class TestProblemResponse(unittest.TestCase):
         """Test ProblemResponse"""
         # inst_req_only = self.make_instance(include_optional=False)
         # inst_req_and_optional = self.make_instance(include_optional=True)
+
+    def test_type_accepts_library_and_class(self):
+        library_problem = ProblemResponse(type="LIBRARY")
+        class_problem = ProblemResponse(type="CLASS")
+
+        self.assertEqual("LIBRARY", library_problem.type)
+        self.assertEqual("CLASS", class_problem.type)
+
+    def test_type_rejects_legacy_values(self):
+        with self.assertRaises(ValidationError):
+            ProblemResponse(type="LEETCODE")
 
 if __name__ == '__main__':
     unittest.main()

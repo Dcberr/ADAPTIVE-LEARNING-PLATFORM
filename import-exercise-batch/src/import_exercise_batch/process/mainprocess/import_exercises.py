@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from pathlib import Path
 
 from import_exercise_batch.model import LeetCodeProblem, LeetCodeProblemChange
 from import_exercise_batch.config import ImportExercisesSettings
@@ -18,8 +19,14 @@ from import_exercise_batch.process.subprocess.leetcode import LeetCodeFetchSubPr
 class ImportExercisesMainProcess(BaseMainProcess):
     logger = logging.getLogger(__name__)
 
-    def __init__(self, settings: ImportExercisesSettings) -> None:
+    def __init__(
+        self,
+        settings: ImportExercisesSettings,
+        *,
+        use_existing_csv: bool = False,
+    ) -> None:
         self.settings = settings
+        self.use_existing_csv = use_existing_csv
         self.database_subprocess = ExerciseDatabaseSubProcess(
             settings.database.postgres_dsn
         )
@@ -47,37 +54,7 @@ class ImportExercisesMainProcess(BaseMainProcess):
         self.logger.info("Starting import exercises batch")
         with self.database_subprocess.get_connection() as connection:
             self.database_subprocess.truncate_tmp_import_exercises(connection)
-
-            exercises_by_slug = {}
-            for tag in self.settings.tags:
-                if not tag.enable:
-                    continue
-                resolved_limit = self.leetcode_subprocess.resolve_limit(tag.limit)
-                fetched_exercises = self.leetcode_subprocess.get_exercises_by_tag(
-                    tag=tag.slug,
-                    limit=resolved_limit,
-                )
-                complete_exercises = self._filter_exercises_with_full_payload(
-                    fetched_exercises,
-                    tag_slug=tag.slug,
-                )
-                self.logger.info(
-                    "Fetched %s complete exercises from LeetCode for tag=%s limit=%s",
-                    len(complete_exercises),
-                    tag.slug,
-                    resolved_limit,
-                )
-                for exercise in complete_exercises:
-                    exercises_by_slug.setdefault(exercise.question_slug, exercise)
-
-            exercises = list(exercises_by_slug.values())
-
-            self.logger.info("Fetched %s total exercises from LeetCode", len(exercises))
-
-            csv_path = self.csv_subprocess.write(exercises)
-            self.logger.info(
-                "Wrote %s exercises to CSV at %s", len(exercises), csv_path
-            )
+            csv_path = self._prepare_csv_path()
             self.database_subprocess.load_csv_to_tmp_import_exercises(
                 connection, csv_path
             )
@@ -122,6 +99,43 @@ class ImportExercisesMainProcess(BaseMainProcess):
                 "Finished import exercises batch with %s changed exercises persisted",
                 len(changed_exercises),
             )
+
+    def _prepare_csv_path(self) -> Path:
+        if self.use_existing_csv:
+            csv_path = self.settings.database.import_csv_path
+            if not csv_path.is_file():
+                raise FileNotFoundError(f"CSV file not found: {csv_path}")
+            self.logger.info("Using existing CSV at %s", csv_path)
+            return csv_path
+
+        exercises_by_slug = {}
+        for tag in self.settings.tags:
+            if not tag.enable:
+                continue
+            resolved_limit = self.leetcode_subprocess.resolve_limit(tag.limit)
+            fetched_exercises = self.leetcode_subprocess.get_exercises_by_tag(
+                tag=tag.slug,
+                limit=resolved_limit,
+            )
+            complete_exercises = self._filter_exercises_with_full_payload(
+                fetched_exercises,
+                tag_slug=tag.slug,
+            )
+            self.logger.info(
+                "Fetched %s complete exercises from LeetCode for tag=%s limit=%s",
+                len(complete_exercises),
+                tag.slug,
+                resolved_limit,
+            )
+            for exercise in complete_exercises:
+                exercises_by_slug.setdefault(exercise.question_slug, exercise)
+
+        exercises = list(exercises_by_slug.values())
+        self.logger.info("Fetched %s total exercises from LeetCode", len(exercises))
+
+        csv_path = self.csv_subprocess.write(exercises)
+        self.logger.info("Wrote %s exercises to CSV at %s", len(exercises), csv_path)
+        return csv_path
 
     def patch_code_review_ai_relations(
         self,

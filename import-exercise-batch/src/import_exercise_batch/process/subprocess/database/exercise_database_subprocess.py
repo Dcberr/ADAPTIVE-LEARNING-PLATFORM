@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from contextlib import contextmanager
 import logging
 from pathlib import Path
@@ -45,6 +46,25 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
 
     def __init__(self, postgres_dsn: str) -> None:
         self.postgres_dsn = postgres_dsn
+
+    @staticmethod
+    def _normalize_csv_record(row: dict[str, str | None]) -> dict[str, str]:
+        return {
+            "question_slug": row.get("question_slug") or "",
+            "title": row.get("title") or "",
+            "content": row.get("content") or "",
+            "sample_test_case": row.get("sample_test_case") or "",
+            "code_snippet": row.get("code_snippet") or "",
+            "difficulty": row.get("difficulty") or "",
+            "topic_tag_slugs": row.get("topic_tag_slugs") or "[]",
+            "similar_question_slugs": row.get("similar_question_slugs") or "[]",
+        }
+
+    def _iter_csv_records(self, csv_path: Path) -> Iterator[dict[str, str]]:
+        with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
+            reader = csv.DictReader(csv_file)
+            for row in reader:
+                yield self._normalize_csv_record(row)
 
     @contextmanager
     def get_connection(self) -> Iterator[psycopg.Connection[DictRow]]:
@@ -118,9 +138,9 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
         self, connection: psycopg.Connection[DictRow], csv_path: Path
     ) -> None:
         with connection.cursor() as cursor:
-            with cursor.copy(
+            cursor.executemany(
                 """
-                COPY tmp_import_exercises (
+                INSERT INTO tmp_import_exercises (
                     question_slug,
                     title,
                     content,
@@ -130,25 +150,19 @@ class ExerciseDatabaseSubProcess(BaseSubProcess):
                     topic_tag_slugs,
                     similar_question_slugs
                 )
-                FROM STDIN WITH (
-                    FORMAT CSV,
-                    HEADER TRUE,
-                    FORCE_NOT_NULL (
-                        question_slug,
-                        title,
-                        content,
-                        sample_test_case,
-                        code_snippet,
-                        difficulty,
-                        topic_tag_slugs,
-                        similar_question_slugs
-                    )
+                VALUES (
+                    %(question_slug)s,
+                    %(title)s,
+                    %(content)s,
+                    %(sample_test_case)s,
+                    %(code_snippet)s,
+                    %(difficulty)s,
+                    %(topic_tag_slugs)s,
+                    %(similar_question_slugs)s
                 )
-                """
-            ) as copy:
-                with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
-                    while chunk := csv_file.read(1024 * 1024):
-                        copy.write(chunk)
+                """,
+                self._iter_csv_records(csv_path),
+            )
         self.logger.info(
             "Loaded CSV into temporary table %s from %s",
             self.tmp_table_name,

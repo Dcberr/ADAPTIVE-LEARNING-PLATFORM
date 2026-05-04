@@ -23,6 +23,11 @@ def main() -> None:
         default="import_exercise",
         choices=["import_exercise", "import_topic"],
     )
+    parser.add_argument(
+        "--from-csv",
+        action="store_true",
+        help="Skip LeetCode fetching and continue the import from the existing CSV file.",
+    )
     args = parser.parse_args()
 
     if args.batch == "import_topic":
@@ -31,7 +36,10 @@ def main() -> None:
         return
     elif args.batch == "import_exercise":
         settings = ImportExercisesSettings.from_env()
-        ImportExercisesMainProcess(settings).run()
+        ImportExercisesMainProcess(
+            settings,
+            use_existing_csv=args.from_csv,
+        ).run()
         return
     else:
         logging.error("Invalid batch type: %s", args.batch)

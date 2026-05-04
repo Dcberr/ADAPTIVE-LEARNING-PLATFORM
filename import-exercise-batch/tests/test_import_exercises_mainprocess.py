@@ -2,32 +2,40 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from types import ModuleType
 
 from import_exercise_batch.model import LeetCodeProblem
 
 
 def _load_import_exercises_mainprocess_class() -> type:
+    original_modules: dict[str, ModuleType | None] = {}
+
+    def _swap_module(name: str, module: ModuleType) -> None:
+        original_modules[name] = sys.modules.get(name)
+        sys.modules[name] = module
+
     api_module = ModuleType("import_exercise_batch.process.subprocess.api")
     api_module.CodeReviewAiSubProcess = type("CodeReviewAiSubProcess", (), {})
     api_module.CodeReviewSubProcess = type("CodeReviewSubProcess", (), {})
-    sys.modules[api_module.__name__] = api_module
+    _swap_module(api_module.__name__, api_module)
 
     csv_module = ModuleType("import_exercise_batch.process.subprocess.csv")
     csv_module.ExerciseCsvSubProcess = type("ExerciseCsvSubProcess", (), {})
-    sys.modules[csv_module.__name__] = csv_module
+    _swap_module(csv_module.__name__, csv_module)
 
     database_module = ModuleType("import_exercise_batch.process.subprocess.database")
     database_module.ExerciseDatabaseSubProcess = type(
         "ExerciseDatabaseSubProcess", (), {}
     )
-    sys.modules[database_module.__name__] = database_module
+    _swap_module(database_module.__name__, database_module)
 
     leetcode_module = ModuleType("import_exercise_batch.process.subprocess.leetcode")
     leetcode_module.LeetCodeFetchSubProcess = type("LeetCodeFetchSubProcess", (), {})
-    sys.modules[leetcode_module.__name__] = leetcode_module
+    _swap_module(leetcode_module.__name__, leetcode_module)
 
     module_path = (
         Path(__file__).resolve().parents[1]
@@ -40,8 +48,15 @@ def _load_import_exercises_mainprocess_class() -> type:
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load import_exercises.py for testing")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.ImportExercisesMainProcess
+    try:
+        spec.loader.exec_module(module)
+        return module.ImportExercisesMainProcess
+    finally:
+        for module_name, original_module in original_modules.items():
+            if original_module is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = original_module
 
 
 ImportExercisesMainProcess = _load_import_exercises_mainprocess_class()
@@ -88,6 +103,34 @@ class ImportExercisesMainProcessTest(unittest.TestCase):
         )
 
         self.assertEqual([complete_problem], filtered)
+
+    def test_prepare_csv_path_uses_existing_csv_when_requested(self) -> None:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        csv_path = Path(temp_dir.name) / "import_exercises.csv"
+        csv_path.write_text("question_slug\n", encoding="utf-8")
+
+        process = ImportExercisesMainProcess.__new__(ImportExercisesMainProcess)
+        process.use_existing_csv = True
+        process.settings = SimpleNamespace(
+            database=SimpleNamespace(import_csv_path=csv_path)
+        )
+
+        resolved_csv_path = process._prepare_csv_path()
+
+        self.assertEqual(csv_path, resolved_csv_path)
+
+    def test_prepare_csv_path_raises_when_existing_csv_is_missing(self) -> None:
+        process = ImportExercisesMainProcess.__new__(ImportExercisesMainProcess)
+        process.use_existing_csv = True
+        process.settings = SimpleNamespace(
+            database=SimpleNamespace(
+                import_csv_path=Path("/tmp/does-not-exist-import-exercises.csv")
+            )
+        )
+
+        with self.assertRaises(FileNotFoundError):
+            process._prepare_csv_path()
 
 
 if __name__ == "__main__":

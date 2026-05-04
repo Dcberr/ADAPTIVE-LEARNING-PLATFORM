@@ -47,8 +47,8 @@ class ProblemResponse(BaseModel):
         if value is None:
             return value
 
-        if value not in set(['MANUAL', 'LEETCODE']):
-            raise ValueError("must be one of enum values ('MANUAL', 'LEETCODE')")
+        if value not in {"LIBRARY", "CLASS"}:
+            raise ValueError("must be one of enum values ('LIBRARY', 'CLASS')")
         return value
 
     model_config = ConfigDict(
@@ -121,5 +121,4 @@ class ProblemResponse(BaseModel):
             "similarQuestionIds": obj.get("similarQuestionIds")
         })
         return _obj
-
 
