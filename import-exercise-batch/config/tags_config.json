@@ -3,63 +3,63 @@
     "name": "Array",
     "slug": "array",
     "enable": true,
-    "limit": 20,
+    "limit": 30,
     "prerequisite_slugs": []
   },
   {
     "name": "String",
     "slug": "string",
     "enable": true,
-    "limit": 20,
+    "limit": 30,
     "prerequisite_slugs": ["array"]
   },
   {
     "name": "Math",
     "slug": "math",
     "enable": true,
-    "limit": 15,
+    "limit": 30,
     "prerequisite_slugs": []
   },
   {
     "name": "Simulation",
     "slug": "simulation",
     "enable": true,
-    "limit": 15,
+    "limit": 30,
     "prerequisite_slugs": ["array", "string"]
   },
   {
     "name": "Counting",
     "slug": "counting",
     "enable": true,
-    "limit": 10,
+    "limit": 30,
     "prerequisite_slugs": ["array"]
   },
   {
     "name": "Matrix",
     "slug": "matrix",
     "enable": true,
-    "limit": 10,
+    "limit": 30,
     "prerequisite_slugs": ["array"]
   },
   {
     "name": "Prefix Sum",
     "slug": "prefix-sum",
     "enable": true,
-    "limit": 10,
+    "limit": 30,
     "prerequisite_slugs": ["array"]
   },
   {
     "name": "Two Pointers",
     "slug": "two-pointers",
     "enable": true,
-    "limit": 10,
+    "limit": 30,
     "prerequisite_slugs": ["array"]
   },
   {
     "name": "Recursion",
     "slug": "recursion",
     "enable": true,
-    "limit": 10,
+    "limit": 30,
     "prerequisite_slugs": ["array"]
   }
 ]
