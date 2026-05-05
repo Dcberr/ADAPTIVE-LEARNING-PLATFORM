@@ -18,6 +18,9 @@ import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.service.ExecutionService;
+import com.example.demo.problem.entity.Problem;
+import com.example.demo.problem.entity.ProblemType;
+import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.submission.dto.*;
 import com.example.demo.submission.entity.Submission;
 import com.example.demo.submission.entity.SubmissionStatus;
@@ -37,6 +40,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final AssignmentService assignmentService;
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final AssignmentRepository assignmentRepository;
+    private final ProblemRepository problemRepository;
 
     @Override
     @Transactional
@@ -44,22 +48,10 @@ public class SubmissionServiceImpl implements SubmissionService {
             UUID userId,
             SubmitCodeRequest request
     ) {
-        AssignmentProblem assignmentProblem = assignmentProblemRepository.findByProblemId(request.getProblemId());
+        Problem problem = problemRepository.findByIdAndDeletedAtIsNull(request.getProblemId())
+                .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
 
-        if (assignmentProblem == null) {
-            throw new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND);
-        }
-
-        Assignment assignment = assignmentRepository.findByIdAndDeletedAtIsNull(assignmentProblem.getAssignmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
-
-        int maxSubmission = assignment.getMaxSubmission();
-        if (maxSubmission > 0) {
-            long submissionsUsed = submissionRepository.countByUserIdAndAssignmentId(userId, assignment.getId());
-            if (submissionsUsed >= maxSubmission) {
-                throw new AppException(ErrorCode.SUBMISSION_LIMIT_EXCEEDED);
-            }
-        }
+        Assignment assignment = resolveAssignmentForSubmission(userId, problem, request.getProblemId());
 
         RunTestcaseRequest judgeRequest = new RunTestcaseRequest();
 
@@ -88,9 +80,11 @@ public class SubmissionServiceImpl implements SubmissionService {
                         .build()
         );
 
-        assignmentService.updateAssignment(assignment.getId(),UpdateAssignmentRequest.builder()
-                .status(AssignmentStatus.SUBMITTED)
-                .build());
+        if (assignment != null) {
+            assignmentService.updateAssignment(assignment.getId(), UpdateAssignmentRequest.builder()
+                    .status(AssignmentStatus.SUBMITTED)
+                    .build());
+        }
 
         return SubmissionResponse.builder()
                 .submissionId(submission.getId())
@@ -99,6 +93,34 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .submittedAt(submission.getSubmittedAt())
                 .score(submission.getScore())
                 .build();
+    }
+
+    private Assignment resolveAssignmentForSubmission(UUID userId, Problem problem, UUID problemId) {
+        if (problem.getType() == ProblemType.LIBRARY) {
+            return null;
+        }
+
+        AssignmentProblem assignmentProblem = assignmentProblemRepository.findByProblemId(problemId);
+        if (assignmentProblem == null) {
+            throw new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND);
+        }
+
+        Assignment assignment = assignmentRepository.findByIdAndDeletedAtIsNull(assignmentProblem.getAssignmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+
+        int maxSubmission = assignment.getMaxSubmission();
+        if (maxSubmission > 0) {
+            throwIfSubmissionLimitExceeded(userId, assignment);
+        }
+
+        return assignment;
+    }
+
+    private void throwIfSubmissionLimitExceeded(UUID userId, Assignment assignment) {
+        long submissionsUsed = submissionRepository.countByUserIdAndAssignmentId(userId, assignment.getId());
+        if (submissionsUsed >= assignment.getMaxSubmission()) {
+            throw new AppException(ErrorCode.SUBMISSION_LIMIT_EXCEEDED);
+        }
     }
 
     @Override

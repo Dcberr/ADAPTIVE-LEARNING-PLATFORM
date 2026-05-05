@@ -712,34 +712,6 @@ public class LeetCodeStarterCodeGenerator {
                     return index < lines.size() ? lines[index] : "";
                 }
 
-                static vector<string> splitTopLevel(string line) {
-                    vector<string> parts;
-                    string current;
-                    int depth = 0;
-
-                    for (char ch : line) {
-                        if (ch == '[') {
-                            ++depth;
-                        } else if (ch == ']') {
-                            --depth;
-                        }
-
-                        if (ch == ',' && depth == 0) {
-                            parts.push_back(current);
-                            current.clear();
-                            continue;
-                        }
-
-                        current += ch;
-                    }
-
-                    if (!current.empty()) {
-                        parts.push_back(current);
-                    }
-
-                    return parts;
-                }
-
                 static string escapeString(const string& value) {
                     string escaped;
                     for (char ch : value) {
@@ -789,6 +761,39 @@ public class LeetCodeStarterCodeGenerator {
                     printVector(values);
                 }
                 """);
+
+        if (needsVectorIntMatrixParser) {
+            builder.append("""
+
+                    static vector<string> splitTopLevel(string line) {
+                        vector<string> parts;
+                        string current;
+                        int depth = 0;
+
+                        for (char ch : line) {
+                            if (ch == '[') {
+                                ++depth;
+                            } else if (ch == ']') {
+                                --depth;
+                            }
+
+                            if (ch == ',' && depth == 0) {
+                                parts.push_back(current);
+                                current.clear();
+                                continue;
+                            }
+
+                            current += ch;
+                        }
+
+                        if (!current.empty()) {
+                            parts.push_back(current);
+                        }
+
+                        return parts;
+                    }
+                    """);
+        }
 
         if (needsVectorIntParser || needsVectorIntMatrixParser || needsListNode) {
             builder.append("""

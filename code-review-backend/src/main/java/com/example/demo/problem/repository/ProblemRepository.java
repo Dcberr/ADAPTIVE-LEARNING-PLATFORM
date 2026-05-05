@@ -1,6 +1,7 @@
 package com.example.demo.problem.repository;
 
 import java.util.Optional;
+import java.util.Collection;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -18,6 +19,8 @@ public interface ProblemRepository
         boolean existsBySourceAndExternalId(String source, String externalId);
 
         Optional<Problem> findBySourceAndExternalId(String source, String externalId);
+
+        Collection<Problem> findAllBySourceAndExternalIdIn(String source, Collection<String> externalIds);
 
         Optional<Problem> findByIdAndDeletedAtIsNull(UUID id);
 
