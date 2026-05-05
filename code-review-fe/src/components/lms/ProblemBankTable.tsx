@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 
+import type { UserRole } from "@/data/lms/extendedMockData"
 import type { ProblemBankEntry } from "@/data/lms/extendedMockData"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -22,29 +22,27 @@ export default function ProblemBankTable({
   isLoading = false,
   page = 0,
   size = 20,
+  query = "",
+  onQueryChange,
+  renderActions,
+  role = "lecturer",
 }: {
   problems: ProblemBankEntry[]
   isLoading?: boolean
   page?: number
   size?: number
+  query?: string
+  onQueryChange?: (value: string) => void
+  renderActions?: (problem: ProblemBankEntry) => React.ReactNode
+  role?: UserRole
 }) {
   const router = useRouter()
-  const [query, setQuery] = useState("")
-
-  const filtered = useMemo(() => {
-    const normalized = query.toLowerCase()
-
-    return problems.filter((problem) =>
-      `${problem.title} ${(problem.tags ?? problem.topics).join(" ")}`
-        .toLowerCase()
-        .includes(normalized)
-    )
-  }, [problems, query])
+  const hasActions = Boolean(renderActions)
 
   const formatDifficultyLabel = (value: ProblemBankEntry["difficulty"]) => {
-    if (value === "EASY") return "Easy"
-    if (value === "MEDIUM") return "Medium"
-    if (value === "HARD") return "Hard"
+    if (value === "EASY") return "Dễ"
+    if (value === "MEDIUM") return "Trung bình"
+    if (value === "HARD") return "Khó"
     return value
   }
 
@@ -84,9 +82,9 @@ export default function ProblemBankTable({
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
         <Input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => onQueryChange?.(event.target.value)}
           className="pl-10"
-          placeholder="Search by title or tag"
+          placeholder="Tìm theo tiêu đề hoặc tag"
         />
       </div>
 
@@ -95,9 +93,10 @@ export default function ProblemBankTable({
           <TableHeader className="bg-slate-50/80">
             <TableRow className="hover:bg-slate-50/80">
               <TableHead className="w-16">STT</TableHead>
-              <TableHead className="min-w-[320px]">Title</TableHead>
-              <TableHead className="w-32">Difficulty</TableHead>
+              <TableHead className="min-w-[320px]">Tiêu đề</TableHead>
+              <TableHead className="w-32">Độ khó</TableHead>
               <TableHead className="min-w-[220px]">Tags</TableHead>
+              {hasActions ? <TableHead className="w-16 text-right"> </TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -121,22 +120,29 @@ export default function ProblemBankTable({
                       <Skeleton className="h-6 w-24 rounded-full" />
                     </div>
                   </TableCell>
+                  {hasActions ? (
+                    <TableCell>
+                      <div className="flex justify-end">
+                        <Skeleton className="h-9 w-9 rounded-xl" />
+                      </div>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))
             ) : null}
-            {!isLoading && filtered.length === 0 ? (
+            {!isLoading && problems.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={4} className="py-8 text-center text-slate-500">
+                <TableCell colSpan={hasActions ? 5 : 4} className="py-8 text-center text-slate-500">
                   Không có bài tập nào trong trang hiện tại.
                 </TableCell>
               </TableRow>
             ) : null}
             {!isLoading
-              ? filtered.map((problem, index) => (
+              ? problems.map((problem, index) => (
               <TableRow
                 key={problem.id}
                 className="cursor-pointer align-top transition-colors hover:bg-slate-50/80"
-                onClick={() => router.push(`/lecturer/problem-bank/${problem.id}`)}
+                onClick={() => router.push(`/${role}/problem-bank/${problem.id}`)}
               >
                 <TableCell className="font-medium text-slate-500">
                   {(page * size + index + 1).toString().padStart(2, "0")}
@@ -162,6 +168,11 @@ export default function ProblemBankTable({
                     )}
                   </div>
                 </TableCell>
+                {hasActions ? (
+                  <TableCell onClick={(event) => event.stopPropagation()}>
+                    <div className="flex justify-end">{renderActions?.(problem)}</div>
+                  </TableCell>
+                ) : null}
               </TableRow>
                 ))
               : null}

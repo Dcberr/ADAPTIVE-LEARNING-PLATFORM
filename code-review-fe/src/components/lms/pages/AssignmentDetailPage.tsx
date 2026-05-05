@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   useGetAssignmentByIdQuery,
+  useGetAssignmentContextQuery,
   useGetAssignmentSubmissionsQuery,
 } from "@/store/redux/api/lmsApi"
 
@@ -120,6 +121,13 @@ function formatAttemptLimit(value?: number | null) {
   return `${value}`
 }
 
+function formatDifficultyLabel(value: string) {
+  if (value === "EASY") return "Dễ"
+  if (value === "MEDIUM") return "Trung bình"
+  if (value === "HARD") return "Khó"
+  return value
+}
+
 export default function AssignmentDetailPage({
   id,
   role = "student",
@@ -128,6 +136,7 @@ export default function AssignmentDetailPage({
   role?: UserRole
 }) {
   const { data: assignment, error, isLoading } = useGetAssignmentByIdQuery(id)
+  const { data: assignmentContext } = useGetAssignmentContextQuery(id)
   const {
     data: submissions = [],
     isLoading: isLoadingSubmissions,
@@ -150,7 +159,11 @@ export default function AssignmentDetailPage({
     )
   }
 
-  const backHref = role === "student" ? "/student/courses" : "/lecturer/courses"
+  const backHref = assignmentContext?.classId
+    ? `/${role}/courses/${assignmentContext.classId}`
+    : role === "student"
+      ? "/student/courses"
+      : "/lecturer/courses"
   const attemptHref =
     role === "student"
       ? `/student/assignments/${assignment.id}/attempt`
@@ -189,7 +202,7 @@ export default function AssignmentDetailPage({
     <div className="space-y-6">
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline">{assignment.difficulty}</Badge>
+          <Badge variant="outline">{formatDifficultyLabel(assignment.difficulty)}</Badge>
           <Badge variant="outline">{formatScore(assignment.maxScore)}</Badge>
           {(assignment.tags ?? []).map((tag) => (
             <Badge key={tag} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
@@ -226,7 +239,7 @@ export default function AssignmentDetailPage({
                 </p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-500">Time limit</p>
+                <p className="text-sm font-semibold text-slate-500">Giới hạn thời gian</p>
                 <p className="mt-1 text-lg text-slate-900">{formatTimeLimit(assignment.timeLimit)}</p>
               </div>
               <div>

@@ -23,7 +23,6 @@ import type { Assignment, CodingProblem } from "@/data/lms/mockData"
 import {
   getAssignmentBundle,
   getAssignmentReview,
-  getRecommendedProblems,
   runAssignmentExecution,
   type ExecutionSummary,
 } from "@/services/lms/mockLmsService"
@@ -34,9 +33,11 @@ import {
   type AssignmentTestcaseResponse,
   type JudgeExecutionResponse,
   type CodeReviewResponse,
+  type RecommendationResponse,
   type ProblemDetailResponse,
   type SubmissionDetailResponse,
   useCreateSubmissionMutation,
+  useGetRecommendationRoadmapMutation,
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
   useGetAssignmentSubmissionsQuery,
@@ -418,17 +419,19 @@ export default function CodeProblemPage({
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const [execution, setExecution] = useState<ExecutionSummary | null>(null)
   const [review, setReview] = useState<CodeReviewFeedback | null>(null)
-  const [recommendedProblems, setRecommendedProblems] = useState<
-    Awaited<ReturnType<typeof getRecommendedProblems>>
-  >([])
+  const [recommendationRoadmap, setRecommendationRoadmap] = useState<RecommendationResponse | null>(null)
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false)
+  const [isRecommendationDialogOpen, setIsRecommendationDialogOpen] = useState(false)
   const [runningAction, setRunningAction] = useState<"run" | "submit" | "review" | null>(null)
   const [leftPaneWidth, setLeftPaneWidth] = useState(DEFAULT_LEFT_PANE_WIDTH)
   const [isDesktopLayout, setIsDesktopLayout] = useState(false)
   const { toast } = useToast()
   const submissions = useAppSelector((state) => state.lms.submissions)
+  const currentUserId = useAppSelector((state) => state.auth.user?.id ?? "")
   const workspaceRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [getRecommendationRoadmap] = useGetRecommendationRoadmapMutation()
   const timeLimitMinutes =
     isPractice
       ? 0
@@ -480,7 +483,7 @@ export default function CodeProblemPage({
       ? (latestSubmission?.score ?? 0) >= 70
       : Number(latestBackendSubmission?.score ?? 0) >= 70)
   const activeCode = code ?? (problem ? problem.functionSkeleton.cpp ?? "" : "")
-  const activeProblemId = isPractice ? problem?.id ?? null : assignmentProblem?.id ?? null
+  const activeProblemId = problem?.id ?? null
 
   const getElapsedSeconds = useCallback(
     () => Math.floor((Date.now() - startedAtMs) / 1000),
@@ -575,21 +578,24 @@ export default function CodeProblemPage({
       return
     }
 
+    handleTabChange("review")
     setRunningAction("review")
+    setReview(null)
+    setRecommendationRoadmap(null)
+    setIsRecommendationDialogOpen(false)
+    setIsRecommendationLoading(false)
 
     try {
-      const [reviewResult, recommendations] = await Promise.all([
+      const reviewResult =
         hasMockBundle
-          ? getAssignmentReview(assignment.id, baseScore, activeCode)
+          ? await getAssignmentReview(assignment.id, baseScore, activeCode)
           : !activeProblemId
-            ? Promise.resolve(null)
-            : reviewCode({
-              problemId: activeProblemId,
-              code: activeCode,
-              language,
-            }).unwrap(),
-        getRecommendedProblems(assignment.id, baseScore),
-      ])
+            ? null
+            : await reviewCode({
+                problemId: activeProblemId,
+                code: activeCode,
+                language,
+              }).unwrap()
 
       let nextReview: CodeReviewFeedback
 
@@ -610,8 +616,6 @@ export default function CodeProblemPage({
       }
 
       setReview(nextReview)
-      setRecommendedProblems(recommendations)
-      handleTabChange("review")
     } catch (error) {
       toast({
         tone: "error",
@@ -635,6 +639,45 @@ export default function CodeProblemPage({
     reviewCode,
     toast,
   ])
+
+  const loadRecommendationRoadmap = useCallback(async () => {
+    if (!activeProblemId || !currentUserId) {
+      setRecommendationRoadmap(null)
+      return
+    }
+
+    setIsRecommendationLoading(true)
+
+    try {
+      const roadmap = await getRecommendationRoadmap({
+        student_id: currentUserId,
+        current_exercise_id: activeProblemId,
+      }).unwrap()
+      setRecommendationRoadmap(roadmap)
+    } catch (error) {
+      setRecommendationRoadmap(null)
+      toast({
+        tone: "error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Không thể tải gợi ý bài tập tiếp theo.",
+      })
+    } finally {
+      setIsRecommendationLoading(false)
+    }
+  }, [activeProblemId, currentUserId, getRecommendationRoadmap, toast])
+
+  const handleRecommendationDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setIsRecommendationDialogOpen(open)
+
+      if (open && !recommendationRoadmap && !isRecommendationLoading) {
+        void loadRecommendationRoadmap()
+      }
+    },
+    [isRecommendationLoading, loadRecommendationRoadmap, recommendationRoadmap]
+  )
 
   const handleExecute = useCallback(
     async (mode: "run" | "submit") => {
@@ -694,7 +737,9 @@ export default function CodeProblemPage({
               summary.eligibleForReview || (Number.isFinite(nextScore) ? nextScore >= 70 : false),
           })
           setReview(null)
-          setRecommendedProblems([])
+          setRecommendationRoadmap(null)
+          setIsRecommendationDialogOpen(false)
+          setIsRecommendationLoading(false)
           handleTabChange("result")
           setRunningAction(null)
           toast({
@@ -729,7 +774,9 @@ export default function CodeProblemPage({
 
         setExecution(summary)
         setReview(null)
-        setRecommendedProblems([])
+        setRecommendationRoadmap(null)
+        setIsRecommendationDialogOpen(false)
+        setIsRecommendationLoading(false)
         handleTabChange("result")
       } catch (error) {
         toast({
@@ -801,10 +848,14 @@ export default function CodeProblemPage({
             hasMounted={hasMounted}
             displayedExecution={displayedExecution}
             review={review}
-            recommendedProblems={recommendedProblems}
+            recommendationRoadmap={recommendationRoadmap}
+            role={role}
+            isRecommendationLoading={isRecommendationLoading}
+            isRecommendationDialogOpen={isRecommendationDialogOpen}
             runningAction={runningAction}
             canRequestReview={canRequestReview}
             onLoadReview={loadReview}
+            onRecommendationDialogOpenChange={handleRecommendationDialogOpenChange}
             showExamplesSection={false}
           />
 
@@ -843,10 +894,14 @@ export default function CodeProblemPage({
               hasMounted={hasMounted}
               displayedExecution={displayedExecution}
               review={review}
-              recommendedProblems={recommendedProblems}
+              recommendationRoadmap={recommendationRoadmap}
+              role={role}
+              isRecommendationLoading={isRecommendationLoading}
+              isRecommendationDialogOpen={isRecommendationDialogOpen}
               runningAction={runningAction}
               canRequestReview={canRequestReview}
               onLoadReview={loadReview}
+              onRecommendationDialogOpenChange={handleRecommendationDialogOpenChange}
               showExamplesSection={false}
             />
           </div>
