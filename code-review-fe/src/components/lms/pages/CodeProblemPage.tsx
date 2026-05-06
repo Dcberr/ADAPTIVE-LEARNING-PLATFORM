@@ -60,7 +60,7 @@ type DynamicTestcase = {
   hidden: boolean
 }
 
-const DEFAULT_LEFT_PANE_WIDTH = 52
+const DEFAULT_LEFT_PANE_WIDTH = 50
 const MIN_LEFT_PANE_WIDTH = 28
 const MAX_LEFT_PANE_WIDTH = 72
 const REVIEW_ELIGIBILITY_PERCENT = 30

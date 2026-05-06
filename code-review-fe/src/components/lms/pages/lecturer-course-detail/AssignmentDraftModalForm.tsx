@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 import { Streamdown } from "streamdown";
 
 import DateTimePicker from "@/components/lms/DateTimePicker";
+import MultiTagCombobox from "@/components/lms/MultiTagCombobox";
 import TestCaseManager from "@/components/lms/TestCaseManager";
 import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types";
 import { Button } from "@/components/ui/button";
@@ -244,7 +245,7 @@ export default function AssignmentDraftModalForm({
         </label>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <FieldBlock label="Điểm số tối đa">
           <Input
             type="number"
@@ -274,17 +275,17 @@ export default function AssignmentDraftModalForm({
             onChange={(event) => onChange({ timeLimit: event.target.value })}
           />
         </FieldBlock>
-        <FieldBlock
-          label="Tags"
-          hint="Không bắt buộc. Nhập các tag, phân tách bằng dấu phẩy."
-        >
-          <Input
-            placeholder="Ví dụ: array, loop"
-            value={draft.tags}
-            onChange={(event) => onChange({ tags: event.target.value })}
-          />
-        </FieldBlock>
       </div>
+
+      <FieldBlock
+        label="Tags"
+      >
+        <MultiTagCombobox
+          value={draft.tags}
+          onChange={(value) => onChange({ tags: value })}
+          placeholder="Chọn tag từ danh sách cố định"
+        />
+      </FieldBlock>
 
       <div className="grid gap-4 md:grid-cols-2">
         <FieldBlock label="Thời điểm mở">

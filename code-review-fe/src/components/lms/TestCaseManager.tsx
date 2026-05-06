@@ -3,7 +3,7 @@
 import { Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 
 export type EditableTestCase = {
   id: string
@@ -55,17 +55,23 @@ export default function TestCaseManager({
             </Button>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <Input
+            <Textarea
               value={testCase.input}
               onChange={(event) => updateCase(testCase.id, { input: event.target.value })}
               placeholder="Input"
+              rows={6}
+              spellCheck={false}
+              className="min-h-[50px] resize-y rounded-xl font-mono text-[13px] leading-6"
             />
-            <Input
+            <Textarea
               value={testCase.expectedOutput}
               onChange={(event) =>
                 updateCase(testCase.id, { expectedOutput: event.target.value })
               }
               placeholder="Expected output"
+              rows={6}
+              spellCheck={false}
+              className="min-h-[50px] resize-y rounded-xl font-mono text-[13px] leading-6"
             />
           </div>
           <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">

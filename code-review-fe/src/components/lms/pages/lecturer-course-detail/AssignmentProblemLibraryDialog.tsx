@@ -141,13 +141,20 @@ export default function AssignmentProblemLibraryDialog({
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 flex-1 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div>
                           <Badge
                             variant="outline"
                             className={getDifficultyBadgeClassName(problem.difficulty)}
                           >
                             {formatDifficultyLabel(problem.difficulty)}
                           </Badge>
+                        </div>
+
+                        <div>
+                          <p className="text-base font-semibold text-slate-900">{problem.title}</p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
                           {(problem.tags ?? problem.topics).slice(0, 4).map((tag) => (
                             <Badge
                               key={`${problem.id}-${tag}`}
@@ -157,13 +164,6 @@ export default function AssignmentProblemLibraryDialog({
                               {tag}
                             </Badge>
                           ))}
-                        </div>
-
-                        <div>
-                          <p className="text-base font-semibold text-slate-900">{problem.title}</p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            ID: <span className="font-mono text-xs">{problem.id}</span>
-                          </p>
                         </div>
                       </div>
 

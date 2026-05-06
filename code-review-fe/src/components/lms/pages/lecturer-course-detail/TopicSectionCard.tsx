@@ -382,11 +382,11 @@ function areEqual(left: TopicSectionCardProps, right: TopicSectionCardProps) {
 
   const leftDraftKeys = left.topic.customAssignments.map(
     (item) =>
-      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.tags}:${item.testCases.map((test) => `${test.input}:${test.expectedOutput}:${test.explanation}:${test.hidden}`).join("|")}`
+      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.tags.join(",")}:${item.testCases.map((test) => `${test.input}:${test.expectedOutput}:${test.explanation}:${test.hidden}`).join("|")}`
   )
   const rightDraftKeys = right.topic.customAssignments.map(
     (item) =>
-      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.tags}:${item.testCases.map((test) => `${test.input}:${test.expectedOutput}:${test.explanation}:${test.hidden}`).join("|")}`
+      `${item.id}:${item.title}:${item.description}:${item.score}:${item.timeLimit}:${item.deadline}:${item.openAt}:${item.attemptsAllowed}:${item.constraints}:${item.tags.join(",")}:${item.testCases.map((test) => `${test.input}:${test.expectedOutput}:${test.explanation}:${test.hidden}`).join("|")}`
   )
 
   return shallowStringArrayEqual(leftDraftKeys, rightDraftKeys)

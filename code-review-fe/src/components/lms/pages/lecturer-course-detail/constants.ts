@@ -48,7 +48,7 @@ export const emptyAssignmentDraft: AssignmentDraft = {
   deadline: "",
   attemptsAllowed: "2",
   constraints: "",
-  tags: "",
+  tags: [],
   functionSkeleton: {
     cpp: "#include <vector>\nusing namespace std;\n\nvector<int> solve(vector<int>& nums, int target) {\n    return {};\n}",
   },

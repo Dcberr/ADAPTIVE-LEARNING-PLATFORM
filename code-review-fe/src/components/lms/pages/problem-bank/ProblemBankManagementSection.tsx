@@ -10,6 +10,7 @@ import ProblemLibraryDraftForm, {
   EMPTY_PROBLEM_LIBRARY_DRAFT,
   type ProblemLibraryDraft,
 } from "@/components/lms/pages/problem-bank/ProblemLibraryDraftForm"
+import { normalizeFixedTagSlugs } from "@/components/lms/tagOptions"
 import SimpleModal from "@/components/lms/SimpleModal"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import { Button } from "@/components/ui/button"
@@ -50,7 +51,7 @@ function toDraft(problem: ProblemDetailResponse): ProblemLibraryDraft {
         ? problem.difficulty
         : "EASY",
     constraints: problem.problemConstraint ?? "",
-    tags: (problem.tags ?? []).join(", "),
+    tags: normalizeFixedTagSlugs(problem.tags ?? []),
     starterCodes: {
       cpp: problem.functionSkeletons?.cpp ?? "",
     },
@@ -73,10 +74,7 @@ function toPayload(draft: ProblemLibraryDraft) {
       explanation: item.explanation.trim() || "",
       hidden: item.hidden,
     })),
-    tags: draft.tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean),
+    tags: normalizeFixedTagSlugs(draft.tags),
   }
 }
 
