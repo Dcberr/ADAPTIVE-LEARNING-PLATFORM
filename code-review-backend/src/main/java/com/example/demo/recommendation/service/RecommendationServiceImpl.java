@@ -1,13 +1,15 @@
 package com.example.demo.recommendation.service;
 
-import java.util.UUID;
-import java.util.LinkedHashSet;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
@@ -17,13 +19,19 @@ import com.example.demo.problem.repository.ProblemRepository;
 import com.example.demo.problem.repository.ProblemTagRepository;
 import com.example.demo.recommendation.client.RecommendationAgentClient;
 import com.example.demo.recommendation.dto.RecommendationAgentRequest;
+import com.example.demo.recommendation.dto.RecommendationHistoryResponse;
 import com.example.demo.recommendation.dto.RecommendationRequest;
 import com.example.demo.recommendation.dto.RecommendationResponse;
+import com.example.demo.recommendation.entity.RecommendationHistory;
+import com.example.demo.recommendation.repository.RecommendationHistoryRepository;
 import com.example.demo.submission.repository.SubmissionRepository;
 import com.example.demo.user.entity.Role;
 import com.example.demo.user.entity.User;
 import com.example.demo.user.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,34 +45,53 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final ProblemRepository problemRepository;
     private final ProblemTagRepository problemTagRepository;
     private final SubmissionRepository submissionRepository;
+    private final RecommendationHistoryRepository recommendationHistoryRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional
     public RecommendationResponse getRecommendation(RecommendationRequest request, UUID requesterId) {
-        User requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
         if (request.getStudentId() == null || request.getCurrentExerciseId() == null) {
             throw new AppException(ErrorCode.VALIDATION_ERROR);
         }
 
-        userRepository.findById(request.getStudentId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        Problem problem = problemRepository.findById(request.getCurrentExerciseId())
-                .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
-
-        boolean canAccess = requesterId.equals(request.getStudentId())
-                || requester.getRole() == Role.INSTRUCTOR
-                || requester.getRole() == Role.ADMIN;
-
-        if (!canAccess) {
-            throw new AppException(ErrorCode.FORBIDDEN);
-        }
+        User requester = getUserOrThrow(requesterId);
+        User student = getUserOrThrow(request.getStudentId());
+        Problem problem = getProblemOrThrow(request.getCurrentExerciseId());
+        validateAccess(requester, student.getId());
 
         RecommendationResponse response = recommendationAgentClient.getRecommendation(
                 buildAgentRequest(request, problem)
         );
-        return remapRecommendationExerciseIds(response);
+        RecommendationResponse remappedResponse = remapRecommendationExerciseIds(response);
+        saveRecommendationHistory(student.getId(), problem.getId(), requesterId, remappedResponse);
+        return remappedResponse;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RecommendationHistoryResponse> getRecommendationHistory(UUID studentId, UUID requesterId) {
+        User requester = getUserOrThrow(requesterId);
+        User student = getUserOrThrow(studentId);
+        validateAccess(requester, student.getId());
+
+        return recommendationHistoryRepository.findByStudentIdOrderByCreatedAtDesc(studentId).stream()
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RecommendationHistoryResponse> getRecommendationHistoryByProblem(UUID studentId, UUID problemId, UUID requesterId) {
+        User requester = getUserOrThrow(requesterId);
+        User student = getUserOrThrow(studentId);
+        getProblemOrThrow(problemId);
+        validateAccess(requester, student.getId());
+
+        return recommendationHistoryRepository.findByStudentIdAndProblemIdOrderByCreatedAtDesc(studentId, problemId)
+                .stream()
+                .map(this::toHistoryResponse)
+                .toList();
     }
 
     private RecommendationAgentRequest buildAgentRequest(
@@ -114,6 +141,60 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private User getUserOrThrow(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Problem getProblemOrThrow(UUID problemId) {
+        return problemRepository.findByIdAndDeletedAtIsNull(problemId)
+                .orElseThrow(() -> new AppException(ErrorCode.PROBLEM_NOT_FOUND));
+    }
+
+    private void validateAccess(User requester, UUID studentId) {
+        boolean canAccess = requester.getId().equals(studentId)
+                || requester.getRole() == Role.INSTRUCTOR
+                || requester.getRole() == Role.ADMIN;
+
+        if (!canAccess) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void saveRecommendationHistory(UUID studentId, UUID problemId, UUID requesterId,
+                                           RecommendationResponse recommendationResponse) {
+        try {
+            recommendationHistoryRepository.save(RecommendationHistory.builder()
+                    .studentId(studentId)
+                    .problemId(problemId)
+                    .requestedBy(requesterId)
+                    .summary(recommendationResponse != null ? recommendationResponse.getSummary() : null)
+                    .recommendationJson(objectMapper.writeValueAsString(recommendationResponse))
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (JsonProcessingException ex) {
+            log.error("Failed to serialize recommendation history for studentId={} problemId={}", studentId, problemId,
+                    ex);
+            throw new AppException(ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
+    private RecommendationHistoryResponse toHistoryResponse(RecommendationHistory history) {
+        try {
+            return RecommendationHistoryResponse.builder()
+                    .recommendationId(history.getId())
+                    .studentId(history.getStudentId())
+                    .problemId(history.getProblemId())
+                    .requestedBy(history.getRequestedBy())
+                    .createdAt(history.getCreatedAt())
+                    .recommendation(objectMapper.readValue(history.getRecommendationJson(), RecommendationResponse.class))
+                    .build();
+        } catch (JsonProcessingException ex) {
+            log.error("Failed to deserialize recommendation history id={}", history.getId(), ex);
+            throw new AppException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
     private RecommendationResponse remapRecommendationExerciseIds(RecommendationResponse response) {
