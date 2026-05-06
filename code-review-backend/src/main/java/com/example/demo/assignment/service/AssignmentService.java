@@ -3,6 +3,7 @@ package com.example.demo.assignment.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.example.demo.assignment.dto.AssignmentDeadlineResponse;
 import com.example.demo.assignment.dto.AssignmentDetailResponse;
 import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
@@ -15,6 +16,8 @@ public interface AssignmentService {
     AssignmentResponse createAssignment(CreateAssignmentRequest request);
 
     List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId, UUID userId);
+
+    List<AssignmentDeadlineResponse> getAssignmentDeadlines();
 
     AssignmentDetailResponse getAssignmentById(UUID assignmentId, UUID userId);
 

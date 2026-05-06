@@ -14,6 +14,8 @@ public interface AssignmentRepository
 
     List<Assignment> findByTopicIdAndDeletedAtIsNull(UUID topicId);
 
+    List<Assignment> findByDeletedAtIsNullOrderByDeadlineAsc();
+
     java.util.Optional<Assignment> findByIdAndDeletedAtIsNull(UUID id);
     // Assignment findByProblemId(UUID problemId);
 

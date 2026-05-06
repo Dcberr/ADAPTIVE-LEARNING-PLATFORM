@@ -1,8 +1,11 @@
 package com.example.demo.assignment.service;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -10,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.CreateAssignmentRequest;
 import com.example.demo.assignment.dto.UpdateAssignmentRequest;
+import com.example.demo.assignment.dto.AssignmentDeadlineResponse;
 import com.example.demo.assignment.dto.AssignmentDetailResponse;
 import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
@@ -31,6 +35,7 @@ import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.service.ProblemService;
 import com.example.demo.submission.repository.SubmissionRepository;
+import com.example.demo.topic.entity.Topic;
 import com.example.demo.topic.repository.TopicRepository;
 
 @Service
@@ -107,6 +112,23 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
+    public List<AssignmentDeadlineResponse> getAssignmentDeadlines() {
+        List<Assignment> assignments = assignmentRepository.findByDeletedAtIsNullOrderByDeadlineAsc();
+
+        Map<UUID, Topic> topicsById = topicRepository.findAllById(
+                assignments.stream()
+                        .map(Assignment::getTopicId)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(Topic::getId, Function.identity()));
+
+        return assignments.stream()
+                .map(assignment -> mapAssignmentDeadline(assignment, topicsById.get(assignment.getTopicId())))
+                .toList();
+    }
+
+    @Override
     public AssignmentDetailResponse getAssignmentById(UUID assignmentId, UUID userId) {
         return mapAssignmentDetail(getActiveAssignment(assignmentId), userId);
     }
@@ -155,6 +177,19 @@ public class AssignmentServiceImpl implements AssignmentService {
         return AssignmentOverviewResponse.builder()
                 .id(assignment.getId())
                 .title(assignment.getTitle())
+                .build();
+    }
+
+    private AssignmentDeadlineResponse mapAssignmentDeadline(Assignment assignment, Topic topic) {
+        return AssignmentDeadlineResponse.builder()
+                .id(assignment.getId())
+                .topicId(assignment.getTopicId())
+                .topicTitle(topic != null ? topic.getTitle() : null)
+                .title(assignment.getTitle())
+                .startTime(assignment.getStartTime())
+                .deadline(assignment.getDeadline())
+                .difficulty(assignment.getDifficulty())
+                .status(assignment.getStatus())
                 .build();
     }
 

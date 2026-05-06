@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import com.example.demo.assignment.dto.AddProblemToAssignmentRequest;
+import com.example.demo.assignment.dto.AssignmentDeadlineResponse;
 import com.example.demo.assignment.dto.AssignmentDetailResponse;
 import com.example.demo.assignment.dto.AssignmentOverviewResponse;
 import com.example.demo.assignment.dto.AssignmentResponse;
@@ -49,6 +50,14 @@ public class AssignmentController {
 
         return ApiResponse.success(
                 assignmentService.getAssignmentsByTopic(topicId, userId)
+        );
+    }
+
+    @Operation(summary = "Get assignment deadlines for tracking board")
+    @GetMapping("/deadlines")
+    public ApiResponse<List<AssignmentDeadlineResponse>> getAssignmentDeadlines() {
+        return ApiResponse.success(
+                assignmentService.getAssignmentDeadlines()
         );
     }
 
