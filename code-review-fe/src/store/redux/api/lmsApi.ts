@@ -35,6 +35,16 @@ export type TopicAssignmentResponse = {
   tags?: string[] | null
   status: string
 }
+export type AssignmentDeadlineResponse = {
+  id: string
+  topicId: string
+  topicTitle: string
+  title: string
+  startTime: string | null
+  deadline: string
+  difficulty: "EASY" | "MEDIUM" | "HARD" | string
+  status: string
+}
 export type PaginatedResponse<T> = {
   content: T[]
   page: number
@@ -632,6 +642,12 @@ export const lmsApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, assignmentId) => [
         { type: "Assignment" as const, id: assignmentId },
       ],
+    }),
+    getAssignmentDeadlines: builder.query<AssignmentDeadlineResponse[], void>({
+      query: () => "/assignments/deadlines",
+      transformResponse: (response: ApiResponse<AssignmentDeadlineResponse[]>) =>
+        response.data ?? [],
+      providesTags: ["Assignment"],
     }),
     getAssignmentSubmissions: builder.query<
       AssignmentSubmissionResponse[],
@@ -1284,6 +1300,7 @@ export const {
   useGetAssignmentContextQuery,
   useGetAssignmentByIdQuery,
   useLazyGetAssignmentByIdQuery,
+  useGetAssignmentDeadlinesQuery,
   useGetAssignmentSubmissionsQuery,
   useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
