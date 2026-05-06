@@ -85,7 +85,7 @@ export default function AssignmentProblemLibraryDialog({
         <DialogHeader className="shrink-0 border-b border-slate-100 px-8 py-6 pr-16">
           <DialogTitle>Chọn bài từ kho</DialogTitle>
           <DialogDescription>
-            Chọn một bài trong Problem Bank để prefill vào form tạo assignment. Các trường còn thiếu
+            Chọn một bài trong kho bài tập để prefill vào form tạo assignment. Các trường còn thiếu
             vẫn có thể chỉnh tay trước khi lưu.
           </DialogDescription>
         </DialogHeader>

@@ -11,9 +11,11 @@ import {
   Calendar as CalendarIcon,
   ChevronDown,
   Clock,
+  LogOut,
   Menu,
   Search,
   TrendingUp,
+  User,
   X,
 } from "lucide-react"
 
@@ -27,6 +29,13 @@ import { assignments, calendarEvents } from "@/data/lms/mockData"
 import { navItemsByRole } from "@/components/lms/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { logoutCurrentSession } from "@/lib/auth"
 import { cn } from "@/lib/utils"
@@ -49,9 +58,20 @@ export default function LmsShell({
   const user = useAppSelector((state) => state.auth.user)
   const compactWorkspace =
     /^\/(student|lecturer)\/assignments\/[^/]+\/attempt$/.test(pathname) ||
-    /^\/(student|lecturer)\/problem-bank\/[^/]+\/attempt$/.test(pathname)
+    /^\/(student|lecturer)\/problem-bank\/[^/]+\/attempt$/.test(pathname) ||
+    /^\/(student|lecturer)\/assignments\/[^/]+\/submissions\/[^/]+$/.test(pathname) ||
+    /^\/(student|lecturer)\/problem-bank\/[^/]+\/submissions\/[^/]+$/.test(pathname)
   const navItems = navItemsByRole[role]
-  const profileHref = role === "student" ? "/student/profile" : "/lecturer/dashboard"
+  const profileHref = role === "student" ? "/student/profile" : "/lecturer/profile"
+  const roleLabel = role === "student" ? "Sinh viên" : "Giảng viên"
+  const academicCodeLabel = role === "student" ? "MSSV" : "MSCB"
+  const initials =
+    user?.name
+      ?.split(" ")
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() ?? "BK"
   const handleLogout = async () => {
     setIsSigningOut(true)
 
@@ -155,37 +175,75 @@ export default function LmsShell({
                   {role === "student" ? 3 : atRiskStudents.length}
                 </Badge>
               </Button>
-              <Link
-                href={profileHref}
-                className="flex items-center gap-3 rounded-2xl p-2 pr-4 transition-all hover:bg-[#E3F2FD]"
-              >
-                <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#030391] to-[#1488D8]">
-                  <span className="text-sm font-semibold text-white">
-                    {user?.name
-                      ?.split(" ")
-                      .slice(0, 2)
-                      .map((part) => part[0])
-                      .join("")
-                      .toUpperCase() ?? "BK"}
-                  </span>
-                </div>
-                <div className="hidden text-left sm:block">
-                  <p className="text-sm font-semibold text-[#030391]">
-                    {user?.name ?? "BK Learning Hub"}
-                  </p>
-                  <p className="text-xs capitalize text-gray-500">{role}</p>
-                </div>
-                <ChevronDown className="hidden size-4 text-gray-400 sm:block" />
-              </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden rounded-xl text-[#030391] hover:bg-[#E3F2FD] lg:inline-flex"
-                disabled={isSigningOut}
-                onClick={handleLogout}
-              >
-                {isSigningOut ? "Đang đăng xuất..." : "Đăng xuất"}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 rounded-2xl p-2 pr-4 text-left transition-all hover:bg-[#E3F2FD]"
+                  >
+                    {user?.picture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.picture}
+                        alt={user.name ?? "Avatar"}
+                        className="size-10 rounded-2xl object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#030391] to-[#1488D8] shadow-sm">
+                        <span className="text-2xl font-semibold text-white">{initials}</span>
+                      </div>
+                    )}
+                    <div className="hidden min-w-0 text-left sm:block">
+                      <p className="truncate text-[13px] font-semibold uppercase tracking-[0.04em] text-[#030391]">
+                        {user?.name ?? "BK Learning Hub"}
+                      </p>
+                      <p className="text-[13px] text-slate-500">{roleLabel}</p>
+                    </div>
+                    <ChevronDown className="hidden size-5 text-slate-400 sm:block" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 rounded-2xl p-2">
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    {user?.picture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.picture}
+                        alt={user.name ?? "Avatar"}
+                        className="size-12 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#030391] to-[#1488D8]">
+                        <span className="text-lg font-semibold text-white">{initials}</span>
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#030391]">
+                        {user?.name ?? "BK Learning Hub"}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{user?.email ?? ""}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-600">
+                        {academicCodeLabel}: {user?.userCode || "Chưa có mã"}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={profileHref} className="cursor-pointer rounded-xl">
+                      <User className="size-4 text-[#030391]" />
+                      Hồ sơ
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    className="rounded-xl"
+                    disabled={isSigningOut}
+                    onClick={() => void handleLogout()}
+                  >
+                    <LogOut className="size-4" />
+                    {isSigningOut ? "Đang đăng xuất..." : "Đăng xuất"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>

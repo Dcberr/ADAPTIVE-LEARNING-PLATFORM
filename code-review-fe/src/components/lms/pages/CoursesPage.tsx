@@ -33,8 +33,7 @@ export default function CoursesPage() {
   return (
     <CourseBrowser
       items={items}
-      title="My Courses"
-      description="Tìm nhanh khóa học và chuyển giữa dạng lưới hoặc danh sách như cùng một trải nghiệm thống nhất."
+      title="Khoá học của tôi"
       isLoading={isLoading}
       emptyTitle={
         isLoading

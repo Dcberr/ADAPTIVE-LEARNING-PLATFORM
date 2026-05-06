@@ -47,7 +47,7 @@ export default function CourseBrowser({
   isLoading = false,
 }: CourseBrowserProps) {
   const [query, setQuery] = useState("")
-  const [viewMode, setViewMode] = useState<ViewMode>("grid")
+  const [viewMode, setViewMode] = useState<ViewMode>("list")
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -71,13 +71,13 @@ export default function CourseBrowser({
       <div className="rounded-[2rem] border border-[#005f69]/8 bg-white/80 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-[#0b6673]">{title}</h2>
+            <h2 className="text-2xl font-bold text-[#030391]">{title}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={viewMode === "grid" ? "default" : "outline"}
               size="icon"
-              className={viewMode === "grid" ? "bg-[#0b6673] text-white hover:bg-[#0b6673]/90" : "rounded-xl"}
+              className={viewMode === "grid" ? "bg-[#030391] text-white hover:bg-[#030391]/80" : "rounded-xl"}
               onClick={() => setViewMode("grid")}
             >
               <Grid className="size-4" />
@@ -85,7 +85,7 @@ export default function CourseBrowser({
             <Button
               variant={viewMode === "list" ? "default" : "outline"}
               size="icon"
-              className={viewMode === "list" ? "bg-[#0b6673] text-white hover:bg-[#0b6673]/90" : "rounded-xl"}
+              className={viewMode === "list" ? "bg-[#030391] text-white hover:bg-[#030391]/80" : "rounded-xl"}
               onClick={() => setViewMode("list")}
             >
               <List className="size-4" />
@@ -131,7 +131,7 @@ export default function CourseBrowser({
         ) : (
           <Card className="rounded-[2rem] border border-slate-200">
             <CardContent className="px-6 py-12 text-center">
-              <p className="text-lg font-semibold text-[#0b6673]">{emptyTitle}</p>
+              <p className="text-lg font-semibold text-[#030391]">{emptyTitle}</p>
               <p className="mt-2 text-sm text-slate-500">{emptyDescription}</p>
             </CardContent>
           </Card>
@@ -166,7 +166,7 @@ export default function CourseBrowser({
                 </div>
                 <CardContent className="space-y-4 p-5">
                   <div>
-                    <h3 className="line-clamp-2 text-xl font-bold leading-tight text-[#0b6673]">
+                    <h3 className="line-clamp-2 text-xl font-bold leading-tight text-[#030391]">
                       {item.title}
                     </h3>
                     <p className="mt-2 text-base text-slate-500">{item.instructor}</p>
@@ -227,7 +227,7 @@ export default function CourseBrowser({
 
                   <div className="space-y-4">
                     <div>
-                      <h3 className="line-clamp-2 text-xl font-bold text-[#0b6673]">{item.title}</h3>
+                      <h3 className="line-clamp-2 text-xl font-bold text-[#030391]">{item.title}</h3>
                       <p className="mt-2 text-lg text-slate-500">{item.instructor}</p>
                     </div>
                     <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-slate-600">

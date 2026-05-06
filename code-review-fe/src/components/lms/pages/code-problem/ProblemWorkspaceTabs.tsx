@@ -250,7 +250,7 @@ function ProblemWorkspaceTabsComponent({
                       </Button>
                     ) : (
                       <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                        Đạt 70% test để mở AI Code Review
+                        Đạt 30% test để mở AI Code Review
                       </Badge>
                     )}
                   </div>
@@ -317,7 +317,7 @@ function ProblemWorkspaceTabsComponent({
                 {reviewEmptyMessage ??
                   (canRequestReview
                     ? "Dùng Code Review để tạo phản hồi AI và gợi ý cá nhân hóa."
-                    : "AI Code Review sẽ mở sau khi bạn vượt qua ít nhất 70% số test đã chạy.")}
+                    : "AI Code Review sẽ mở sau khi bạn vượt qua ít nhất 30% số test đã chạy.")}
               </div>
             )}
           </TabsContent>

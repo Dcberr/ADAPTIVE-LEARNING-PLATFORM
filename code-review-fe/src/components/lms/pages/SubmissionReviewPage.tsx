@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
@@ -18,9 +18,11 @@ import {
   type AssignmentSubmissionResponse,
   type AssignmentTestcaseResponse,
   type CodeReviewResponse,
+  type RecommendationResponse,
   type SubmissionDetailResponse,
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
+  useGetRecommendationHistoryByProblemQuery,
   useGetAssignmentSubmissionsQuery,
   useGetAssignmentTestcasesQuery,
   useGetProblemReviewsByUserQuery,
@@ -165,6 +167,7 @@ export default function SubmissionReviewPage({
 }) {
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? "")
+  const [isRecommendationDialogOpen, setIsRecommendationDialogOpen] = useState(false)
   const { data: assignmentContext, isLoading: isLoadingAssignment, error: assignmentError } =
     useGetAssignmentContextQuery(assignmentId)
   const {
@@ -193,6 +196,10 @@ export default function SubmissionReviewPage({
       skip: !assignmentProblem?.id || !currentUserId,
     }
   )
+  const { data: recommendationHistory = [], isLoading: isLoadingRecommendationHistory } =
+    useGetRecommendationHistoryByProblemQuery(assignmentProblem?.id ?? "", {
+      skip: !assignmentProblem?.id,
+    })
 
   const submission = submissions.find((item) => item.submissionId === submissionId)
   const assignment = useMemo(
@@ -217,6 +224,13 @@ export default function SubmissionReviewPage({
       latestReview ? mapCodeReviewResponseToFeedback(assignmentId, latestReview) : null,
     [assignmentId, latestReview]
   )
+  const latestRecommendation = useMemo<RecommendationResponse | null>(
+    () =>
+      recommendationHistory.length > 0
+        ? recommendationHistory[recommendationHistory.length - 1].recommendation
+        : null,
+    [recommendationHistory]
+  )
   const code = submissionDetail?.code ?? ""
   const language = submissionDetail?.language ?? "cpp"
   const backHref = `/${role}/assignments/${assignmentId}`
@@ -228,7 +242,8 @@ export default function SubmissionReviewPage({
     isLoadingProblem ||
     isLoadingTestcases ||
     isLoadingDetail ||
-    isLoadingReviews
+    isLoadingReviews ||
+    isLoadingRecommendationHistory
   ) {
     return <AttemptWorkspaceSkeleton title="Đang tải bài làm đã nộp..." />
   }
@@ -277,10 +292,14 @@ export default function SubmissionReviewPage({
           hasMounted={hasMounted}
           displayedExecution={execution}
           review={review}
-          recommendedProblems={[]}
+          recommendationRoadmap={latestRecommendation}
+          role={role}
+          isRecommendationLoading={false}
+          isRecommendationDialogOpen={isRecommendationDialogOpen}
           runningAction={null}
           canRequestReview={false}
           onLoadReview={() => {}}
+          onRecommendationDialogOpenChange={setIsRecommendationDialogOpen}
           reviewEmptyMessage="Không có review cho bài làm này."
           showExamplesSection={false}
         />

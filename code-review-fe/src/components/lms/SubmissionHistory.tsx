@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+const REVIEW_ELIGIBILITY_PERCENT = 30
+
 function MockSubmissionHistorySection({
   submissions,
 }: {
@@ -28,7 +30,7 @@ function MockSubmissionHistorySection({
                 </Badge>
                 <Badge
                   className={
-                    submission.score >= 70
+                    submission.score >= REVIEW_ELIGIBILITY_PERCENT
                       ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
                       : "bg-amber-100 text-amber-700 hover:bg-amber-100"
                   }
@@ -88,7 +90,8 @@ function BackendSubmissionHistoryItem({
             <Badge variant="outline">{submission.status}</Badge>
             <Badge
               className={
-                Number.isFinite(numericScore) && numericScore >= 70
+                Number.isFinite(numericScore) &&
+                numericScore >= REVIEW_ELIGIBILITY_PERCENT
                   ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
                   : "bg-amber-100 text-amber-700 hover:bg-amber-100"
               }

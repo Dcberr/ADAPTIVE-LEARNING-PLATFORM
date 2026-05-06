@@ -87,7 +87,7 @@ export default function LecturerCoursesPage() {
       {Boolean(error) ? (
         <CourseBrowser
           items={[]}
-          title="Lớp học của bạn"
+          title="Khóa học của bạn"
           isLoading={false}
           emptyTitle="Không tải được danh sách lớp."
           emptyDescription="Kiểm tra backend rồi thử refresh lại danh sách lớp."
@@ -105,7 +105,7 @@ export default function LecturerCoursesPage() {
       ) : (
         <CourseBrowser
           items={browserItems}
-          title="Lớp học của bạn"
+          title="Khoá học của tôi"
           isLoading={isLoading}
           emptyTitle={isLoading ? "Đang tải lớp học..." : "Chưa có lớp học nào."}
           emptyDescription={

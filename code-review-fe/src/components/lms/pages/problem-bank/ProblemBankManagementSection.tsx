@@ -261,7 +261,7 @@ export default function ProblemBankManagementSection({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl text-[#030391]">Problem Bank</CardTitle>
+            <CardTitle className="text-2xl text-[#030391]">Kho bài tập</CardTitle>
             <p className="mt-1 text-sm text-slate-500">
               {isTableLoading ? "Đang tải..." : `Tổng số bài: ${totalElements}`}
             </p>

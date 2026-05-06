@@ -364,6 +364,15 @@ export type RecommendationResponse = {
   summary: string
   roadmap: RecommendationRoadmapStep[]
 }
+export type RecommendationHistoryItem = {
+  recommendation_id: string
+  student_id: string
+  problem_id: string
+  requested_by: string
+  created_at: string
+  recommendation: RecommendationResponse
+}
+export type RecommendationHistoryResponse = RecommendationHistoryItem[]
 export type CodeReviewLineRangeResponse = {
   start: number
   end: number
@@ -720,6 +729,10 @@ export const lmsApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiResponse<RecommendationResponse>) => response.data,
+    }),
+    getRecommendationHistoryByProblem: builder.query<RecommendationHistoryResponse, string>({
+      query: (problemId) => `/recommendations/history/problem/${problemId}/me`,
+      transformResponse: (response: ApiResponse<RecommendationHistoryResponse>) => response.data ?? [],
     }),
     getProblemReviewsByUser: builder.query<CodeReviewResponse[], GetProblemReviewsByUserRequest>({
       query: ({ problemId, userId }) =>
@@ -1284,6 +1297,7 @@ export const {
   useJudgeExecutionMutation,
   useReviewCodeMutation,
   useGetRecommendationRoadmapMutation,
+  useGetRecommendationHistoryByProblemQuery,
   useCreateClassMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,
