@@ -146,7 +146,7 @@ function ProblemWorkspaceTabsComponent({
   }
 
   return (
-    <Card className="min-h-[640px]">
+    <Card className="min-h-[640px] min-w-0">
       <CardContent className="pt-6">
         <Tabs value={activeTab} onValueChange={handleValueChange}>
           <TabsList className="grid w-full grid-cols-4">

@@ -179,7 +179,7 @@ function EditorWorkspaceCardComponent({
   }
 
   return (
-    <Card className="min-h-[640px]">
+    <Card className="min-h-[640px] min-w-0">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Code2 className="size-4" /> Trình soạn thảo code
