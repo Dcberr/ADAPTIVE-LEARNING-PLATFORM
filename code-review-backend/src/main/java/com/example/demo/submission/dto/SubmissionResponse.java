@@ -19,6 +19,8 @@ public class SubmissionResponse {
 
     private UUID submissionId;
 
+    private UUID userId;
+
     private SubmissionStatus status;
 
     private Instant startedAt;

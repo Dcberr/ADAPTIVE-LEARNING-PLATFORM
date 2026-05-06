@@ -88,6 +88,7 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         return SubmissionResponse.builder()
                 .submissionId(submission.getId())
+                .userId(submission.getUserId())
                 .status(SubmissionStatus.SUBMITTED)
                 .startedAt(request.getStartedAt())
                 .submittedAt(submission.getSubmittedAt())

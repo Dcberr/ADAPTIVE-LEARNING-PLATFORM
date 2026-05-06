@@ -67,6 +67,7 @@ public interface SubmissionRepository
     @Query(value = """
         SELECT new com.example.demo.submission.dto.SubmissionResponse(
             s.id,
+            s.userId,
             s.status,
             a.createdAt,
             s.submittedAt,
@@ -86,6 +87,7 @@ public interface SubmissionRepository
         @Query(value = """
             SELECT new com.example.demo.submission.dto.SubmissionResponse(
                 s.id,
+                s.userId,
                 s.status,
                 a.createdAt,
                 s.submittedAt,
