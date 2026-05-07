@@ -634,6 +634,7 @@ public class LeetCodeStarterCodeGenerator {
             case "int", "long", "bool", "double", "string", "const string&",
                     "vector<int>", "vector<int>&", "const vector<int>&",
                     "vector<vector<int>>", "vector<vector<int>>&", "const vector<vector<int>>&",
+                    "vector<vector<char>>", "vector<vector<char>>&", "const vector<vector<char>>&",
                     "vector<long long>", "vector<long long>&", "const vector<long long>&",
                     "vector<string>", "vector<string>&", "const vector<string>&",
                     "ListNode*", "TreeNode*" -> true;
@@ -683,6 +684,7 @@ public class LeetCodeStarterCodeGenerator {
         StringBuilder builder = new StringBuilder();
         boolean needsVectorIntParser = hasCppParameterType(signature, "vector<int>");
         boolean needsVectorIntMatrixParser = hasCppParameterType(signature, "vector<vector<int>>");
+        boolean needsVectorCharMatrixParser = hasCppParameterType(signature, "vector<vector<char>>");
         boolean needsVectorLongParser = hasCppParameterType(signature, "vector<long long>");
         boolean needsVectorStringParser = hasCppParameterType(signature, "vector<string>");
         boolean needsIntParser = hasCppParameterType(signature, "int");
@@ -712,7 +714,7 @@ public class LeetCodeStarterCodeGenerator {
                     return index < lines.size() ? lines[index] : "";
                 }
 
-                static string escapeString(const string& value) {
+                [[maybe_unused]] static string escapeString(const string& value) {
                     string escaped;
                     for (char ch : value) {
                         switch (ch) {
@@ -745,24 +747,24 @@ public class LeetCodeStarterCodeGenerator {
                 }
 
                 template <typename T>
-                static void printVector(const vector<T>& values);
+                [[maybe_unused]] static void printVector(const vector<T>& values);
 
                 template <typename T>
-                static void printValue(const T& value) {
+                [[maybe_unused]] static void printValue(const T& value) {
                     cout << value;
                 }
 
-                static void printValue(const string& value) {
+                [[maybe_unused]] static void printValue(const string& value) {
                     cout << '"' << escapeString(value) << '"';
                 }
 
                 template <typename T>
-                static void printValue(const vector<T>& values) {
+                [[maybe_unused]] static void printValue(const vector<T>& values) {
                     printVector(values);
                 }
                 """);
 
-        if (needsVectorIntMatrixParser) {
+        if (needsVectorIntMatrixParser || needsVectorCharMatrixParser) {
             builder.append("""
 
                     static vector<string> splitTopLevel(string line) {
@@ -836,6 +838,55 @@ public class LeetCodeStarterCodeGenerator {
                             current = trim(current);
                             if (!current.empty()) {
                                 values.push_back(parseVectorInt(current));
+                            }
+                        }
+
+                        return values;
+                    }
+                    """);
+        }
+
+        if (needsVectorCharMatrixParser) {
+            builder.append("""
+
+                    static vector<char> parseVectorChar(string line) {
+                        line = trim(line);
+                        if (!line.empty() && line.front() == '[' && line.back() == ']') {
+                            line = line.substr(1, line.size() - 2);
+                        }
+
+                        vector<char> values;
+                        for (string current : splitTopLevel(line)) {
+                            current = trim(current);
+                            if (current.empty()) {
+                                continue;
+                            }
+
+                            if (current.size() >= 3 && current.front() == '"' && current.back() == '"') {
+                                values.push_back(current[1]);
+                            } else if (!current.empty()) {
+                                values.push_back(current[0]);
+                            }
+                        }
+
+                        return values;
+                    }
+
+                    static vector<vector<char>> parseVectorCharMatrix(string line) {
+                        line = trim(line);
+                        if (!line.empty() && line.front() == '[' && line.back() == ']') {
+                            line = line.substr(1, line.size() - 2);
+                        }
+
+                        vector<vector<char>> values;
+                        if (line.empty()) {
+                            return values;
+                        }
+
+                        for (string current : splitTopLevel(line)) {
+                            current = trim(current);
+                            if (!current.empty()) {
+                                values.push_back(parseVectorChar(current));
                             }
                         }
 
@@ -945,7 +996,7 @@ public class LeetCodeStarterCodeGenerator {
             builder.append("""
 
                     template <typename T>
-                    static void printVector(const vector<T>& values) {
+                    [[maybe_unused]] static void printVector(const vector<T>& values) {
                         cout << "[";
                         for (size_t i = 0; i < values.size(); ++i) {
                             if (i > 0) {
@@ -1141,11 +1192,16 @@ public class LeetCodeStarterCodeGenerator {
             case "long" -> "parseLong(" + source + ")";
             case "bool" -> "parseBool(" + source + ")";
             case "double" -> "parseDouble(" + source + ")";
-            case "string" -> "parseStringValue(" + source + ")";
-            case "vector<int>" -> "parseVectorInt(" + source + ")";
-            case "vector<vector<int>>" -> "parseVectorIntMatrix(" + source + ")";
-            case "vector<long long>" -> "parseVectorLong(" + source + ")";
-            case "vector<string>" -> "parseVectorString(" + source + ")";
+            case "string", "const string&" -> "parseStringValue(" + source + ")";
+            case "vector<int>", "vector<int>&", "const vector<int>&" -> "parseVectorInt(" + source + ")";
+            case "vector<vector<int>>", "vector<vector<int>>&", "const vector<vector<int>>&" ->
+                    "parseVectorIntMatrix(" + source + ")";
+            case "vector<vector<char>>", "vector<vector<char>>&", "const vector<vector<char>>&" ->
+                    "parseVectorCharMatrix(" + source + ")";
+            case "vector<long long>", "vector<long long>&", "const vector<long long>&" ->
+                    "parseVectorLong(" + source + ")";
+            case "vector<string>", "vector<string>&", "const vector<string>&" ->
+                    "parseVectorString(" + source + ")";
             case "ListNode*" -> "parseListNode(" + source + ")";
             case "TreeNode*" -> "parseTreeNode(" + source + ")";
             default -> source;
@@ -1168,6 +1224,7 @@ public class LeetCodeStarterCodeGenerator {
         return switch (type) {
             case "vector<int>&", "const vector<int>&" -> "vector<int>";
             case "vector<vector<int>>&", "const vector<vector<int>>&" -> "vector<vector<int>>";
+            case "vector<vector<char>>&", "const vector<vector<char>>&" -> "vector<vector<char>>";
             case "vector<long long>&", "const vector<long long>&" -> "vector<long long>";
             case "vector<string>&", "const vector<string>&" -> "vector<string>";
             case "const string&" -> "string";

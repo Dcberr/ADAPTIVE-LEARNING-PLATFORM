@@ -19,6 +19,8 @@ public class TestcaseResponse {
 
     private boolean isHidden;
 
+    private boolean ignoreOrder;
+
     private String explanation;
 
 }

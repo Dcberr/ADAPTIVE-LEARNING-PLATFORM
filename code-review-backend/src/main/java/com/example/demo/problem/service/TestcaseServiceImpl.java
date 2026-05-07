@@ -26,6 +26,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .input(request.getInput())
                 .expectedOutput(request.getExpectedOutput())
                 .isHidden(request.isHidden())
+                .ignoreOrder(request.isIgnoreOrder())
                 .build();
 
         testcaseRepository.save(testcase);
@@ -59,6 +60,7 @@ public class TestcaseServiceImpl implements TestcaseService {
                 .input(testcase.getInput())
                 .expectedOutput(testcase.getExpectedOutput())
                 .isHidden(testcase.isHidden())
+                .ignoreOrder(testcase.isIgnoreOrder())
                 .explanation(testcase.getExplanation())
                 .build();
     }

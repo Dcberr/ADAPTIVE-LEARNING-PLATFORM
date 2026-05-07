@@ -307,6 +307,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .input(testcase.getInput())
                 .expectedOutput(testcase.getExpectedOutput())
                 .isHidden(testcase.isHidden())
+                .ignoreOrder(testcase.isIgnoreOrder())
                 .explanation(testcase.getExplanation())
                 .build();
     }

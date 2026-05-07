@@ -14,5 +14,6 @@ public class TestcaseDto {
     private String input;
     private String expectedOutput;
     private boolean isHidden;
+    private boolean ignoreOrder;
     private String explanation;
 }

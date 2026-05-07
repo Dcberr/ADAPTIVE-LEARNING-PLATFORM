@@ -95,6 +95,7 @@ public class ProblemServiceImpl implements ProblemService {
                                 .input(t.getInput())
                                 .expectedOutput(t.getExpectedOutput())
                                 .isHidden(t.isHidden())
+                                .ignoreOrder(t.isIgnoreOrder())
                                 .build()
                 );
             }
@@ -673,6 +674,7 @@ public class ProblemServiceImpl implements ProblemService {
                             .input(t.getInput())
                             .expectedOutput(t.getExpectedOutput())
                             .isHidden(t.isHidden())
+                            .ignoreOrder(t.isIgnoreOrder())
                             .explanation(t.getExplanation())
                             .build()
             );

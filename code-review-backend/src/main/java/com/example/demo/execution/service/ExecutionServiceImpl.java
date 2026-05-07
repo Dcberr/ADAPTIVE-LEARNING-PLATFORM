@@ -188,7 +188,8 @@ public class ExecutionServiceImpl implements ExecutionService {
 
                         boolean correct = JudgeUtil.compareOutput(
                                         tc.getExpectedOutput(),
-                                        output);
+                                        output,
+                                        tc.isIgnoreOrder());
 
                         status = correct
                                         ? JudgeStatus.ACCEPTED
@@ -289,8 +290,7 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         private boolean shouldRegenerateCppTemplate(String template) {
                 return template.contains("int main(")
-                                && template.contains("Solution solution;")
-                                && template.contains("readLineOrDefault(");
+                                && template.contains("class Solution");
         }
 
         private String extractCppSolutionClass(String template) {
