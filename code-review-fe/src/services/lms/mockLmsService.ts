@@ -38,6 +38,7 @@ export type ExecutionSummary = {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const gradingMethod = "Highest score"
+const REVIEW_ELIGIBILITY_PERCENT = 30
 
 function getAssignmentWindow(assignment: Assignment) {
   const closedAt = new Date(assignment.dueDate)
@@ -109,7 +110,7 @@ function simulateExecution(
     percentage,
     score: Math.round((assignment.points * percentage) / 100),
     results,
-    eligibleForReview: percentage >= 70,
+    eligibleForReview: percentage >= REVIEW_ELIGIBILITY_PERCENT,
   }
 }
 

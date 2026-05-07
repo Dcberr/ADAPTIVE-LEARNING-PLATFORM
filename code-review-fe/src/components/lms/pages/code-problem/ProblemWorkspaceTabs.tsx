@@ -1,11 +1,16 @@
 "use client"
 
-import { memo } from "react"
-import { LoaderCircle, Sparkles } from "lucide-react"
+import { memo, useState } from "react"
+import { CheckCircle2, ChevronDown, CircleAlert, LoaderCircle, Sparkles } from "lucide-react"
 import { Streamdown } from "streamdown"
 
 import type { CodeReviewFeedback, UserRole } from "@/data/lms/extendedMockData"
 import CodeReviewPanel from "@/components/lms/CodeReviewPanel"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -49,7 +54,7 @@ function MarkdownBlock({ content }: { content: string }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             alt={alt ?? ""}
-            className={cn("my-3 h-auto max-w-full rounded-xl border border-slate-200 bg-white", className)}
+            className={cn("my-3 h-auto max-w-full border border-slate-200 bg-white", className)}
             style={style}
             {...props}
           />
@@ -144,11 +149,18 @@ function ProblemWorkspaceTabsComponent({
     const nextTab = value as ActiveTab
     onTabChange(nextTab)
   }
+  const [expandedResultKeys, setExpandedResultKeys] = useState<string[]>([])
+
+  const toggleResultKey = (key: string) => {
+    setExpandedResultKeys((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+    )
+  }
 
   return (
-    <Card className="min-h-[640px]">
-      <CardContent className="pt-6">
-        <Tabs value={activeTab} onValueChange={handleValueChange}>
+    <Card className="min-h-[640px] min-w-0">
+      <CardContent className="flex h-full min-h-[640px] flex-col pt-6">
+        <Tabs value={activeTab} onValueChange={handleValueChange} className="flex min-h-0 flex-1 flex-col">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="description">Mô tả</TabsTrigger>
             <TabsTrigger value="testcases">Test case</TabsTrigger>
@@ -160,7 +172,7 @@ function ProblemWorkspaceTabsComponent({
             value="description"
             forceMount={hasMounted("description") ? true : undefined}
             hidden={activeTab !== "description"}
-            className="space-y-4 pt-4"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto pt-4"
           >
             <div>
               <MarkdownBlock content={problem.description} />
@@ -201,25 +213,67 @@ function ProblemWorkspaceTabsComponent({
             value="testcases"
             forceMount={hasMounted("testcases") ? true : undefined}
             hidden={activeTab !== "testcases"}
-            className="space-y-3 pt-4"
+            className="min-h-0 flex-1 space-y-3 overflow-y-auto pt-4"
           >
-            {problem.testCases.filter((item) => !item.hidden).map((item, index) => (
-              <div key={index} className="rounded-2xl border border-slate-200 p-4 text-sm">
-                <p>
-                  <strong>Đầu vào:</strong> {item.input}
-                </p>
-                <p className="mt-2">
-                  <strong>Kết quả mong đợi:</strong> {item.expectedOutput}
-                </p>
-              </div>
-            ))}
+            {problem.testCases.filter((item) => !item.hidden).map((item, index) => {
+              const testcaseKey = `testcase-${index + 1}`
+
+              return (
+                <Collapsible key={testcaseKey} defaultOpen>
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition">
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                            <span className="text-sm font-semibold">{index + 1}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800">
+                              Test case {index + 1}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Nhấn để thu gọn hoặc mở rộng nội dung
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronDown className="size-4 text-slate-400" />
+                      </button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent className="border-t border-slate-100 bg-slate-50/40 px-4 py-4 text-sm">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Đầu vào
+                          </p>
+                          <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl bg-slate-950 px-4 py-3 font-mono text-[13px] leading-6 text-slate-100">
+                            {item.input}
+                          </pre>
+                        </div>
+                        <div>
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Kết quả mong đợi
+                          </p>
+                          <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl bg-slate-100 px-4 py-3 font-mono text-[13px] leading-6 text-slate-700">
+                            {item.expectedOutput}
+                          </pre>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              )
+            })}
           </TabsContent>
 
           <TabsContent
             value="result"
             forceMount={hasMounted("result") ? true : undefined}
             hidden={activeTab !== "result"}
-            className="space-y-4 pt-4"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto pt-4"
           >
             {displayedExecution ? (
               <>
@@ -250,7 +304,7 @@ function ProblemWorkspaceTabsComponent({
                       </Button>
                     ) : (
                       <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                        Đạt 70% test để mở AI Code Review
+                        Đạt 30% test để mở AI Code Review
                       </Badge>
                     )}
                   </div>
@@ -266,19 +320,111 @@ function ProblemWorkspaceTabsComponent({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {displayedExecution.results.map((item) => (
-                      <div key={item.idx} className="rounded-2xl border border-slate-200 p-4 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className={item.passed ? "text-emerald-600" : "text-rose-600"}>
-                            Test {item.idx}: {item.passed ? "Đạt" : "Trượt"}
-                          </p>
-                          {item.hidden ? <Badge variant="outline">Ẩn</Badge> : null}
-                        </div>
-                        <p className="mt-2 text-slate-600">Đầu vào: {item.input}</p>
-                        <p className="mt-1 text-slate-600">Mong đợi: {item.expected}</p>
-                        <p className="mt-1 text-slate-600">Thực tế: {item.actual}</p>
-                      </div>
-                    ))}
+                    {[...displayedExecution.results]
+                      .sort((left, right) => Number(left.passed) - Number(right.passed))
+                      .map((item) => {
+                        const resultKey = `${item.idx}-${item.hidden ? "hidden" : "visible"}`
+                        const isOpen = expandedResultKeys.includes(resultKey)
+
+                        return (
+                          <Collapsible
+                            key={resultKey}
+                            open={isOpen}
+                            onOpenChange={() => toggleResultKey(resultKey)}
+                          >
+                            <div
+                              className={cn(
+                                "overflow-hidden rounded-2xl border shadow-sm transition",
+                                item.passed
+                                  ? "border-emerald-200 bg-emerald-50/60"
+                                  : "border-rose-200 bg-rose-50/70"
+                              )}
+                            >
+                              <CollapsibleTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                                >
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <div
+                                      className={cn(
+                                        "flex size-9 shrink-0 items-center justify-center rounded-full",
+                                        item.passed
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : "bg-rose-100 text-rose-700"
+                                      )}
+                                    >
+                                      {item.passed ? (
+                                        <CheckCircle2 className="size-4.5" />
+                                      ) : (
+                                        <CircleAlert className="size-4.5" />
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p
+                                        className={cn(
+                                          "text-sm font-semibold",
+                                          item.passed ? "text-emerald-700" : "text-rose-700"
+                                        )}
+                                      >
+                                        Test case {item.idx}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {item.passed ? "Đã pass" : "Đang fail, cần kiểm tra"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {item.hidden ? <Badge variant="outline">Ẩn</Badge> : null}
+                                    <ChevronDown
+                                      className={cn(
+                                        "size-4 text-slate-400 transition-transform",
+                                        isOpen ? "rotate-180" : ""
+                                      )}
+                                    />
+                                  </div>
+                                </button>
+                              </CollapsibleTrigger>
+
+                              <CollapsibleContent className="border-t border-black/5 bg-white/75 px-4 py-4 text-sm">
+                                <div className="space-y-4">
+                                  <div>
+                                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Đầu vào
+                                    </p>
+                                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl bg-slate-950 px-4 py-3 font-mono text-[13px] leading-6 text-slate-100">
+                                      {item.input}
+                                    </pre>
+                                  </div>
+                                  <div>
+                                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Kết quả mong đợi
+                                    </p>
+                                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-xl bg-slate-100 px-4 py-3 font-mono text-[13px] leading-6 text-slate-700">
+                                      {item.expected}
+                                    </pre>
+                                  </div>
+                                  <div>
+                                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Kết quả thực tế
+                                    </p>
+                                    <pre
+                                      className={cn(
+                                        "overflow-x-auto whitespace-pre-wrap rounded-xl px-4 py-3 font-mono text-[13px] leading-6",
+                                        item.passed
+                                          ? "bg-emerald-100/80 text-emerald-900"
+                                          : "bg-rose-100/80 text-rose-900"
+                                      )}
+                                    >
+                                      {item.actual}
+                                    </pre>
+                                  </div>
+                                </div>
+                              </CollapsibleContent>
+                            </div>
+                          </Collapsible>
+                        )
+                      })}
                   </div>
                 )}
               </>
@@ -293,7 +439,7 @@ function ProblemWorkspaceTabsComponent({
             value="review"
             forceMount={hasMounted("review") ? true : undefined}
             hidden={activeTab !== "review"}
-            className="pt-4"
+            className="min-h-0 flex-1 overflow-y-auto pt-4"
           >
             {runningAction === "review" && !review ? (
               <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
@@ -317,7 +463,7 @@ function ProblemWorkspaceTabsComponent({
                 {reviewEmptyMessage ??
                   (canRequestReview
                     ? "Dùng Code Review để tạo phản hồi AI và gợi ý cá nhân hóa."
-                    : "AI Code Review sẽ mở sau khi bạn vượt qua ít nhất 70% số test đã chạy.")}
+                    : "AI Code Review sẽ mở sau khi bạn vượt qua ít nhất 30% số test đã chạy.")}
               </div>
             )}
           </TabsContent>

@@ -39,7 +39,9 @@ export default function RecommendationRoadmap({
   recommendation: RecommendationResponse | null
   role: UserRole
 }) {
-  if (!recommendation || recommendation.roadmap.length === 0) {
+  const roadmap = recommendation?.roadmap ?? []
+
+  if (!recommendation || roadmap.length === 0) {
     return null
   }
 
@@ -73,9 +75,9 @@ export default function RecommendationRoadmap({
       </CardHeader>
 
       <CardContent className="space-y-5 pt-6">
-        {recommendation.roadmap.map((step, index) => (
+        {roadmap.map((step, index) => (
           <div key={step.step} className="relative pl-12">
-            {index < recommendation.roadmap.length - 1 ? (
+            {index < roadmap.length - 1 ? (
               <span className="absolute left-[18px] top-11 h-[calc(100%-1rem)] w-px bg-gradient-to-b from-[#1488D8]/30 to-transparent" />
             ) : null}
 

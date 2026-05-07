@@ -3,6 +3,7 @@
 import Editor from "@monaco-editor/react"
 import { Streamdown } from "streamdown"
 
+import MultiTagCombobox from "@/components/lms/MultiTagCombobox"
 import TestCaseManager, { type EditableTestCase } from "@/components/lms/TestCaseManager"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,7 @@ export type ProblemLibraryDraft = {
   description: string
   difficulty: "EASY" | "MEDIUM" | "HARD"
   constraints: string
-  tags: string
+  tags: string[]
   starterCodes: {
     cpp: string
   }
@@ -32,7 +33,7 @@ export const EMPTY_PROBLEM_LIBRARY_DRAFT: ProblemLibraryDraft = {
   description: "",
   difficulty: "EASY",
   constraints: "",
-  tags: "",
+  tags: [],
   starterCodes: {
     cpp: "",
   },
@@ -250,18 +251,15 @@ export default function ProblemLibraryDraftForm({
         />
       </FieldBlock>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <FieldBlock
-          label="Tags"
-          hint="Không bắt buộc. Nhập các tag, phân tách bằng dấu phẩy."
-        >
-          <Input
-            placeholder="Ví dụ: array, hash-table, two-pointers"
-            value={draft.tags}
-            onChange={(event) => onChange({ tags: event.target.value })}
-          />
-        </FieldBlock>
-      </div>
+      <FieldBlock
+        label="Tags"
+      >
+        <MultiTagCombobox
+          value={draft.tags}
+          onChange={(value) => onChange({ tags: value })}
+          placeholder="Chọn tag từ danh sách cố định"
+        />
+      </FieldBlock>
 
       <div className="space-y-3">
         <div>

@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { Search } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import CompactPagination from "@/components/ui/compact-pagination"
 import {
   Dialog,
   DialogContent,
@@ -75,8 +76,6 @@ export default function AssignmentProblemLibraryDialog({
     { skip: !open }
   )
   const totalPages = data?.totalPages ?? 0
-  const hasPreviousPage = page > 0
-  const hasNextPage = totalPages > 0 && page < totalPages - 1
   const problems = data?.content ?? []
 
   return (
@@ -85,7 +84,7 @@ export default function AssignmentProblemLibraryDialog({
         <DialogHeader className="shrink-0 border-b border-slate-100 px-8 py-6 pr-16">
           <DialogTitle>Chọn bài từ kho</DialogTitle>
           <DialogDescription>
-            Chọn một bài trong Problem Bank để prefill vào form tạo assignment. Các trường còn thiếu
+            Chọn một bài trong kho bài tập để prefill vào form tạo assignment. Các trường còn thiếu
             vẫn có thể chỉnh tay trước khi lưu.
           </DialogDescription>
         </DialogHeader>
@@ -141,13 +140,20 @@ export default function AssignmentProblemLibraryDialog({
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 flex-1 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div>
                           <Badge
                             variant="outline"
                             className={getDifficultyBadgeClassName(problem.difficulty)}
                           >
                             {formatDifficultyLabel(problem.difficulty)}
                           </Badge>
+                        </div>
+
+                        <div>
+                          <p className="text-base font-semibold text-slate-900">{problem.title}</p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
                           {(problem.tags ?? problem.topics).slice(0, 4).map((tag) => (
                             <Badge
                               key={`${problem.id}-${tag}`}
@@ -157,13 +163,6 @@ export default function AssignmentProblemLibraryDialog({
                               {tag}
                             </Badge>
                           ))}
-                        </div>
-
-                        <div>
-                          <p className="text-base font-semibold text-slate-900">{problem.title}</p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            ID: <span className="font-mono text-xs">{problem.id}</span>
-                          </p>
                         </div>
                       </div>
 
@@ -182,30 +181,13 @@ export default function AssignmentProblemLibraryDialog({
           </div>
         </ScrollArea>
 
-        <div className="flex shrink-0 items-center justify-between border-t border-slate-100 px-8 py-4">
-          <p className="text-sm text-slate-500">
-            Trang {totalPages === 0 ? 0 : page + 1} / {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPage((current) => Math.max(0, current - 1))}
-              disabled={!hasPreviousPage || isFetching}
-            >
-              <ChevronLeft className="size-4" />
-              Trước
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPage((current) => current + 1)}
-              disabled={!hasNextPage || isFetching}
-            >
-              Sau
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+        <div className="flex shrink-0 justify-center border-t border-slate-100 px-8 py-4">
+          <CompactPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            disabled={isFetching}
+          />
         </div>
       </DialogContent>
     </Dialog>

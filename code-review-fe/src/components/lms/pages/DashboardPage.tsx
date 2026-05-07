@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import {
   AlertCircle,
@@ -12,6 +14,7 @@ import {
 import { courses } from "@/data/lms/mockData"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useAppSelector } from "@/store/redux/hooks"
 
 const courseImages: Record<string, string> = {
   "ai-digital-economy":
@@ -29,6 +32,7 @@ const courseImages: Record<string, string> = {
 }
 
 export default function DashboardPage() {
+  const userName = useAppSelector((state) => state.auth.user?.name ?? "Sinh viên")
   const inProgress = courses.filter((course) => course.status === "in-progress")
   const featured = courses.find((course) => course.status === "featured")
 
@@ -38,13 +42,13 @@ export default function DashboardPage() {
         <div className="absolute right-0 top-0 h-96 w-96 translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl" />
         <div className="relative z-10">
           <div className="mb-3 flex items-center gap-2">
-            <div className="size-3 animate-pulse rounded-full bg-[#FFD700]" />
+            <div className="size-3 animate-pulse rounded-full bg-[#0fa854]" />
             <span className="text-sm font-medium text-white/90">Chào mừng trở lại!</span>
           </div>
           <Badge className="mb-3 rounded-xl bg-white/20 px-3 py-1.5 text-sm text-white">
             Học kỳ 2, 2025-2026
           </Badge>
-          <h2 className="mb-3 text-3xl font-bold md:text-4xl">Xin chào, Nguyễn Xuân Hiển!</h2>
+          <h2 className="mb-3 text-3xl font-bold md:text-4xl">Xin chào, {userName}!</h2>
           <p className="mb-6 max-w-2xl text-lg text-white/90">
             Bạn có 5 bài tập đang chờ và 4 sự kiện sắp tới trong tuần này.
           </p>
@@ -55,12 +59,12 @@ export default function DashboardPage() {
                 Khóa học của tôi
               </Button>
             </Link>
-            <Link href="/student/courses">
+            <Link href="/student/problem-bank">
               <Button
                 variant="outline"
                 className="rounded-xl border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
               >
-                Vào khóa học
+                Vào kho bài tập
               </Button>
             </Link>
           </div>

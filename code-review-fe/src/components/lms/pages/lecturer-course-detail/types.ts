@@ -46,7 +46,7 @@ export type AssignmentDraft = {
   deadline: string
   attemptsAllowed: string
   constraints: string
-  tags: string
+  tags: string[]
   functionSkeleton: {
     cpp: string
   }

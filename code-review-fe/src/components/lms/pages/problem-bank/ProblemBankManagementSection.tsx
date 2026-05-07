@@ -10,10 +10,12 @@ import ProblemLibraryDraftForm, {
   EMPTY_PROBLEM_LIBRARY_DRAFT,
   type ProblemLibraryDraft,
 } from "@/components/lms/pages/problem-bank/ProblemLibraryDraftForm"
+import { normalizeFixedTagSlugs } from "@/components/lms/tagOptions"
 import SimpleModal from "@/components/lms/SimpleModal"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import CompactPagination from "@/components/ui/compact-pagination"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,7 +52,7 @@ function toDraft(problem: ProblemDetailResponse): ProblemLibraryDraft {
         ? problem.difficulty
         : "EASY",
     constraints: problem.problemConstraint ?? "",
-    tags: (problem.tags ?? []).join(", "),
+    tags: normalizeFixedTagSlugs(problem.tags ?? []),
     starterCodes: {
       cpp: problem.functionSkeletons?.cpp ?? "",
     },
@@ -73,10 +75,7 @@ function toPayload(draft: ProblemLibraryDraft) {
       explanation: item.explanation.trim() || "",
       hidden: item.hidden,
     })),
-    tags: draft.tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean),
+    tags: normalizeFixedTagSlugs(draft.tags),
   }
 }
 
@@ -153,8 +152,6 @@ export default function ProblemBankManagementSection({
   const problems = data?.content ?? []
   const totalPages = data?.totalPages ?? 0
   const totalElements = data?.totalElements ?? 0
-  const hasPreviousPage = page > 0
-  const hasNextPage = totalPages > 0 && page < totalPages - 1
   const isTableLoading = isLoading || isFetching
   const isSubmitting = isCreating || isUpdating || isFetchingProblemDetail
   const isEditOpen = Boolean(editingProblemId)
@@ -261,7 +258,7 @@ export default function ProblemBankManagementSection({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl text-[#030391]">Problem Bank</CardTitle>
+            <CardTitle className="text-2xl text-[#030391]">Kho bài tập</CardTitle>
             <p className="mt-1 text-sm text-slate-500">
               {isTableLoading ? "Đang tải..." : `Tổng số bài: ${totalElements}`}
             </p>
@@ -301,28 +298,13 @@ export default function ProblemBankManagementSection({
             }
           />
 
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Trang {totalPages === 0 ? 0 : page + 1} / {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
-                disabled={!hasPreviousPage || isFetching}
-              >
-                Trước
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPage((current) => current + 1)}
-                disabled={!hasNextPage || isFetching}
-              >
-                Sau
-              </Button>
-            </div>
+          <div className="mt-4 flex justify-center">
+            <CompactPagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              disabled={isFetching}
+            />
           </div>
         </CardContent>
       </Card>

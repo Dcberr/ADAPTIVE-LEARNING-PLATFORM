@@ -6,6 +6,7 @@ export type StoredUser = {
   id: string
   name: string
   email: string
+  userCode?: string | null
   picture?: string | null
 }
 

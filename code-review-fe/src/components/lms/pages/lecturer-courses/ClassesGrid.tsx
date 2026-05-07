@@ -108,7 +108,7 @@ export default function ClassesGrid({
           <CardContent className="p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-600">Lớp học đang quản lý</p>
+                <p className="text-sm font-medium text-slate-600">Khoá học đang quản lý</p>
                 <p className="mt-2 text-lg font-semibold text-[#030391]">{item.name}</p>
               </div>
             </div>

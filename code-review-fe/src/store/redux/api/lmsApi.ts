@@ -35,6 +35,16 @@ export type TopicAssignmentResponse = {
   tags?: string[] | null
   status: string
 }
+export type AssignmentDeadlineResponse = {
+  id: string
+  topicId: string
+  topicTitle: string
+  title: string
+  startTime: string | null
+  deadline: string
+  difficulty: "EASY" | "MEDIUM" | "HARD" | string
+  status: string
+}
 export type PaginatedResponse<T> = {
   content: T[]
   page: number
@@ -364,6 +374,15 @@ export type RecommendationResponse = {
   summary: string
   roadmap: RecommendationRoadmapStep[]
 }
+export type RecommendationHistoryItem = {
+  recommendation_id: string
+  student_id: string
+  problem_id: string
+  requested_by: string
+  created_at: string
+  recommendation: RecommendationResponse
+}
+export type RecommendationHistoryResponse = RecommendationHistoryItem[]
 export type CodeReviewLineRangeResponse = {
   start: number
   end: number
@@ -624,6 +643,12 @@ export const lmsApi = baseApi.injectEndpoints({
         { type: "Assignment" as const, id: assignmentId },
       ],
     }),
+    getAssignmentDeadlines: builder.query<AssignmentDeadlineResponse[], void>({
+      query: () => "/assignments/deadlines",
+      transformResponse: (response: ApiResponse<AssignmentDeadlineResponse[]>) =>
+        response.data ?? [],
+      providesTags: ["Assignment"],
+    }),
     getAssignmentSubmissions: builder.query<
       AssignmentSubmissionResponse[],
       GetAssignmentSubmissionsRequest
@@ -720,6 +745,10 @@ export const lmsApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiResponse<RecommendationResponse>) => response.data,
+    }),
+    getRecommendationHistoryByProblem: builder.query<RecommendationHistoryResponse, string>({
+      query: (problemId) => `/recommendations/history/problem/${problemId}/me`,
+      transformResponse: (response: ApiResponse<RecommendationHistoryResponse>) => response.data ?? [],
     }),
     getProblemReviewsByUser: builder.query<CodeReviewResponse[], GetProblemReviewsByUserRequest>({
       query: ({ problemId, userId }) =>
@@ -1271,6 +1300,7 @@ export const {
   useGetAssignmentContextQuery,
   useGetAssignmentByIdQuery,
   useLazyGetAssignmentByIdQuery,
+  useGetAssignmentDeadlinesQuery,
   useGetAssignmentSubmissionsQuery,
   useGetSubmissionByIdQuery,
   useGetAssignmentProblemQuery,
@@ -1284,6 +1314,7 @@ export const {
   useJudgeExecutionMutation,
   useReviewCodeMutation,
   useGetRecommendationRoadmapMutation,
+  useGetRecommendationHistoryByProblemQuery,
   useCreateClassMutation,
   useUpdateClassMutation,
   useDeleteClassMutation,

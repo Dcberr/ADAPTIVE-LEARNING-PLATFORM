@@ -7,6 +7,7 @@ type BackendUser = {
   id: string
   email: string
   name: string
+  userCode?: string | null
   picture?: string | null
   role: BackendRole
 }
@@ -46,6 +47,7 @@ export function mapBackendUserToStoredUser(user: BackendUser): StoredUser {
     id: user.id,
     name: user.name,
     email: user.email,
+    userCode: user.userCode ?? null,
     picture: user.picture ?? null,
   }
 }

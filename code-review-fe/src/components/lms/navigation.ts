@@ -20,18 +20,19 @@ export type NavItem = {
 export const studentNavItems: NavItem[] = [
   { name: "Trang chủ", href: "/student/dashboard", icon: Home },
   { name: "Khóa học", href: "/student/courses", icon: BookOpen },
-  { name: "Problem Bank", href: "/student/problem-bank", icon: Library },
+  { name: "Kho bài tập", href: "/student/problem-bank", icon: Library },
   { name: "Lịch", href: "/student/calendar", icon: Calendar },
   { name: "Tin nhắn", href: "/student/messages", icon: MessageSquare },
   { name: "Hồ sơ", href: "/student/profile", icon: User },
 ]
 
 export const lecturerNavItems: NavItem[] = [
-  { name: "Dashboard", href: "/lecturer/dashboard", icon: Gauge },
-  { name: "Lớp học", href: "/lecturer/courses", icon: BookOpen },
-  { name: "Problem Bank", href: "/lecturer/problem-bank", icon: Library },
+  { name: "Trang chủ", href: "/lecturer/dashboard", icon: Gauge },
+  { name: "Khoá học", href: "/lecturer/courses", icon: BookOpen },
+  { name: "Kho bài tập", href: "/lecturer/problem-bank", icon: Library },
   { name: "Lịch", href: "/lecturer/calendar", icon: Calendar },
   { name: "Tin nhắn", href: "/lecturer/messages", icon: MessageSquare },
+  { name: "Hồ sơ", href: "/lecturer/profile", icon: User },
 ]
 
 export const navItemsByRole: Record<UserRole, NavItem[]> = {

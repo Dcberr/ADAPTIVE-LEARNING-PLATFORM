@@ -20,6 +20,7 @@ import {
 import { type ResourceDraft } from "@/components/lms/pages/lecturer-course-detail/ResourceModalForm"
 import { type TopicDraft } from "@/components/lms/pages/lecturer-course-detail/TopicModalForm"
 import type { AssignmentDraft } from "@/components/lms/pages/lecturer-course-detail/types"
+import { normalizeFixedTagSlugs } from "@/components/lms/tagOptions"
 import { useKeepAliveTabs } from "@/hooks/useKeepAliveTabs"
 import { getBackendBaseUrl } from "@/lib/auth"
 import { saveCachedAssignmentProblem } from "@/lib/assignment-problem-cache"
@@ -355,7 +356,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
           description: problem.description ?? "",
           difficulty: toDraftDifficulty(problem.difficulty),
           constraints: problem.problemConstraint ?? "",
-          tags: (problem.tags ?? []).join(", "),
+          tags: normalizeFixedTagSlugs(problem.tags ?? []),
           functionSkeleton: {
             cpp: problem.functionSkeletons?.cpp ?? "",
           },
@@ -422,7 +423,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
               ? String(assignmentDetail.maxSubmission)
               : "",
           constraints: assignmentProblem.problemConstraint ?? "",
-          tags: (assignmentDetail.tags ?? assignmentProblem.tags ?? []).join(", "),
+          tags: normalizeFixedTagSlugs(assignmentDetail.tags ?? assignmentProblem.tags ?? []),
           functionSkeleton: {
             cpp: assignmentProblem.functionSkeletons?.cpp ?? "",
           },
@@ -684,10 +685,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       maxScore: Number(assignmentDraft.score) || 0,
       maxSubmission: Number(assignmentDraft.attemptsAllowed) || 0,
       difficulty: assignmentDraft.difficulty,
-      tags: assignmentDraft.tags
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      tags: normalizeFixedTagSlugs(assignmentDraft.tags),
       problem: {
         description: assignmentDraft.description.trim(),
         problemConstraint: assignmentDraft.constraints.trim(),
@@ -715,10 +713,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
             explanation: item.explanation.trim() || "",
             hidden: item.hidden,
           })),
-          tags: assignmentDraft.tags
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
+          tags: normalizeFixedTagSlugs(assignmentDraft.tags),
         })
         resetAssignmentCreateModal()
         toast({
@@ -761,10 +756,7 @@ export default function LecturerCourseDetailPage({ classId }: { classId: string 
       maxScore: Number(assignmentEditDraft.score) || 0,
       maxSubmission: Number(assignmentEditDraft.attemptsAllowed) || 0,
       difficulty: assignmentEditDraft.difficulty,
-      tags: assignmentEditDraft.tags
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      tags: normalizeFixedTagSlugs(assignmentEditDraft.tags),
       problem: {
         description: assignmentEditDraft.description.trim(),
         problemConstraint: assignmentEditDraft.constraints.trim(),
