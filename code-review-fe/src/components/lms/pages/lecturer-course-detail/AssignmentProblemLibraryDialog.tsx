@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { Search } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import CompactPagination from "@/components/ui/compact-pagination"
 import {
   Dialog,
   DialogContent,
@@ -75,8 +76,6 @@ export default function AssignmentProblemLibraryDialog({
     { skip: !open }
   )
   const totalPages = data?.totalPages ?? 0
-  const hasPreviousPage = page > 0
-  const hasNextPage = totalPages > 0 && page < totalPages - 1
   const problems = data?.content ?? []
 
   return (
@@ -182,30 +181,13 @@ export default function AssignmentProblemLibraryDialog({
           </div>
         </ScrollArea>
 
-        <div className="flex shrink-0 items-center justify-between border-t border-slate-100 px-8 py-4">
-          <p className="text-sm text-slate-500">
-            Trang {totalPages === 0 ? 0 : page + 1} / {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPage((current) => Math.max(0, current - 1))}
-              disabled={!hasPreviousPage || isFetching}
-            >
-              <ChevronLeft className="size-4" />
-              Trước
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPage((current) => current + 1)}
-              disabled={!hasNextPage || isFetching}
-            >
-              Sau
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+        <div className="flex shrink-0 justify-center border-t border-slate-100 px-8 py-4">
+          <CompactPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            disabled={isFetching}
+          />
         </div>
       </DialogContent>
     </Dialog>

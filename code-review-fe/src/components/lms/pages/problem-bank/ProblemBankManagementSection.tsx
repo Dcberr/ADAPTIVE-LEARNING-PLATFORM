@@ -15,6 +15,7 @@ import SimpleModal from "@/components/lms/SimpleModal"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import CompactPagination from "@/components/ui/compact-pagination"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,8 +152,6 @@ export default function ProblemBankManagementSection({
   const problems = data?.content ?? []
   const totalPages = data?.totalPages ?? 0
   const totalElements = data?.totalElements ?? 0
-  const hasPreviousPage = page > 0
-  const hasNextPage = totalPages > 0 && page < totalPages - 1
   const isTableLoading = isLoading || isFetching
   const isSubmitting = isCreating || isUpdating || isFetchingProblemDetail
   const isEditOpen = Boolean(editingProblemId)
@@ -299,28 +298,13 @@ export default function ProblemBankManagementSection({
             }
           />
 
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Trang {totalPages === 0 ? 0 : page + 1} / {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
-                disabled={!hasPreviousPage || isFetching}
-              >
-                Trước
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPage((current) => current + 1)}
-                disabled={!hasNextPage || isFetching}
-              >
-                Sau
-              </Button>
-            </div>
+          <div className="mt-4 flex justify-center">
+            <CompactPagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              disabled={isFetching}
+            />
           </div>
         </CardContent>
       </Card>
