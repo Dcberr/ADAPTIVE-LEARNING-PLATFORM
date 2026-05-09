@@ -23,6 +23,7 @@ import com.example.demo.document.dto.UpdateDocumentRequest;
 import com.example.demo.document.service.DocumentService;
 import com.example.demo.document.service.MinioStorageService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -105,6 +106,7 @@ public class DocumentController {
     }
 
     @Operation(summary = "Stream video document (supports Range header)")
+    @Hidden
     @GetMapping("/stream/{id}")
     public ResponseEntity<Resource> stream(
             @Parameter(description = "Document ID")

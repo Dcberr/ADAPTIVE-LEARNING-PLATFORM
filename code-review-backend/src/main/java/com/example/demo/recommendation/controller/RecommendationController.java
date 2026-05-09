@@ -17,6 +17,7 @@ import com.example.demo.recommendation.dto.RecommendationRequest;
 import com.example.demo.recommendation.dto.RecommendationResponse;
 import com.example.demo.recommendation.service.RecommendationService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class RecommendationController {
     }
 
     @Operation(summary = "Get my recommendation history")
+    @Hidden
     @GetMapping("/history/me")
     public ApiResponse<List<RecommendationHistoryResponse>> getMyRecommendationHistory(
             Authentication authentication
@@ -59,6 +61,7 @@ public class RecommendationController {
     }
 
     @Operation(summary = "Get recommendation history of a student")
+    @Hidden
     @GetMapping("/history/student/{studentId}")
     public ApiResponse<List<RecommendationHistoryResponse>> getRecommendationHistory(
             Authentication authentication,

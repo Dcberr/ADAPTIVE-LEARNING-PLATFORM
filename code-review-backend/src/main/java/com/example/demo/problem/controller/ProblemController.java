@@ -20,6 +20,7 @@ import com.example.demo.problem.dto.UpdateProblemSourceRequest;
 import com.example.demo.problem.dto.UpdateProblemTemplateRequest;
 import com.example.demo.problem.service.ProblemService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,7 @@ public class ProblemController {
     private final ProblemService problemService;
 
     @Operation(summary = "Create a new problem")
+    @Hidden
     @PostMapping
     public ApiResponse<ProblemResponse> createProblem(
             @RequestBody CreateProblemRequest request
@@ -80,6 +82,7 @@ public class ProblemController {
     }
 
     @Operation(summary = "Create manual problem")
+    @Hidden
     @PostMapping("/manual")
     public ApiResponse<ProblemResponse> createManualProblem(
             @RequestBody CreateProblemRequest request
@@ -90,6 +93,7 @@ public class ProblemController {
     }
 
     @Operation(summary = "Batch import LeetCode problems")
+    @Hidden
     @PostMapping("/leetcode/batch")
     public ApiResponse<List<ProblemResponse>> importLeetCodeProblems(
             @RequestBody List<LeetCodeImportRequest> requests
@@ -98,6 +102,7 @@ public class ProblemController {
     }
 
     @Operation(summary = "Batch update LeetCode problems")
+    @Hidden
     @PutMapping("/leetcode/batch")
     public ApiResponse<List<ProblemResponse>> updateLeetCodeProblems(
             @RequestBody List<LeetCodeImportRequest> requests
@@ -130,6 +135,7 @@ public class ProblemController {
     }
 
     @Operation(summary = "Add problem from class to library")
+    @Hidden
     @PutMapping("/source/library")
     public ApiResponse<ProblemResponse> updateProblemSourceToLibrary(
             @RequestBody UpdateProblemSourceRequest request
@@ -149,6 +155,7 @@ public class ProblemController {
         }
 
     @Operation(summary = "Update problem starter code templates")
+    @Hidden
     @PutMapping("/templates")
     public ApiResponse<ProblemResponse> updateProblemTemplate(
             @RequestBody UpdateProblemTemplateRequest request

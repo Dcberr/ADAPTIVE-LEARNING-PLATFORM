@@ -14,10 +14,12 @@ import com.example.demo.user.dto.UserResponse;
 import com.example.demo.user.entity.Role;
 import com.example.demo.user.service.UserService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Hidden
 @Tag(name = "User", description = "APIs for user management")
 @RestController
 @RequestMapping("/users")

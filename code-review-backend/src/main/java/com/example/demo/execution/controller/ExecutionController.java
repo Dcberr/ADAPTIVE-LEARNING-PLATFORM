@@ -10,6 +10,7 @@ import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.service.ExecutionService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -32,6 +33,7 @@ public class ExecutionController {
     }
 
     @Operation(summary = "Run code without judging")
+    @Hidden
     @PostMapping("/run")
     public ApiResponse<RunCodeResponse> run(
             @RequestBody RunCodeRequest request

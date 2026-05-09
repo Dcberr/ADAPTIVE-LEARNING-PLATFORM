@@ -12,6 +12,7 @@ import com.example.demo.problem.dto.CreateTestcaseRequest;
 import com.example.demo.problem.dto.TestcaseResponse;
 import com.example.demo.problem.service.TestcaseService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +26,7 @@ public class TestcaseController {
     private final TestcaseService testcaseService;
 
     @Operation(summary = "Create a testcase for a problem")
+    @Hidden
     @PostMapping
     public ApiResponse<TestcaseResponse> createTestcase(
             @RequestBody CreateTestcaseRequest request
@@ -35,6 +37,7 @@ public class TestcaseController {
     }
 
     @Operation(summary = "Get testcases by problem ID")
+    @Hidden
     @GetMapping("/problem/{problemId}")
     public ApiResponse<List<TestcaseResponse>> getTestcases(
             @Parameter(description = "Problem ID")

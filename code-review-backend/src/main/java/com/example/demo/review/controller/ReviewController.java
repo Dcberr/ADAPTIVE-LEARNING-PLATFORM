@@ -8,6 +8,7 @@ import com.example.demo.common.response.ApiResponse;
 import com.example.demo.review.dto.ReviewResponse;
 import com.example.demo.review.service.ReviewService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +29,7 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     @Operation(summary = "Review a submission (AI code review)")
+    @Hidden
     @PostMapping("/submission/{submissionId}")
     public ApiResponse<ReviewResponse> review(
             @Parameter(description = "Submission ID")
@@ -64,7 +66,7 @@ public class ReviewController {
     }
 
     @Operation(summary = "Get all reviews for a problem")
-    @GetMapping("/problem/{problemId}")
+    @GetMapping("/problem/{problemId}/me")
     public ApiResponse<List<ReviewResponse>> getProblemReviews(
             Authentication auth,
             @Parameter(description = "Problem ID")

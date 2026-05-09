@@ -18,6 +18,7 @@ import com.example.demo.assignment.dto.UpdateAssignmentRequest;
 import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.common.response.ApiResponse;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -85,6 +86,7 @@ public class AssignmentController {
     }
 
     @Operation(summary = "Add an existing LeetCode problem to an assignment in a topic")
+    @Hidden
     @PostMapping("/topic/{topicId}/{assignmentId}/problems/leetcode")
     public ApiResponse<AssignmentResponse> addLeetCodeProblemToAssignment(
             @PathVariable UUID topicId,

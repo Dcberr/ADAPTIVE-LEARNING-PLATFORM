@@ -16,6 +16,7 @@ import com.example.demo.topic.dto.TopicResponse;
 import com.example.demo.topic.dto.UpdateTopicRequest;
 import com.example.demo.topic.service.TopicService;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -73,6 +74,7 @@ public class TopicController {
     }
 
     @Operation(summary = "Add an existing LeetCode problem to a topic")
+    @Hidden
     @PostMapping("/{topicId}/assignments/leetcode")
     public ApiResponse<AssignmentResponse> addLeetCodeProblemToTopic(
             @Parameter(description = "Topic ID")
