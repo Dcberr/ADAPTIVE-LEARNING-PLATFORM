@@ -3,6 +3,7 @@
 import { memo } from "react"
 import { LoaderCircle, Trash2, UserRound } from "lucide-react"
 
+import ExternalAvatar from "@/components/lms/ExternalAvatar"
 import { StudentsListSkeleton } from "@/components/lms/LmsLoadingStates"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,18 +52,16 @@ function StudentsMonitoringTabComponent({
                   <div key={student.id} className="rounded-2xl border border-slate-200 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-3">
-                        {student.picture ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={student.picture}
-                            alt={student.name}
-                            className="size-12 rounded-full border border-slate-200 object-cover"
-                          />
-                        ) : (
-                          <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
-                            {fallbackLabel || <UserRound className="size-5" />}
-                          </div>
-                        )}
+                        <ExternalAvatar
+                          src={student.picture}
+                          alt={student.name}
+                          className="size-12 rounded-full border border-slate-200 object-cover"
+                          fallback={
+                            <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                              {fallbackLabel || <UserRound className="size-5" />}
+                            </div>
+                          }
+                        />
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-slate-900">{student.name}</p>
                           <p className="mt-1 truncate text-sm text-slate-500">{student.email}</p>

@@ -95,22 +95,50 @@ function formatSubmissionScore(score: string, maxScore?: number | null) {
     return null
   }
 
-  const formattedScore = numericScore.toLocaleString("vi-VN", {
+  if (typeof maxScore !== "number" || !Number.isFinite(maxScore) || maxScore <= 0) {
+    return numericScore.toLocaleString("vi-VN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  const scaledScore = (numericScore / 100) * maxScore
+  const formattedScore = scaledScore.toLocaleString("vi-VN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-
-  if (typeof maxScore !== "number" || !Number.isFinite(maxScore) || maxScore <= 0) {
-    return formattedScore
-  }
-
   const formattedMaxScore = maxScore.toLocaleString("vi-VN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  const percentage = Math.round((numericScore / maxScore) * 100)
+  const percentage = Math.round(numericScore)
 
   return `${formattedScore} trên ${formattedMaxScore} (${percentage}%)`
+}
+
+function scaleScoreToMax(value: number, maxScore?: number | null) {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+
+  if (typeof maxScore !== "number" || !Number.isFinite(maxScore) || maxScore <= 0) {
+    return value
+  }
+
+  return (value / 100) * maxScore
+}
+
+function formatCompactScore(value: number, maxScore?: number | null) {
+  const scaledValue = scaleScoreToMax(value, maxScore)
+
+  if (!Number.isFinite(value)) {
+    return "0"
+  }
+
+  return scaledValue.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
 }
 
 function formatAttemptLimit(value?: number | null) {
@@ -122,10 +150,23 @@ function formatAttemptLimit(value?: number | null) {
 }
 
 function formatDifficultyLabel(value: string) {
-  if (value === "EASY") return "Dễ"
-  if (value === "MEDIUM") return "Trung bình"
-  if (value === "HARD") return "Khó"
   return value
+}
+
+function getDifficultyBadgeClassName(value: string) {
+  if (value === "EASY" || value === "Easy") {
+    return "w-20 justify-center border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+  }
+
+  if (value === "MEDIUM" || value === "Medium") {
+    return "w-20 justify-center border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50"
+  }
+
+  if (value === "HARD" || value === "Hard") {
+    return "w-20 justify-center border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50"
+  }
+
+  return "w-20 justify-center border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-50"
 }
 
 export default function AssignmentDetailPage({
@@ -202,7 +243,12 @@ export default function AssignmentDetailPage({
     <div className="space-y-6">
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline">{formatDifficultyLabel(assignment.difficulty)}</Badge>
+          <Badge
+            variant="outline"
+            className={getDifficultyBadgeClassName(assignment.difficulty)}
+          >
+            {formatDifficultyLabel(assignment.difficulty)}
+          </Badge>
           <Badge variant="outline">{formatScore(assignment.maxScore)}</Badge>
           {(assignment.tags ?? []).map((tag) => (
             <Badge key={tag} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
@@ -254,7 +300,7 @@ export default function AssignmentDetailPage({
               Tổng quan lần nộp
             </p>
             <p className="mt-3 text-5xl font-bold text-[#030391]">
-              {bestScore}
+              {formatCompactScore(bestScore, assignment.maxScore)}
               {typeof assignment.maxScore === "number" ? `/${assignment.maxScore}` : ""}
             </p>
             <p className="mt-2 text-sm text-slate-500">

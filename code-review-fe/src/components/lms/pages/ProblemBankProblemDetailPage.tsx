@@ -49,11 +49,49 @@ function formatRuntime(value?: number | null) {
   return `${value} ms`
 }
 
+function formatCompactScore(value: number) {
+  if (!Number.isFinite(value)) {
+    return "0"
+  }
+
+  return value.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
+}
+
 function formatDifficultyLabel(value: string) {
-  if (value === "EASY") return "Dễ"
-  if (value === "MEDIUM") return "Trung bình"
-  if (value === "HARD") return "Khó"
   return value
+}
+
+function getDifficultyBadgeClassName(value: string) {
+  if (value === "EASY" || value === "Easy") {
+    return "w-20 justify-center border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+  }
+
+  if (value === "MEDIUM" || value === "Medium") {
+    return "w-20 justify-center border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50"
+  }
+
+  if (value === "HARD" || value === "Hard") {
+    return "w-20 justify-center border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50"
+  }
+
+  return "w-20 justify-center border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-50"
+}
+
+function getTagBadgeClassName(tag: string) {
+  const palette = [
+    "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50",
+    "border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-50",
+    "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-50",
+    "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50",
+    "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-50",
+    "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-50",
+  ]
+  const index = Array.from(tag).reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length
+
+  return palette[index]
 }
 
 export default function ProblemBankProblemDetailPage({
@@ -105,10 +143,15 @@ export default function ProblemBankProblemDetailPage({
       <div className="rounded-3xl border border-[#030391]/10 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <Badge className="bg-[#1488D8] text-white">Kho bài tập</Badge>
-          <Badge variant="outline">{formatDifficultyLabel(problem.difficulty)}</Badge>
+          <Badge
+            variant="outline"
+            className={getDifficultyBadgeClassName(problem.difficulty)}
+          >
+            {formatDifficultyLabel(problem.difficulty)}
+          </Badge>
           <Badge variant="outline">100 điểm</Badge>
           {(problem.tags ?? []).map((tag) => (
-            <Badge key={tag} className="bg-[#E3F2FD] text-[#030391] hover:bg-[#E3F2FD]">
+            <Badge key={tag} variant="outline" className={getTagBadgeClassName(tag)}>
               {tag}
             </Badge>
           ))}
@@ -154,7 +197,9 @@ export default function ProblemBankProblemDetailPage({
             <p className="text-sm font-semibold uppercase tracking-wide text-[#1488D8]">
               Tổng quan lần nộp
             </p>
-            <p className="mt-3 text-5xl font-bold text-[#030391]">{bestScore}/100</p>
+            <p className="mt-3 text-5xl font-bold text-[#030391]">
+              {formatCompactScore(bestScore)}/100
+            </p>
             <p className="mt-2 text-sm text-slate-500">
               {submissions.length > 0
                 ? `Đã có ${submissions.length} lần nộp cho bài luyện tập này.`

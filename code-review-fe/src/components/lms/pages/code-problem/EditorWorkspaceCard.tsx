@@ -240,7 +240,6 @@ function EditorWorkspaceCardComponent({
             {(helperLines ?? [
               "Chạy code sẽ chạy các test mẫu hiện có và cập nhật tab Kết quả.",
               "Nộp bài sẽ lưu bài nộp, điểm số, thời gian làm và quay lại trang bài tập.",
-              "Code Review sẽ mở sau khi đạt ít nhất 30% số test.",
             ]).map((item) => (
               <li key={item}>{item}</li>
             ))}

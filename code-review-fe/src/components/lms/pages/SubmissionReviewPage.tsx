@@ -311,7 +311,7 @@ export default function SubmissionReviewPage({
           canRequestReview={false}
           readOnly
           hideActions
-          helperTitle="Ảnh chụp bài nộp"
+          helperTitle="Quy trình nộp bài"
           onCodeChange={() => {}}
           onRun={() => {}}
           onSubmit={() => {}}

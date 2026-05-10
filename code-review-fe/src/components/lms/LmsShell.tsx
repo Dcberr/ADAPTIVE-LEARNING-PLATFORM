@@ -26,6 +26,7 @@ import {
   type UserRole,
 } from "@/data/lms/extendedMockData"
 import { assignments, calendarEvents } from "@/data/lms/mockData"
+import ExternalAvatar from "@/components/lms/ExternalAvatar"
 import { navItemsByRole } from "@/components/lms/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -181,18 +182,16 @@ export default function LmsShell({
                     type="button"
                     className="flex items-center gap-3 rounded-2xl p-2 pr-4 text-left transition-all hover:bg-[#E3F2FD]"
                   >
-                    {user?.picture ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={user.picture}
-                        alt={user.name ?? "Avatar"}
-                        className="size-10 rounded-2xl object-cover shadow-sm"
-                      />
-                    ) : (
-                      <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#030391] to-[#1488D8] shadow-sm">
-                        <span className="text-2xl font-semibold text-white">{initials}</span>
-                      </div>
-                    )}
+                    <ExternalAvatar
+                      src={user?.picture}
+                      alt={user?.name ?? "Avatar"}
+                      className="size-10 rounded-2xl object-cover shadow-sm"
+                      fallback={
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#030391] to-[#1488D8] shadow-sm">
+                          <span className="text-2xl font-semibold text-white">{initials}</span>
+                        </div>
+                      }
+                    />
                     <div className="hidden min-w-0 text-left sm:block">
                       <p className="truncate text-[13px] font-semibold uppercase tracking-[0.04em] text-[#030391]">
                         {user?.name ?? "BK Learning Hub"}
@@ -204,18 +203,16 @@ export default function LmsShell({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-72 rounded-2xl p-2">
                   <div className="flex items-center gap-3 px-3 py-2">
-                    {user?.picture ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={user.picture}
-                        alt={user.name ?? "Avatar"}
-                        className="size-12 rounded-2xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#030391] to-[#1488D8]">
-                        <span className="text-lg font-semibold text-white">{initials}</span>
-                      </div>
-                    )}
+                    <ExternalAvatar
+                      src={user?.picture}
+                      alt={user?.name ?? "Avatar"}
+                      className="size-12 rounded-2xl object-cover"
+                      fallback={
+                        <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#030391] to-[#1488D8]">
+                          <span className="text-lg font-semibold text-white">{initials}</span>
+                        </div>
+                      }
+                    />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[#030391]">
                         {user?.name ?? "BK Learning Hub"}

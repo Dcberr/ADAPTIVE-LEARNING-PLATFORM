@@ -15,9 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 
 function getDifficultyLabel(value: string) {
-  if (value === "HARD" || value === "Hard") return "Khó"
-  if (value === "MEDIUM" || value === "Medium") return "Trung bình"
-  return "Dễ"
+  return value
 }
 
 function getDifficultyClass(value: string) {
@@ -30,6 +28,20 @@ function getDifficultyClass(value: string) {
   }
 
   return "border-emerald-200 bg-emerald-50 text-emerald-700"
+}
+
+function getTagBadgeClassName(tag: string) {
+  const palette = [
+    "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50",
+    "border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-50",
+    "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-50",
+    "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50",
+    "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-50",
+    "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-50",
+  ]
+  const index = Array.from(tag).reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length
+
+  return palette[index]
 }
 
 export default function RecommendationRoadmap({
@@ -90,7 +102,10 @@ export default function RecommendationRoadmap({
                   {step.step}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-xs px-3 py-2 text-left text-sm leading-6">
+              <TooltipContent
+                side="right"
+                className="max-w-xs border border-slate-200 bg-white px-3 py-2 text-left text-sm leading-6 text-slate-700 shadow-lg"
+              >
                 {step.summary}
               </TooltipContent>
             </Tooltip>
@@ -98,7 +113,7 @@ export default function RecommendationRoadmap({
             <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-[#030391]">Bước {step.step}</p>
+                  <p className="text-sm font-semibold text-[#030391]">Step {step.step}</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">{step.summary}</p>
                 </div>
 
@@ -108,7 +123,10 @@ export default function RecommendationRoadmap({
                       <Badge
                         key={concept}
                         variant="outline"
-                        className="rounded-full border-sky-200 bg-sky-50 px-3 py-1 text-sky-700"
+                        className={cn(
+                          "rounded-full px-3 py-1",
+                          getTagBadgeClassName(concept)
+                        )}
                       >
                         {concept}
                       </Badge>
@@ -155,7 +173,10 @@ export default function RecommendationRoadmap({
                               <Badge
                                 key={concept}
                                 variant="outline"
-                                className="rounded-full border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600"
+                                className={cn(
+                                  "rounded-full px-2.5 py-1 text-[11px]",
+                                  getTagBadgeClassName(concept)
+                                )}
                               >
                                 {concept}
                               </Badge>
@@ -169,7 +190,10 @@ export default function RecommendationRoadmap({
                         </div>
                       </Link>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-sm px-3 py-2 text-left text-sm leading-6">
+                    <TooltipContent
+                      side="top"
+                      className="max-w-sm border border-slate-200 bg-white px-3 py-2 text-left text-sm leading-6 text-slate-700 shadow-lg"
+                    >
                       <div className="space-y-1">
                         <p className="font-semibold">Lý do gợi ý</p>
                         <p>{item.reason}</p>
@@ -193,7 +217,10 @@ export default function RecommendationRoadmap({
                 <Badge
                   key={concept}
                   variant="outline"
-                  className="rounded-full border-[#1488D8]/20 bg-[#1488D8]/5 px-3 py-1 text-[#1488D8]"
+                  className={cn(
+                    "rounded-full px-3 py-1",
+                    getTagBadgeClassName(concept)
+                  )}
                 >
                   {concept}
                 </Badge>

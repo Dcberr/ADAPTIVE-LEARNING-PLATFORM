@@ -144,7 +144,6 @@ export default function ClassWorkspaceModals({
           isCreating={isSubmittingClass}
           submitLabel="Lưu thông tin lớp"
           submittingLabel="Đang lưu lớp..."
-          descriptionHint="Backend không trả về mô tả hiện tại. Nếu để trống và không chỉnh trường này, hệ thống sẽ giữ nguyên mô tả cũ."
           onChange={onClassDraftChange}
           onSubmit={(event) => {
             event.preventDefault()

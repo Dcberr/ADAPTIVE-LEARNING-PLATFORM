@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { BookOpen, Settings, User } from "lucide-react"
 
+import ExternalAvatar from "@/components/lms/ExternalAvatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,18 +34,16 @@ export default function ProfilePage() {
           <CardTitle>Hồ sơ {roleLabel.toLowerCase()}</CardTitle>
         </CardHeader>
         <CardContent>
-          {user?.picture ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.picture}
-              alt={user.name ?? "Avatar"}
-              className="mb-4 size-24 rounded-full object-cover shadow-sm"
-            />
-          ) : (
-            <div className="mb-4 flex size-24 items-center justify-center rounded-3xl bg-[#030391] text-2xl font-bold text-white">
-              {initials}
-            </div>
-          )}
+          <ExternalAvatar
+            src={user?.picture}
+            alt={user?.name ?? "Avatar"}
+            className="mb-4 size-24 rounded-full object-cover shadow-sm"
+            fallback={
+              <div className="mb-4 flex size-24 items-center justify-center rounded-3xl bg-[#030391] text-2xl font-bold text-white">
+                {initials}
+              </div>
+            }
+          />
           <p className="font-semibold">{user?.name ?? "Chưa có thông tin"}</p>
           <p className="text-sm text-slate-500">{user?.email ?? "Chưa có email"}</p>
           <p className="mt-2 text-sm font-medium text-[#030391]">
