@@ -1,9 +1,11 @@
 package com.example.demo.recommendation.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,6 +26,10 @@ import com.example.demo.recommendation.dto.RecommendationRequest;
 import com.example.demo.recommendation.dto.RecommendationResponse;
 import com.example.demo.recommendation.entity.RecommendationHistory;
 import com.example.demo.recommendation.repository.RecommendationHistoryRepository;
+import com.example.demo.review.dto.ReviewResponse;
+import com.example.demo.review.entity.CodeReview;
+import com.example.demo.review.repository.CodeReviewRepository;
+import com.example.demo.submission.entity.Submission;
 import com.example.demo.submission.repository.SubmissionRepository;
 import com.example.demo.user.entity.Role;
 import com.example.demo.user.entity.User;
@@ -45,6 +51,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final ProblemRepository problemRepository;
     private final ProblemTagRepository problemTagRepository;
     private final SubmissionRepository submissionRepository;
+    private final CodeReviewRepository codeReviewRepository;
     private final RecommendationHistoryRepository recommendationHistoryRepository;
     private final ObjectMapper objectMapper;
 
@@ -104,6 +111,10 @@ public class RecommendationServiceImpl implements RecommendationService {
         String content = !safe(problem.getProblemConstraint()).isBlank()
                 ? safe(problem.getProblemConstraint())
                 : description;
+        Optional<Submission> latestSubmission = resolveLatestSubmittedSubmission(
+                request.getStudentId(),
+                problem.getId()
+        );
 
         return RecommendationAgentRequest.builder()
                 .studentId(request.getStudentId().toString())
@@ -119,9 +130,74 @@ public class RecommendationServiceImpl implements RecommendationService {
                                 .filter(tag -> tag != null && !tag.isBlank())
                                 .toList())
                         .build())
+                .review(latestSubmission
+                        .flatMap(submission -> resolveLatestReview(submission.getId()))
+                        .orElse(null))
+                .submission(latestSubmission
+                        .map(this::toRecommendationSubmission)
+                        .orElse(null))
                 .focusConceptIds(resolveFocusConceptIds(problem))
                 .attemptedExerciseIds(resolveAttemptedExerciseIds(request.getStudentId()))
                 .build();
+    }
+
+    private Optional<Submission> resolveLatestSubmittedSubmission(UUID studentId, UUID problemId) {
+        return submissionRepository.getAllSubmissionsByProblemIdAndUserId(studentId, problemId).stream()
+                .filter(submission -> submission.getSubmittedAt() != null)
+                .max(Comparator.comparing(Submission::getSubmittedAt)
+                        .thenComparing(Submission::getId));
+    }
+
+    private Optional<RecommendationAgentRequest.Review> resolveLatestReview(UUID submissionId) {
+        return codeReviewRepository.findBySubmissionId(submissionId).stream()
+                .max(Comparator.comparing(
+                                CodeReview::getCreatedAt,
+                                Comparator.nullsLast(Comparator.naturalOrder())
+                        )
+                        .thenComparing(
+                                CodeReview::getId,
+                                Comparator.nullsLast(Comparator.naturalOrder())
+                        ))
+                .map(this::toRecommendationReview);
+    }
+
+    private RecommendationAgentRequest.Review toRecommendationReview(CodeReview review) {
+        ReviewResponse storedReview = deserializeStoredReview(review);
+
+        return RecommendationAgentRequest.Review.builder()
+                .reviewId(review.getId() != null ? review.getId().toString() : safe(storedReview.getReview_id()))
+                .summary(!safe(review.getSummary()).isBlank() ? safe(review.getSummary()) : safe(storedReview.getSummary()))
+                .detail(!safe(review.getDetail()).isBlank() ? safe(review.getDetail()) : safe(storedReview.getDetail()))
+                .reviewItems(storedReview.getReview_items() != null ? storedReview.getReview_items() : List.of())
+                .build();
+    }
+
+    private RecommendationAgentRequest.Submission toRecommendationSubmission(Submission submission) {
+        return RecommendationAgentRequest.Submission.builder()
+                .submissionId(submission.getId() != null ? submission.getId().toString() : "")
+                .code(safe(submission.getCode()))
+                .testcases(submission.getTestcaseResults() == null
+                        ? List.of()
+                        : submission.getTestcaseResults().stream()
+                                .map(testcase -> RecommendationAgentRequest.SubmissionTestCase.builder()
+                                        .input(safe(testcase.getInput()))
+                                        .expect(safe(testcase.getExpectedOutput()))
+                                        .output(safe(testcase.getOutput()))
+                                        .build())
+                                .toList())
+                .createdAt(submission.getSubmittedAt() != null ? submission.getSubmittedAt().toString() : "")
+                .build();
+    }
+
+    private ReviewResponse deserializeStoredReview(CodeReview review) {
+        try {
+            return review.getReviewItemsJson() == null || review.getReviewItemsJson().isBlank()
+                    ? ReviewResponse.builder().build()
+                    : objectMapper.readValue(review.getReviewItemsJson(), ReviewResponse.class);
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to deserialize stored review for recommendation, reviewId={}", review.getId(), ex);
+            return ReviewResponse.builder().build();
+        }
     }
 
     private java.util.List<String> resolveFocusConceptIds(Problem problem) {
