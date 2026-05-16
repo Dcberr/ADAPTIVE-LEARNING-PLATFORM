@@ -1,8 +1,9 @@
 package com.example.demo.assignment.service;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,6 +26,9 @@ import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
+import com.example.demo.classmanagement.entity.ClassEnrollment;
+import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
+import com.example.demo.classmanagement.repository.ClassRepository;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.entity.Problem;
@@ -37,6 +41,9 @@ import com.example.demo.problem.service.ProblemService;
 import com.example.demo.submission.repository.SubmissionRepository;
 import com.example.demo.topic.entity.Topic;
 import com.example.demo.topic.repository.TopicRepository;
+import com.example.demo.user.entity.Role;
+import com.example.demo.user.entity.User;
+import com.example.demo.user.repository.UserRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -50,6 +57,9 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final SubmissionRepository submissionRepository;
     private final AssignmentMapper assignmentMapper;
     private final TopicRepository topicRepository;
+    private final UserRepository userRepository;
+    private final ClassRepository classRepository;
+    private final ClassEnrollmentRepository classEnrollmentRepository;
 
     @Override
     public AssignmentResponse createAssignment(CreateAssignmentRequest request) {
@@ -112,20 +122,51 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
-    public List<AssignmentDeadlineResponse> getAssignmentDeadlines() {
-        List<Assignment> assignments = assignmentRepository.findByDeletedAtIsNullOrderByDeadlineAsc();
+    public List<AssignmentDeadlineResponse> getAssignmentDeadlines(UUID userId) {
+        if (userId == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
 
-        Map<UUID, Topic> topicsById = topicRepository.findAllById(
-                assignments.stream()
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Set<UUID> accessibleClassIds = resolveAccessibleClassIds(user);
+        if (accessibleClassIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Topic> accessibleTopics = topicRepository.findAllById(
+                assignmentRepository.findByDeletedAtIsNullOrderByDeadlineAsc().stream()
                         .map(Assignment::getTopicId)
                         .distinct()
-                        .toList())
-                .stream()
+                        .toList()
+        ).stream()
+                .filter(topic -> topic.getDeletedAt() == null)
+                .filter(topic -> accessibleClassIds.contains(topic.getClassId()))
+                .toList();
+
+        Map<UUID, Topic> topicsById = accessibleTopics.stream()
                 .collect(Collectors.toMap(Topic::getId, Function.identity()));
+
+        List<Assignment> assignments = assignmentRepository.findByDeletedAtIsNullOrderByDeadlineAsc().stream()
+                .filter(assignment -> topicsById.containsKey(assignment.getTopicId()))
+                .toList();
 
         return assignments.stream()
                 .map(assignment -> mapAssignmentDeadline(assignment, topicsById.get(assignment.getTopicId())))
                 .toList();
+    }
+
+    private Set<UUID> resolveAccessibleClassIds(User user) {
+        if (user.getRole() == Role.INSTRUCTOR || user.getRole() == Role.ADMIN) {
+            return classRepository.findByInstructorIdAndDeletedAtIsNull(user.getId()).stream()
+                    .map(com.example.demo.classmanagement.entity.Class::getId)
+                    .collect(Collectors.toSet());
+        }
+
+        return classEnrollmentRepository.findByStudentId(user.getId()).stream()
+                .map(ClassEnrollment::getClassId)
+                .collect(Collectors.toSet());
     }
 
     @Override

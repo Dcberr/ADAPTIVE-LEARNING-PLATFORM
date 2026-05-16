@@ -22,6 +22,8 @@ import com.example.demo.assignment.entity.AssignmentStatus;
 import com.example.demo.assignment.mapper.AssignmentMapper;
 import com.example.demo.assignment.repository.AssignmentProblemRepository;
 import com.example.demo.assignment.repository.AssignmentRepository;
+import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
+import com.example.demo.classmanagement.repository.ClassRepository;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.ProblemResponse;
 import com.example.demo.problem.entity.Problem;
@@ -32,6 +34,7 @@ import com.example.demo.problem.repository.TestcaseRepository;
 import com.example.demo.problem.service.ProblemService;
 import com.example.demo.submission.repository.SubmissionRepository;
 import com.example.demo.topic.repository.TopicRepository;
+import com.example.demo.user.repository.UserRepository;
 
 class AssignmentServiceImplTest {
 
@@ -44,6 +47,10 @@ class AssignmentServiceImplTest {
     private final SubmissionRepository submissionRepository = org.mockito.Mockito.mock(SubmissionRepository.class);
     private final AssignmentMapper assignmentMapper = org.mockito.Mockito.mock(AssignmentMapper.class);
     private final TopicRepository topicRepository = org.mockito.Mockito.mock(TopicRepository.class);
+    private final UserRepository userRepository = org.mockito.Mockito.mock(UserRepository.class);
+    private final ClassRepository classRepository = org.mockito.Mockito.mock(ClassRepository.class);
+    private final ClassEnrollmentRepository classEnrollmentRepository = org.mockito.Mockito
+            .mock(ClassEnrollmentRepository.class);
 
     private final AssignmentServiceImpl assignmentService = new AssignmentServiceImpl(
             assignmentRepository,
@@ -53,7 +60,10 @@ class AssignmentServiceImplTest {
             problemService,
             submissionRepository,
             assignmentMapper,
-            topicRepository);
+            topicRepository,
+            userRepository,
+            classRepository,
+            classEnrollmentRepository);
 
     @Test
     @DisplayName("Should clone library problem into assignment class problem before linking")

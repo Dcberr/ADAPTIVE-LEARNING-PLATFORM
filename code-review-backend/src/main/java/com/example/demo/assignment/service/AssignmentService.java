@@ -17,7 +17,7 @@ public interface AssignmentService {
 
     List<AssignmentOverviewResponse> getAssignmentsByTopic(UUID topicId, UUID userId);
 
-    List<AssignmentDeadlineResponse> getAssignmentDeadlines();
+    List<AssignmentDeadlineResponse> getAssignmentDeadlines(UUID userId);
 
     AssignmentDetailResponse getAssignmentById(UUID assignmentId, UUID userId);
 

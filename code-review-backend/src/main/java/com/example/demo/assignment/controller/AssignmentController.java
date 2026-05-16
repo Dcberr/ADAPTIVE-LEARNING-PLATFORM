@@ -56,9 +56,13 @@ public class AssignmentController {
 
     @Operation(summary = "Get assignment deadlines for tracking board")
     @GetMapping("/deadlines")
-    public ApiResponse<List<AssignmentDeadlineResponse>> getAssignmentDeadlines() {
+    public ApiResponse<List<AssignmentDeadlineResponse>> getAssignmentDeadlines(
+            Authentication auth
+    ) {
+        UUID userId = auth != null ? (UUID) auth.getPrincipal() : null;
+
         return ApiResponse.success(
-                assignmentService.getAssignmentDeadlines()
+                assignmentService.getAssignmentDeadlines(userId)
         );
     }
 
