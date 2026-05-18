@@ -280,6 +280,8 @@ export type SubmissionDetailResponse = {
   code: string
   language: string
   testcaseResults: SubmissionDetailTestcaseResponse[]
+  isReviewed?: boolean
+  isRecommend?: boolean
 }
 export type AssignmentProblemResponse = {
   id: string

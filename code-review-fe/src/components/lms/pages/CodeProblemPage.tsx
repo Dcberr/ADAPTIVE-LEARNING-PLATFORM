@@ -751,7 +751,9 @@ export default function CodeProblemPage({
             description: isPractice ? "Đã lưu lần nộp vào lịch sử luyện tập." : "Đã nộp bài thành công.",
           })
           router.push(
-            isPractice ? `/${role}/problem-bank/${targetProblemId}` : `/${role}/assignments/${assignment.id}`
+            isPractice
+              ? `/${role}/problem-bank/${targetProblemId}/submissions/${createdSubmission.submissionId}`
+              : `/${role}/assignments/${assignment.id}/submissions/${createdSubmission.submissionId}`
           )
           return
         } else {
@@ -858,6 +860,7 @@ export default function CodeProblemPage({
             isRecommendationDialogOpen={isRecommendationDialogOpen}
             runningAction={runningAction}
             canRequestReview={canRequestReview}
+            allowRecommendation={false}
             onLoadReview={loadReview}
             onRecommendationDialogOpenChange={handleRecommendationDialogOpenChange}
             showExamplesSection={false}
@@ -869,6 +872,11 @@ export default function CodeProblemPage({
             review={review}
             runningAction={runningAction}
             canRequestReview={canRequestReview}
+            helperLines={[
+              "Chạy code sẽ chạy các test mẫu hiện có và cập nhật tab Kết quả.",
+              "Bạn có thể Review Code trong lúc làm bài, nhưng gợi ý bài tập tiếp theo chỉ mở sau khi nộp bài.",
+              "Nộp bài sẽ lưu bài làm và chuyển sang trang bài nộp để xem lại review và gợi ý bài tập tiếp theo.",
+            ]}
             onCodeChange={setCode}
             onRun={() => handleExecute("run")}
             onSubmit={() => handleExecute("submit")}
@@ -898,16 +906,17 @@ export default function CodeProblemPage({
               hasMounted={hasMounted}
               displayedExecution={displayedExecution}
               review={review}
-              recommendationRoadmap={recommendationRoadmap}
-              role={role}
-              isRecommendationLoading={isRecommendationLoading}
-              isRecommendationDialogOpen={isRecommendationDialogOpen}
-              runningAction={runningAction}
-              canRequestReview={canRequestReview}
-              onLoadReview={loadReview}
-              onRecommendationDialogOpenChange={handleRecommendationDialogOpenChange}
-              showExamplesSection={false}
-            />
+            recommendationRoadmap={recommendationRoadmap}
+            role={role}
+            isRecommendationLoading={isRecommendationLoading}
+            isRecommendationDialogOpen={isRecommendationDialogOpen}
+            runningAction={runningAction}
+            canRequestReview={canRequestReview}
+            allowRecommendation={false}
+            onLoadReview={loadReview}
+            onRecommendationDialogOpenChange={handleRecommendationDialogOpenChange}
+            showExamplesSection={false}
+          />
           </div>
 
           <div
@@ -936,6 +945,11 @@ export default function CodeProblemPage({
               review={review}
               runningAction={runningAction}
               canRequestReview={canRequestReview}
+              helperLines={[
+                "Chạy code sẽ chạy các test mẫu hiện có và cập nhật tab Kết quả.",
+                "Bạn có thể Review Code trong lúc làm bài, nhưng gợi ý bài tập tiếp theo chỉ mở sau khi nộp bài.",
+                "Nộp bài sẽ lưu bài làm và chuyển sang trang bài nộp để xem lại review và gợi ý bài tập tiếp theo.",
+              ]}
               onCodeChange={setCode}
               onRun={() => handleExecute("run")}
               onSubmit={() => handleExecute("submit")}

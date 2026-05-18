@@ -13,6 +13,7 @@ function EditorWorkspaceCardComponent({
   review,
   runningAction,
   canRequestReview,
+  showReviewAction = true,
   readOnly = false,
   hideActions = false,
   helperTitle,
@@ -27,6 +28,7 @@ function EditorWorkspaceCardComponent({
   review?: CodeReviewFeedback | null
   runningAction: "run" | "submit" | "review" | null
   canRequestReview: boolean
+  showReviewAction?: boolean
   readOnly?: boolean
   hideActions?: boolean
   helperTitle?: string
@@ -202,7 +204,7 @@ function EditorWorkspaceCardComponent({
           }}
         />
         {!hideActions ? (
-          <div className="mt-4 grid gap-2 md:grid-cols-3">
+          <div className={`mt-4 grid gap-2 ${showReviewAction ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
             <Button onClick={onRun} variant="outline" disabled={runningAction !== null}>
               {runningAction === "run" ? (
                 <LoaderCircle className="size-4 animate-spin" />
@@ -219,18 +221,20 @@ function EditorWorkspaceCardComponent({
               )}
               Nộp bài
             </Button>
-            <Button
-              onClick={onReview}
-              variant="secondary"
-              disabled={runningAction !== null || !canRequestReview}
-            >
-              {runningAction === "review" ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              Code Review
-            </Button>
+            {showReviewAction ? (
+              <Button
+                onClick={onReview}
+                variant="secondary"
+                disabled={runningAction !== null || !canRequestReview}
+              >
+                {runningAction === "review" ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Code Review
+              </Button>
+            ) : null}
           </div>
         ) : null}
 
@@ -239,7 +243,7 @@ function EditorWorkspaceCardComponent({
           <ul className="mt-2 space-y-2">
             {(helperLines ?? [
               "Chạy code sẽ chạy các test mẫu hiện có và cập nhật tab Kết quả.",
-              "Nộp bài sẽ lưu bài nộp, điểm số, thời gian làm và quay lại trang bài tập.",
+              "Nộp bài sẽ lưu bài nộp và chuyển sang trang bài làm để xem review và gợi ý bài tập tiếp theo.",
             ]).map((item) => (
               <li key={item}>{item}</li>
             ))}

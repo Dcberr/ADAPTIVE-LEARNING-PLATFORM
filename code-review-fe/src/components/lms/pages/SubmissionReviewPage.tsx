@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 
 import { AttemptWorkspaceSkeleton } from "@/components/lms/LmsLoadingStates"
 import type { UserRole } from "@/data/lms/extendedMockData"
@@ -22,12 +22,15 @@ import {
   type SubmissionDetailResponse,
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
+  useGetRecommendationRoadmapMutation,
   useGetRecommendationHistoryByProblemQuery,
   useGetAssignmentSubmissionsQuery,
   useGetAssignmentTestcasesQuery,
   useGetProblemReviewsByUserQuery,
   useGetSubmissionByIdQuery,
+  useReviewCodeMutation,
 } from "@/store/redux/api/lmsApi"
+import { useToast } from "@/components/ui/toast-provider"
 
 type ActiveTab = "description" | "testcases" | "result" | "review"
 
@@ -105,7 +108,7 @@ function mapSubmissionDetailToExecution(
     total,
     percentage,
     score: Number.isFinite(numericScore) ? numericScore : 0,
-    eligibleForReview: false,
+    eligibleForReview: true,
     results: detail.testcaseResults.map((item) => ({
       idx: item.index,
       input: item.input,
@@ -168,6 +171,13 @@ export default function SubmissionReviewPage({
   const { activeTab, handleTabChange, hasMounted } = useKeepAliveTabs<ActiveTab>("description")
   const currentUserId = useAppSelector((state) => state.auth.user?.id ?? "")
   const [isRecommendationDialogOpen, setIsRecommendationDialogOpen] = useState(false)
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false)
+  const [runningAction, setRunningAction] = useState<"review" | null>(null)
+  const [manualReview, setManualReview] = useState<ReturnType<typeof mapCodeReviewResponseToFeedback> | null>(null)
+  const [recommendationRoadmap, setRecommendationRoadmap] = useState<RecommendationResponse | null>(null)
+  const [reviewCode] = useReviewCodeMutation()
+  const [getRecommendationRoadmap] = useGetRecommendationRoadmapMutation()
+  const { toast } = useToast()
   const { data: assignmentContext, isLoading: isLoadingAssignment, error: assignmentError } =
     useGetAssignmentContextQuery(assignmentId)
   const {
@@ -187,20 +197,23 @@ export default function SubmissionReviewPage({
   } = useGetAssignmentTestcasesQuery(assignmentId)
   const { data: submissionDetail, isLoading: isLoadingDetail, error: detailError } =
     useGetSubmissionByIdQuery(submissionId)
-  const { data: reviews = [], isLoading: isLoadingReviews } = useGetProblemReviewsByUserQuery(
+  const shouldLoadReviewHistory =
+    Boolean(submissionDetail?.isReviewed) && Boolean(assignmentProblem?.id) && Boolean(currentUserId)
+  const shouldLoadRecommendationHistory =
+    Boolean(submissionDetail?.isRecommend) && Boolean(assignmentProblem?.id)
+  const { data: reviewHistory = [], isLoading: isLoadingReviewHistory } = useGetProblemReviewsByUserQuery(
     {
       problemId: assignmentProblem?.id ?? "",
       userId: currentUserId,
     },
     {
-      skip: !assignmentProblem?.id || !currentUserId,
+      skip: !shouldLoadReviewHistory,
     }
   )
   const { data: recommendationHistory = [], isLoading: isLoadingRecommendationHistory } =
     useGetRecommendationHistoryByProblemQuery(assignmentProblem?.id ?? "", {
-      skip: !assignmentProblem?.id,
+      skip: !shouldLoadRecommendationHistory,
     })
-
   const submission = submissions.find((item) => item.submissionId === submissionId)
   const assignment = useMemo(
     () => (assignmentContext ? buildReviewAssignment(assignmentContext) : null),
@@ -218,23 +231,104 @@ export default function SubmissionReviewPage({
       submission && submissionDetail ? mapSubmissionDetailToExecution(submission, submissionDetail) : null,
     [submission, submissionDetail]
   )
-  const latestReview = reviews.length > 0 ? reviews[reviews.length - 1] : null
-  const review = useMemo(
+  const latestHistoricalReview = useMemo(
     () =>
-      latestReview ? mapCodeReviewResponseToFeedback(assignmentId, latestReview) : null,
-    [assignmentId, latestReview]
+      reviewHistory.length > 0
+        ? mapCodeReviewResponseToFeedback(assignmentId, reviewHistory[reviewHistory.length - 1])
+        : null,
+    [assignmentId, reviewHistory]
   )
-  const latestRecommendation = useMemo<RecommendationResponse | null>(
+  const latestHistoricalRecommendation = useMemo<RecommendationResponse | null>(
     () =>
       recommendationHistory.length > 0
         ? recommendationHistory[recommendationHistory.length - 1].recommendation
         : null,
     [recommendationHistory]
   )
+  const review = manualReview ?? latestHistoricalReview
+  const activeRecommendationRoadmap = recommendationRoadmap ?? latestHistoricalRecommendation
   const code = submissionDetail?.code ?? ""
   const language = submissionDetail?.language ?? "cpp"
   const backHref = `/${role}/assignments/${assignmentId}`
   const startedAtMs = submission?.startedAt ? new Date(submission.startedAt).getTime() : 0
+
+  const loadReview = useCallback(async () => {
+    if (submissionDetail?.isReviewed && latestHistoricalReview) {
+      handleTabChange("review")
+      return
+    }
+
+    if (!assignmentProblem?.id || !code) {
+      return
+    }
+
+    handleTabChange("review")
+    setRunningAction("review")
+
+    try {
+      const reviewResult = await reviewCode({
+        problemId: assignmentProblem.id,
+        code,
+        language,
+      }).unwrap()
+
+      setManualReview(mapCodeReviewResponseToFeedback(assignmentId, reviewResult))
+    } catch (error) {
+      toast({
+        tone: "error",
+        description: error instanceof Error ? error.message : "Không thể lấy AI review cho bài nộp này.",
+      })
+    } finally {
+      setRunningAction(null)
+    }
+  }, [
+    assignmentId,
+    assignmentProblem?.id,
+    code,
+    handleTabChange,
+    language,
+    latestHistoricalReview,
+    reviewCode,
+    submissionDetail?.isReviewed,
+    toast,
+  ])
+
+  const loadRecommendation = useCallback(async () => {
+    if (!assignmentProblem?.id || !currentUserId) {
+      setRecommendationRoadmap(null)
+      return
+    }
+
+    setIsRecommendationLoading(true)
+
+    try {
+      const roadmap = await getRecommendationRoadmap({
+        student_id: currentUserId,
+        current_exercise_id: assignmentProblem.id,
+      }).unwrap()
+      setRecommendationRoadmap(roadmap)
+    } catch (error) {
+      setRecommendationRoadmap(null)
+      toast({
+        tone: "error",
+        description:
+          error instanceof Error ? error.message : "Không thể tải gợi ý bài tập tiếp theo.",
+      })
+    } finally {
+      setIsRecommendationLoading(false)
+    }
+  }, [assignmentProblem?.id, currentUserId, getRecommendationRoadmap, toast])
+
+  const handleRecommendationDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setIsRecommendationDialogOpen(open)
+
+      if (open && !activeRecommendationRoadmap && !isRecommendationLoading) {
+        void loadRecommendation()
+      }
+    },
+    [activeRecommendationRoadmap, isRecommendationLoading, loadRecommendation]
+  )
 
   if (
     isLoadingAssignment ||
@@ -242,7 +336,7 @@ export default function SubmissionReviewPage({
     isLoadingProblem ||
     isLoadingTestcases ||
     isLoadingDetail ||
-    isLoadingReviews ||
+    isLoadingReviewHistory ||
     isLoadingRecommendationHistory
   ) {
     return <AttemptWorkspaceSkeleton title="Đang tải bài làm đã nộp..." />
@@ -292,15 +386,16 @@ export default function SubmissionReviewPage({
           hasMounted={hasMounted}
           displayedExecution={execution}
           review={review}
-          recommendationRoadmap={latestRecommendation}
+          recommendationRoadmap={activeRecommendationRoadmap}
           role={role}
-          isRecommendationLoading={false}
+          isRecommendationLoading={isRecommendationLoading}
           isRecommendationDialogOpen={isRecommendationDialogOpen}
-          runningAction={null}
-          canRequestReview={false}
-          onLoadReview={() => {}}
-          onRecommendationDialogOpenChange={setIsRecommendationDialogOpen}
-          reviewEmptyMessage="Không có review cho bài làm này."
+          runningAction={runningAction}
+          canRequestReview
+          allowRecommendation
+          onLoadReview={loadReview}
+          onRecommendationDialogOpenChange={handleRecommendationDialogOpenChange}
+          reviewEmptyMessage="Nhấn Review Code để xem AI review và gợi ý bài tập tiếp theo."
           showExamplesSection={false}
         />
 
@@ -311,7 +406,11 @@ export default function SubmissionReviewPage({
           canRequestReview={false}
           readOnly
           hideActions
-          helperTitle="Quy trình nộp bài"
+          helperTitle="Bài làm đã nộp"
+          helperLines={[
+            "Đây là mã nguồn đã được nộp cho submission này.",
+            "Nhấn Review Code trong phần kết quả hoặc tab Code Review để xem nhận xét AI và gợi ý bài tập tiếp theo.",
+          ]}
           onCodeChange={() => {}}
           onRun={() => {}}
           onSubmit={() => {}}
