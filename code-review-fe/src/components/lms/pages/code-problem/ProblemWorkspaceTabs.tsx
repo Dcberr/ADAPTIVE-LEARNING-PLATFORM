@@ -123,6 +123,7 @@ function ProblemWorkspaceTabsComponent({
   isRecommendationDialogOpen,
   runningAction,
   canRequestReview,
+  allowRecommendation = true,
   onLoadReview,
   onRecommendationDialogOpenChange,
   reviewEmptyMessage,
@@ -140,6 +141,7 @@ function ProblemWorkspaceTabsComponent({
   isRecommendationDialogOpen: boolean
   runningAction: "run" | "submit" | "review" | null
   canRequestReview: boolean
+  allowRecommendation?: boolean
   onLoadReview: () => void
   onRecommendationDialogOpenChange: (open: boolean) => void
   reviewEmptyMessage?: string
@@ -288,7 +290,7 @@ function ProblemWorkspaceTabsComponent({
                         Điểm ước tính: {displayedExecution.score} • {displayedExecution.percentage}% test đạt
                       </p>
                     </div>
-                    {displayedExecution.eligibleForReview ? (
+                    {canRequestReview ? (
                       <Button
                         type="button"
                         className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
@@ -304,7 +306,9 @@ function ProblemWorkspaceTabsComponent({
                       </Button>
                     ) : (
                       <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                        Đạt 30% test để mở AI Code Review
+                        {allowRecommendation
+                          ? "Nộp bài làm để xem AI Code Review và gợi ý bài tập tiếp theo"
+                          : "Đạt 30% test để mở AI Code Review. Gợi ý bài tập tiếp theo chỉ mở sau khi nộp bài"}
                       </Badge>
                     )}
                   </div>
@@ -457,13 +461,35 @@ function ProblemWorkspaceTabsComponent({
                 isRecommendationLoading={isRecommendationLoading}
                 isRecommendationDialogOpen={isRecommendationDialogOpen}
                 onRecommendationDialogOpenChange={onRecommendationDialogOpenChange}
+                allowRecommendation={allowRecommendation}
               />
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-                {reviewEmptyMessage ??
-                  (canRequestReview
-                    ? "Dùng Code Review để tạo phản hồi AI và gợi ý cá nhân hóa."
-                    : "AI Code Review sẽ mở sau khi bạn vượt qua ít nhất 30% số test đã chạy.")}
+              <div className="flex min-h-[18rem] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                <p>
+                  {reviewEmptyMessage ??
+                    (canRequestReview
+                      ? allowRecommendation
+                        ? "Nhấn Review Code để tạo phản hồi AI và xem gợi ý bài tập tiếp theo."
+                        : "Nhấn Review Code để tạo phản hồi AI. Gợi ý bài tập tiếp theo chỉ mở sau khi nộp bài."
+                      : allowRecommendation
+                        ? "Nộp bài làm để xem AI Code Review và gợi ý bài tập tiếp theo."
+                        : "Đạt 30% test để mở AI Code Review. Gợi ý bài tập tiếp theo chỉ mở sau khi nộp bài.")}
+                </p>
+                {canRequestReview ? (
+                  <Button
+                    type="button"
+                    className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
+                    onClick={onLoadReview}
+                    disabled={runningAction === "review"}
+                  >
+                    {runningAction === "review" ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    Review Code
+                  </Button>
+                ) : null}
               </div>
             )}
           </TabsContent>
