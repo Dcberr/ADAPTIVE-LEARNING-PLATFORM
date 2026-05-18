@@ -21,11 +21,16 @@ import com.example.demo.execution.service.ExecutionService;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.ProblemType;
 import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.recommendation.entity.RecommendationHistory;
+import com.example.demo.recommendation.repository.RecommendationHistoryRepository;
+import com.example.demo.review.entity.CodeReview;
+import com.example.demo.review.repository.CodeReviewRepository;
 import com.example.demo.submission.dto.*;
 import com.example.demo.submission.entity.Submission;
 import com.example.demo.submission.entity.SubmissionStatus;
 import com.example.demo.submission.repository.SubmissionRepository;
 
+import java.util.Comparator;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -41,6 +46,8 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final AssignmentProblemRepository assignmentProblemRepository;
     private final AssignmentRepository assignmentRepository;
     private final ProblemRepository problemRepository;
+    private final CodeReviewRepository codeReviewRepository;
+    private final RecommendationHistoryRepository recommendationHistoryRepository;
 
     @Override
     @Transactional
@@ -148,11 +155,73 @@ public class SubmissionServiceImpl implements SubmissionService {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new RuntimeException("Submission not found"));
 
+        Instant submittedAt = submission.getSubmittedAt();
+        Instant nextSubmissionAt = findNextSubmissionAt(submission);
+        List<CodeReview> reviews = codeReviewRepository.findBySubmissionId(submissionId).stream()
+                .filter(review -> isOnOrAfter(review.getCreatedAt(), submittedAt))
+                .filter(review -> isBeforeNextSubmission(review.getCreatedAt(), nextSubmissionAt))
+                .sorted(Comparator.comparing(
+                        CodeReview::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ).thenComparing(
+                        CodeReview::getId,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ))
+                .toList();
+
+        boolean isReviewed = !reviews.isEmpty();
+        boolean isRecommend = isRecommendationGeneratedForSubmission(submission, reviews, submittedAt, nextSubmissionAt);
+
         return SubmissionDetailResponse.builder()
                 .code(submission.getCode())
                 .language(submission.getLanguage())
+                .isReviewed(isReviewed)
+                .isRecommend(isRecommend)
                 .testcaseResults(submission.getTestcaseResults())
                 .build();
+        }
+
+        private Instant findNextSubmissionAt(Submission submission) {
+            Instant submittedAt = submission.getSubmittedAt();
+
+            return submissionRepository.getAllSubmissionsByProblemIdAndUserId(submission.getUserId(), submission.getProblemId())
+                    .stream()
+                    .filter(candidate -> !candidate.getId().equals(submission.getId()))
+                    .map(Submission::getSubmittedAt)
+                    .filter(candidateSubmittedAt -> candidateSubmittedAt != null && submittedAt != null)
+                    .filter(candidateSubmittedAt -> candidateSubmittedAt.isAfter(submittedAt))
+                    .min(Comparator.naturalOrder())
+                    .orElse(null);
+        }
+
+        private boolean isRecommendationGeneratedForSubmission(Submission submission, List<CodeReview> reviews,
+                                                               Instant submittedAt, Instant nextSubmissionAt) {
+            if (reviews.isEmpty()) {
+                return false;
+            }
+
+            List<RecommendationHistory> recommendationHistories = recommendationHistoryRepository
+                    .findByStudentIdAndProblemIdOrderByCreatedAtDesc(submission.getUserId(), submission.getProblemId());
+
+            return recommendationHistories.stream()
+                    .map(RecommendationHistory::getCreatedAt)
+                    .filter(recommendationAt -> isOnOrAfter(recommendationAt, submittedAt))
+                    .filter(recommendationAt -> isBeforeNextSubmission(recommendationAt, nextSubmissionAt))
+                    .anyMatch(recommendationAt -> reviews.stream()
+                            .map(CodeReview::getCreatedAt)
+                            .anyMatch(reviewAt -> isOnOrAfter(recommendationAt, reviewAt)));
+        }
+
+        private boolean isOnOrAfter(Instant candidate, Instant reference) {
+            if (candidate == null) {
+                return false;
+            }
+
+            return reference == null || !candidate.isBefore(reference);
+        }
+
+        private boolean isBeforeNextSubmission(Instant candidate, Instant nextSubmissionAt) {
+            return candidate != null && (nextSubmissionAt == null || candidate.isBefore(nextSubmissionAt));
         }
 
         @Override

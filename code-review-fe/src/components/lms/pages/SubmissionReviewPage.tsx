@@ -28,7 +28,7 @@ import {
   useGetAssignmentTestcasesQuery,
   useGetProblemReviewsByUserQuery,
   useGetSubmissionByIdQuery,
-  useReviewCodeMutation,
+  useReviewSubmissionMutation,
 } from "@/store/redux/api/lmsApi"
 import { useToast } from "@/components/ui/toast-provider"
 
@@ -175,7 +175,7 @@ export default function SubmissionReviewPage({
   const [runningAction, setRunningAction] = useState<"review" | null>(null)
   const [manualReview, setManualReview] = useState<ReturnType<typeof mapCodeReviewResponseToFeedback> | null>(null)
   const [recommendationRoadmap, setRecommendationRoadmap] = useState<RecommendationResponse | null>(null)
-  const [reviewCode] = useReviewCodeMutation()
+  const [reviewSubmission] = useReviewSubmissionMutation()
   const [getRecommendationRoadmap] = useGetRecommendationRoadmapMutation()
   const { toast } = useToast()
   const { data: assignmentContext, isLoading: isLoadingAssignment, error: assignmentError } =
@@ -266,11 +266,7 @@ export default function SubmissionReviewPage({
     setRunningAction("review")
 
     try {
-      const reviewResult = await reviewCode({
-        problemId: assignmentProblem.id,
-        code,
-        language,
-      }).unwrap()
+      const reviewResult = await reviewSubmission(submissionId).unwrap()
 
       setManualReview(mapCodeReviewResponseToFeedback(assignmentId, reviewResult))
     } catch (error) {
@@ -286,9 +282,9 @@ export default function SubmissionReviewPage({
     assignmentProblem?.id,
     code,
     handleTabChange,
-    language,
     latestHistoricalReview,
-    reviewCode,
+    reviewSubmission,
+    submissionId,
     submissionDetail?.isReviewed,
     toast,
   ])

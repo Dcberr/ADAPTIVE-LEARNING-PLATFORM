@@ -111,7 +111,10 @@ function BackendSubmissionHistoryItem({
             </span>
             <span className="inline-flex items-center gap-1">
               <ListChecks className="size-3" />
-              Bắt đầu {new Date(submission.startedAt).toLocaleString("en-GB")}
+              Bắt đầu{" "}
+              {submission.startedAt
+                ? new Date(submission.startedAt).toLocaleString("en-GB")
+                : "Chưa có"}
             </span>
           </div>
         </div>

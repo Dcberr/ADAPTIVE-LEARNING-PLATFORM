@@ -342,6 +342,7 @@ export type JudgeExecutionResponse = {
 }
 export type CodeReviewRequest = {
   problemId: string
+  submissionId?: string
   code: string
   language: string
 }
@@ -739,6 +740,16 @@ export const lmsApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+    }),
+    reviewSubmission: builder.mutation<CodeReviewResponse, string>({
+      query: (submissionId) => ({
+        url: `/reviews/submission/${submissionId}`,
+        method: "POST",
+      }),
+      transformResponse: (response: ApiResponse<CodeReviewResponse>) => response.data,
+      invalidatesTags: (_result, _error, submissionId) => [
+        { type: "Submission" as const, id: submissionId },
+      ],
     }),
     getRecommendationRoadmap: builder.mutation<RecommendationResponse, RecommendationRequest>({
       query: (body) => ({
@@ -1315,6 +1326,7 @@ export const {
   useGetProblemReviewsByUserQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
+  useReviewSubmissionMutation,
   useGetRecommendationRoadmapMutation,
   useGetRecommendationHistoryByProblemQuery,
   useCreateClassMutation,

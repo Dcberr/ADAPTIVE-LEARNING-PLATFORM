@@ -32,11 +32,13 @@ public class ReviewController {
     @Hidden
     @PostMapping("/submission/{submissionId}")
     public ApiResponse<ReviewResponse> review(
+            Authentication auth,
             @Parameter(description = "Submission ID")
             @PathVariable UUID submissionId
     ) {
+        UUID userId = (UUID) auth.getPrincipal();
         return ApiResponse.success(
-                reviewService.reviewSubmission(submissionId)
+                reviewService.reviewSubmission(submissionId, userId)
         );
     }
 
@@ -61,7 +63,13 @@ public class ReviewController {
     ) {
         UUID userId = (UUID) auth.getPrincipal();
         return ApiResponse.success(
-                reviewService.reviewCode(request.getProblemId(), request.getCode(), request.getLanguage(), userId)
+                reviewService.reviewCode(
+                        request.getProblemId(),
+                        request.getSubmissionId(),
+                        request.getCode(),
+                        request.getLanguage(),
+                        userId
+                )
         ); 
     }
 

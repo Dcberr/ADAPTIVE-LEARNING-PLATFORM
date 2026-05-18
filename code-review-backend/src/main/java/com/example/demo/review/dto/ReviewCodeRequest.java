@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ReviewCodeRequest {
     private UUID problemId;
+    private UUID submissionId;
     private String code;
     private String language;
 }

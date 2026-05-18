@@ -10,6 +10,8 @@ import com.example.demo.execution.dto.RunTestcaseRequest;
 import com.example.demo.execution.dto.TestcaseResult;
 import com.example.demo.execution.model.JudgeStatus;
 import com.example.demo.execution.service.ExecutionService;
+import com.example.demo.common.exception.AppException;
+import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
@@ -45,11 +47,13 @@ public class ReviewServiceImpl implements ReviewService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public ReviewResponse reviewSubmission(UUID submissionId) {
+    public ReviewResponse reviewSubmission(UUID submissionId, UUID requesterId) {
 
         Submission submission =
                 submissionRepository.findById(submissionId)
                         .orElseThrow();
+
+        validateSubmissionReviewAccess(requesterId, submission);
 
         Problem problem =
                 problemRepository.findById(submission.getProblemId())
@@ -158,6 +162,19 @@ public class ReviewServiceImpl implements ReviewService {
         return review;
     }
 
+    private void validateSubmissionReviewAccess(UUID requesterId, Submission submission) {
+        var requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        boolean canAccess = requester.getId().equals(submission.getUserId())
+                || requester.getRole() == Role.INSTRUCTOR
+                || requester.getRole() == Role.ADMIN;
+
+        if (!canAccess) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+    }
+
     private void saveReview(UUID problemId, UUID submissionId,
                             ReviewResponse review, String language, UUID userId) {
 
@@ -196,7 +213,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public ReviewResponse reviewCode(UUID problemId, String code, String language, UUID userId) {
+    public ReviewResponse reviewCode(UUID problemId, UUID submissionId, String code, String language, UUID userId) {
         Problem problem = problemRepository.findById(problemId)
                 .orElseThrow();
 
@@ -272,16 +289,19 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewResponse review = reviewAgentClient.reviewCode(body);
 
         // Save review to database
-        saveDirectCodeReview(problemId, language, review, userId);
+        saveDirectCodeReview(problemId, submissionId, code, language, review, userId);
 
         return review;
     }
 
-    private void saveDirectCodeReview(UUID problemId, String language, ReviewResponse review, UUID userId) {
+    private void saveDirectCodeReview(UUID problemId, UUID submissionId, String code,
+                                      String language, ReviewResponse review, UUID userId) {
         try {
             String reviewItemsJson = objectMapper.writeValueAsString(review);
+            UUID matchedSubmissionId = resolveLinkedSubmissionId(problemId, submissionId, code, language, userId);
 
             CodeReview entity = CodeReview.builder()
+                    .submissionId(matchedSubmissionId)
                     .problemId(problemId)
                     .language(language)
                     .summary(review.getSummary())
@@ -295,6 +315,51 @@ public class ReviewServiceImpl implements ReviewService {
         } catch (Exception e) {
             log.error("Failed to save direct code review", e);
         }
+    }
+
+    private UUID resolveLinkedSubmissionId(UUID problemId, UUID submissionId, String code, String language, UUID userId) {
+        if (submissionId != null) {
+            return resolveRequestedSubmissionId(problemId, submissionId, userId);
+        }
+
+        return submissionRepository.getAllSubmissionsByProblemIdAndUserId(userId, problemId).stream()
+                .filter(submission -> submission.getSubmittedAt() != null)
+                .filter(submission -> Objects.equals(submission.getLanguage(), language))
+                .filter(submission -> Objects.equals(normalizeCode(submission.getCode()), normalizeCode(code)))
+                .max(Comparator.comparing(
+                                Submission::getSubmittedAt,
+                                Comparator.nullsLast(Comparator.naturalOrder())
+                        )
+                        .thenComparing(
+                                Submission::getId,
+                                Comparator.nullsLast(Comparator.naturalOrder())
+                        ))
+                .map(Submission::getId)
+                .orElse(null);
+    }
+
+    private UUID resolveRequestedSubmissionId(UUID problemId, UUID submissionId, UUID requesterId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBMISSION_NOT_FOUND));
+
+        validateSubmissionReviewAccess(requesterId, submission);
+
+        if (!Objects.equals(submission.getProblemId(), problemId)) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        return submission.getId();
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) {
+            return "";
+        }
+
+        return Arrays.stream(code.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1))
+                .map(line -> line.replaceAll("\\s+$", ""))
+                .collect(java.util.stream.Collectors.joining("\n"))
+                .trim();
     }
 
     @Override

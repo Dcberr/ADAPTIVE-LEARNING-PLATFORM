@@ -30,6 +30,8 @@ import com.example.demo.execution.service.ExecutionService;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.ProblemType;
 import com.example.demo.problem.repository.ProblemRepository;
+import com.example.demo.recommendation.repository.RecommendationHistoryRepository;
+import com.example.demo.review.repository.CodeReviewRepository;
 import com.example.demo.submission.dto.SubmissionResponse;
 import com.example.demo.submission.dto.SubmitCodeRequest;
 import com.example.demo.submission.entity.Submission;
@@ -45,6 +47,9 @@ class SubmissionServiceImplTest {
             .mock(AssignmentProblemRepository.class);
     private final AssignmentRepository assignmentRepository = org.mockito.Mockito.mock(AssignmentRepository.class);
     private final ProblemRepository problemRepository = org.mockito.Mockito.mock(ProblemRepository.class);
+    private final CodeReviewRepository codeReviewRepository = org.mockito.Mockito.mock(CodeReviewRepository.class);
+    private final RecommendationHistoryRepository recommendationHistoryRepository = org.mockito.Mockito
+            .mock(RecommendationHistoryRepository.class);
 
     private final SubmissionServiceImpl submissionService = new SubmissionServiceImpl(
             submissionRepository,
@@ -52,7 +57,9 @@ class SubmissionServiceImplTest {
             assignmentService,
             assignmentProblemRepository,
             assignmentRepository,
-            problemRepository);
+            problemRepository,
+            codeReviewRepository,
+            recommendationHistoryRepository);
 
     @Test
     @DisplayName("Should allow library problem submission without assignment mapping")

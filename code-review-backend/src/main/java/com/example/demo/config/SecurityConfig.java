@@ -85,7 +85,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/testcases/problem/*").hasAnyRole(LECTURER_ROLES)
                     .requestMatchers(HttpMethod.GET, "/testcases/assignment/*").hasAnyRole(LMS_ROLES)
 
-                    .requestMatchers(HttpMethod.POST, "/reviews/submission/*").hasAnyRole(LECTURER_ROLES)
+                    .requestMatchers(HttpMethod.POST, "/reviews/submission/*").hasAnyRole(LMS_ROLES)
                     .requestMatchers(HttpMethod.GET, "/reviews/problem/*/user/*").hasAnyRole(LECTURER_ROLES)
                     .requestMatchers("/reviews/**").hasAnyRole(LMS_ROLES)
 

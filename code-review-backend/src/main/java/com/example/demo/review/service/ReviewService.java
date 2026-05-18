@@ -7,13 +7,13 @@ import com.example.demo.review.dto.ReviewResponse;
 
 public interface ReviewService {
 
-    ReviewResponse reviewSubmission(UUID submissionId);
+    ReviewResponse reviewSubmission(UUID submissionId, UUID requesterId);
 
     List<ReviewResponse> getSubmissionReviews(UUID submissionId);
 
     List<ReviewResponse> getSubmissionReviewsByUser(UUID submissionId, UUID userId);
 
-    ReviewResponse reviewCode(UUID problemId, String code, String language, UUID userId);
+    ReviewResponse reviewCode(UUID problemId, UUID submissionId, String code, String language, UUID userId);
 
     List<ReviewResponse> getProblemReviews(UUID problemId);
 

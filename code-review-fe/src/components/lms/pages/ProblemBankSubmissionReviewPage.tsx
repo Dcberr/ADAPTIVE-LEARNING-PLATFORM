@@ -24,7 +24,7 @@ import {
   useGetProblemReviewsByUserQuery,
   useGetProblemSubmissionsQuery,
   useGetSubmissionByIdQuery,
-  useReviewCodeMutation,
+  useReviewSubmissionMutation,
 } from "@/store/redux/api/lmsApi"
 import { useToast } from "@/components/ui/toast-provider"
 
@@ -164,7 +164,7 @@ export default function ProblemBankSubmissionReviewPage({
   const [runningAction, setRunningAction] = useState<"review" | null>(null)
   const [manualReview, setManualReview] = useState<ReturnType<typeof mapCodeReviewResponseToFeedback> | null>(null)
   const [recommendationRoadmap, setRecommendationRoadmap] = useState<RecommendationResponse | null>(null)
-  const [reviewCode] = useReviewCodeMutation()
+  const [reviewSubmission] = useReviewSubmissionMutation()
   const [getRecommendationRoadmap] = useGetRecommendationRoadmapMutation()
   const { toast } = useToast()
   const { data: problem, isLoading: isLoadingProblem, error: problemError } =
@@ -233,11 +233,7 @@ export default function ProblemBankSubmissionReviewPage({
     setRunningAction("review")
 
     try {
-      const reviewResult = await reviewCode({
-        problemId,
-        code,
-        language,
-      }).unwrap()
+      const reviewResult = await reviewSubmission(submissionId).unwrap()
 
       setManualReview(mapCodeReviewResponseToFeedback(problemId, reviewResult))
     } catch (error) {
@@ -251,10 +247,10 @@ export default function ProblemBankSubmissionReviewPage({
   }, [
     code,
     handleTabChange,
-    language,
     latestHistoricalReview,
     problemId,
-    reviewCode,
+    reviewSubmission,
+    submissionId,
     submissionDetail?.isReviewed,
     toast,
   ])
