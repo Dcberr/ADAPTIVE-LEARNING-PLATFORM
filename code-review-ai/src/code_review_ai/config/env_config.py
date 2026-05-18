@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict
 from code_review_ai.config.model_config import (
     FireworksFeatureConfig,
     FireworksStageConfig,
-    KnowledgeGraphModelConfig,
     RecommendationModelConfig,
     ReviewModelConfig,
 )
@@ -107,7 +106,6 @@ def _build_stage_configs(env_values: dict[str, object]) -> FireworksFeatureConfi
     defaults = FireworksFeatureConfig()
     feature_maps = {
         "review": defaults.review.as_stage_map(),
-        "knowledge_graph": defaults.knowledge_graph.as_stage_map(),
         "recommendation": defaults.recommendation.as_stage_map(),
     }
     feature_configs: dict[str, dict[str, FireworksStageConfig]] = {}
@@ -143,9 +141,6 @@ def _build_stage_configs(env_values: dict[str, object]) -> FireworksFeatureConfi
 
     return FireworksFeatureConfig(
         review=_build_review_model_config(feature_configs["review"]),
-        knowledge_graph=_build_knowledge_graph_model_config(
-            feature_configs["knowledge_graph"]
-        ),
         recommendation=_build_recommendation_model_config(
             feature_configs["recommendation"]
         ),
@@ -159,18 +154,8 @@ def _build_review_model_config(stage_configs: dict[str, FireworksStageConfig]):
         improvement=stage_configs["improvement"],
         review_link=stage_configs["review_link"],
         overview=stage_configs["overview"],
-        scoring=stage_configs["scoring"],
         default=stage_configs["default"],
     )
-
-
-def _build_knowledge_graph_model_config(stage_configs: dict[str, FireworksStageConfig]):
-    return KnowledgeGraphModelConfig(
-        prerequisite_weight=stage_configs["prerequisite_weight"],
-        exercise_weight=stage_configs["exercise_weight"],
-        default=stage_configs["default"],
-    )
-
 
 def _build_recommendation_model_config(stage_configs: dict[str, FireworksStageConfig]):
     return RecommendationModelConfig(

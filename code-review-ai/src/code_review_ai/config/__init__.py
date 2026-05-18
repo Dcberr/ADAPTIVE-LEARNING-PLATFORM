@@ -8,7 +8,6 @@ from code_review_ai.config.env_config import (
 from code_review_ai.config.model_config import (
     FireworksFeatureConfig,
     FireworksStageConfig,
-    KnowledgeGraphModelConfig,
     RecommendationModelConfig,
     ReviewModelConfig,
 )
@@ -17,7 +16,6 @@ __all__ = [
     "EnvConfig",
     "FireworksFeatureConfig",
     "FireworksStageConfig",
-    "KnowledgeGraphModelConfig",
     "RecommendationModelConfig",
     "ReviewModelConfig",
     "build_env_config",
