@@ -27,7 +27,7 @@ def get_settings_dependency() -> EnvConfig:
 
 def get_stage_model_config(
     feature: str,
-    stage: str = "default",
+    stage: str,
     settings: EnvConfig | None = None,
 ) -> FireworksStageConfig:
     resolved_settings = settings or get_env_config()

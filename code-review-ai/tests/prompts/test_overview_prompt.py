@@ -26,9 +26,12 @@ class OverviewPromptTests(unittest.TestCase):
         messages = build_overview_messages(state)
         user_prompt = messages[1]["content"]
 
-        self.assertIn("Generate only 3 to 5 sentences in one paragraph.", user_prompt)
         self.assertIn(
-            "Focus only on what the student improved and what the student needs to avoid next.",
+            "Generate exactly one short paragraph with 2 to 3 sentences.",
+            user_prompt,
+        )
+        self.assertIn(
+            "Use only the current review findings. Do not mention earlier attempts or review history.",
             user_prompt,
         )
         self.assertIn(
@@ -36,18 +39,21 @@ class OverviewPromptTests(unittest.TestCase):
             user_prompt,
         )
         self.assertIn(
-            "If you mention an example failure, describe it using the testcase text or behavior, not any ID.",
+            "If you mention an example failure, describe the behavior briefly without using any ID.",
             user_prompt,
         )
         self.assertIn(
             "Do not mention submission history, progress tracking, persistence, regression, or earlier attempts.",
             user_prompt,
         )
+        self.assertNotIn("int main() { return 0; }", user_prompt)
         self.assertNotIn("Submission history:", user_prompt)
         self.assertNotIn("History-based progress summary:", user_prompt)
         self.assertNotIn("Review links to earlier attempts", user_prompt)
         self.assertNotIn("Failed testcase count:", user_prompt)
-        self.assertNotIn("Fixed testcase count since the latest previous submission:", user_prompt)
+        self.assertNotIn(
+            "Fixed testcase count since the latest previous submission:", user_prompt
+        )
 
 
 if __name__ == "__main__":

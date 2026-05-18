@@ -14,6 +14,7 @@ from code_review_ai.config.model_config import (
 )
 
 DEFAULT_FIREWORKS_BASE_URL = "https://api.fireworks.ai/inference/v1"
+DEFAULT_FIREWORKS_RERANK_BASE_URL = "https://api.fireworks.ai/inference/v1/rerank"
 
 
 class EnvConfig(BaseModel):
@@ -27,6 +28,7 @@ class EnvConfig(BaseModel):
 
     fireworks_api_key: str
     fireworks_base_url: str = DEFAULT_FIREWORKS_BASE_URL
+    fireworks_rerank_base_url: str = DEFAULT_FIREWORKS_RERANK_BASE_URL
 
     neo4j_uri: str | None = None
     neo4j_username: str | None = None
@@ -38,11 +40,12 @@ class EnvConfig(BaseModel):
 
     fireworks_stage_configs: FireworksFeatureConfig
 
-    def get_stage_config(
-        self, feature: str, stage: str = "default"
-    ) -> FireworksStageConfig:
+    def get_stage_config(self, feature: str, stage: str) -> FireworksStageConfig:
         feature_map = self.fireworks_stage_configs.get_feature_map(feature)
-        return feature_map.get(stage) or feature_map["default"]
+        config = feature_map.get(stage)
+        if config is None:
+            raise ValueError(f"Unknown stage model config: {feature}.{stage}")
+        return config
 
     @property
     def neo4j_is_configured(self) -> bool:
@@ -79,6 +82,11 @@ def build_env_config(env_values: dict[str, object] | None = None) -> EnvConfig:
         fireworks_base_url=str(
             resolved_values.get("FIREWORKS_BASE_URL", DEFAULT_FIREWORKS_BASE_URL)
         ),
+        fireworks_rerank_base_url=str(
+            resolved_values.get(
+                "FIREWORKS_RERANK_BASE_URL", DEFAULT_FIREWORKS_RERANK_BASE_URL
+            )
+        ),
         neo4j_uri=_optional_env(resolved_values, "NEO4J_URI"),
         neo4j_username=_optional_env(resolved_values, "NEO4J_USERNAME"),
         neo4j_password=_optional_env(resolved_values, "NEO4J_PASSWORD"),
@@ -112,10 +120,6 @@ def _build_stage_configs(env_values: dict[str, object]) -> FireworksFeatureConfi
 
     for feature, stage_defaults in feature_maps.items():
         feature_prefix = feature.upper()
-        feature_default = stage_defaults["default"]
-        feature_default_model = str(
-            env_values.get(f"{feature_prefix}_MODEL", feature_default.model_name)
-        )
         stage_configs: dict[str, FireworksStageConfig] = {}
         for stage, stage_default in stage_defaults.items():
             stage_prefix = f"{feature_prefix}_{stage.upper()}"
@@ -124,12 +128,12 @@ def _build_stage_configs(env_values: dict[str, object]) -> FireworksFeatureConfi
                     f"{stage_prefix}_MODEL",
                     env_values.get(
                         f"{feature_prefix}_{stage.upper()}_FIREWORKS_MODEL",
-                        feature_default_model,
+                        stage_default.model_name,
                     ),
                 )
             )
             stage_configs[stage] = FireworksStageConfig(
-                model_name=model_name or feature_default.model_name,
+                model_name=model_name or stage_default.model_name,
                 temperature=_optional_float(
                     env_values, f"{stage_prefix}_TEMPERATURE", stage_default.temperature
                 ),
@@ -154,15 +158,14 @@ def _build_review_model_config(stage_configs: dict[str, FireworksStageConfig]):
         improvement=stage_configs["improvement"],
         review_link=stage_configs["review_link"],
         overview=stage_configs["overview"],
-        default=stage_configs["default"],
     )
+
 
 def _build_recommendation_model_config(stage_configs: dict[str, FireworksStageConfig]):
     return RecommendationModelConfig(
         rerank_context_builder=stage_configs["rerank_context_builder"],
         reranker=stage_configs["reranker"],
         roadmap_builder=stage_configs["roadmap_builder"],
-        default=stage_configs["default"],
     )
 
 

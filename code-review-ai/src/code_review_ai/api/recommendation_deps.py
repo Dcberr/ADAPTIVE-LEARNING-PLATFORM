@@ -36,6 +36,7 @@ def get_recommendation_service(
         client=client,
         fireworks_api_key=settings.fireworks_api_key,
         fireworks_base_url=settings.fireworks_base_url,
+        fireworks_rerank_base_url=settings.fireworks_rerank_base_url,
         rerank_context_builder_stage_config=get_stage_model_config(
             "recommendation", "rerank_context_builder", settings=settings
         ),

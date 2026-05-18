@@ -83,7 +83,9 @@ class OverviewAgent:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
-            overview_text = response.choices[0].message.content.strip()
+            overview_text = self._sanitize_overview_text(
+                response.choices[0].message.content
+            )
             new_state["overview"] = overview_text
             logger.debug(
                 "OverviewAgent generated overview preview: %s",
@@ -98,3 +100,31 @@ class OverviewAgent:
             summarize_state(new_state),
         )
         return new_state
+
+    @staticmethod
+    def _sanitize_overview_text(content: str | None) -> str:
+        text = (content or "").strip()
+        if not text:
+            return "Unable to generate overview at this time."
+
+        blocked_prefixes = (
+            "you are ",
+            "instructions:",
+            "current review findings:",
+            "logic issues:",
+            "improvement notes:",
+            "system prompt",
+        )
+        kept_lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip()
+            and not line.strip().lower().startswith(blocked_prefixes)
+            and not line.strip().startswith("- ")
+        ]
+        cleaned = " ".join(kept_lines).strip()
+        if not cleaned:
+            cleaned = text
+
+        cleaned = truncate_text(cleaned, limit=420)
+        return cleaned

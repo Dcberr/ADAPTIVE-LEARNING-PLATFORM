@@ -6,7 +6,6 @@ import time
 from typing import Any
 from urllib import error, request
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -42,12 +41,11 @@ def rerank_documents_with_retry(
     if task:
         payload["task"] = task
 
-    endpoint = f"{base_url.rstrip('/')}/rerank"
     body = json.dumps(payload).encode("utf-8")
 
     for attempt in range(max_retries + 1):
         req = request.Request(
-            endpoint,
+            base_url,
             data=body,
             headers={
                 "Authorization": f"Bearer {api_key}",
@@ -60,10 +58,15 @@ def rerank_documents_with_retry(
                 response_body = response.read().decode("utf-8")
                 return json.loads(response_body)
         except error.HTTPError as exc:
+            error_body = ""
+            try:
+                error_body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                error_body = ""
             if exc.code == 429 or 500 <= exc.code < 600:
                 if attempt >= max_retries:
                     raise FireworksRerankError(
-                        f"rerank request failed with status {exc.code}"
+                        _format_rerank_error_message(exc.code, error_body)
                     ) from exc
                 delay_seconds = _retry_delay(
                     attempt=attempt,
@@ -81,7 +84,7 @@ def rerank_documents_with_retry(
                 time.sleep(delay_seconds)
                 continue
             raise FireworksRerankError(
-                f"rerank request failed with status {exc.code}"
+                _format_rerank_error_message(exc.code, error_body)
             ) from exc
         except error.URLError as exc:
             if attempt >= max_retries:
@@ -116,3 +119,9 @@ def _retry_delay(
         except (TypeError, ValueError):
             pass
     return min(initial_delay_seconds * (2**attempt), max_delay_seconds)
+
+
+def _format_rerank_error_message(status_code: int, error_body: str) -> str:
+    if error_body.strip():
+        return f"rerank request failed with status {status_code}: {error_body}"
+    return f"rerank request failed with status {status_code}"

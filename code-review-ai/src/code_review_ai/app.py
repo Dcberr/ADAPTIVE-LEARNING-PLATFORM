@@ -45,6 +45,7 @@ def _safe_startup_config_summary(settings) -> dict[str, object]:
         "log_level": settings.log_level,
         "uvicorn_reload": settings.uvicorn_reload,
         "fireworks_base_url": settings.fireworks_base_url,
+        "fireworks_rerank_base_url": settings.fireworks_rerank_base_url,
         "exercise_embedding_model": settings.exercise_embedding_model,
         "neo4j_configured": settings.neo4j_is_configured,
         "neo4j_uri": settings.neo4j_uri or "",

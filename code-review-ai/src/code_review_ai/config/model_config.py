@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 REVIEW_MODEL = "accounts/fireworks/models/glm-5p1"
+REVIEW_OVERVIEW_MODEL = "accounts/fireworks/models/qwen3p6-plus"
 RECOMMENDATION_MODEL = "accounts/fireworks/models/kimi-k2p6"
-RERANKER_MODEL = "fireworks/qwen3-reranker-8b"
+RERANKER_MODEL = "accounts/fireworks/models/qwen3-reranker-8b"
 
 
 @dataclass(frozen=True)
@@ -46,16 +47,9 @@ class ReviewModelConfig:
     )
     overview: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name=REVIEW_MODEL,
-            temperature=0.3,
-            max_tokens=950,
-        )
-    )
-    default: FireworksStageConfig = field(
-        default_factory=lambda: FireworksStageConfig(
-            model_name=REVIEW_MODEL,
-            temperature=0.2,
-            max_tokens=1200,
+            model_name=REVIEW_OVERVIEW_MODEL,
+            temperature=0.15,
+            max_tokens=300,
         )
     )
 
@@ -66,7 +60,6 @@ class ReviewModelConfig:
             "improvement": self.improvement,
             "review_link": self.review_link,
             "overview": self.overview,
-            "default": self.default,
         }
 
 
@@ -93,20 +86,12 @@ class RecommendationModelConfig:
             max_tokens=1800,
         )
     )
-    default: FireworksStageConfig = field(
-        default_factory=lambda: FireworksStageConfig(
-            model_name=RECOMMENDATION_MODEL,
-            temperature=0.2,
-            max_tokens=1400,
-        )
-    )
 
     def as_stage_map(self) -> dict[str, FireworksStageConfig]:
         return {
             "rerank_context_builder": self.rerank_context_builder,
             "reranker": self.reranker,
             "roadmap_builder": self.roadmap_builder,
-            "default": self.default,
         }
 
 

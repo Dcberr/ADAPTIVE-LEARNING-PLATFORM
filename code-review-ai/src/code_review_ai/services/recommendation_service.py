@@ -56,6 +56,7 @@ class RecommendationService:
         client: OpenAI,
         fireworks_api_key: str,
         fireworks_base_url: str,
+        fireworks_rerank_base_url: str,
         rerank_context_builder_stage_config: FireworksStageConfig,
         reranker_stage_config: FireworksStageConfig,
         roadmap_builder_stage_config: FireworksStageConfig,
@@ -66,6 +67,7 @@ class RecommendationService:
         self.client = client
         self.fireworks_api_key = fireworks_api_key
         self.fireworks_base_url = fireworks_base_url
+        self.fireworks_rerank_base_url = fireworks_rerank_base_url
         self.rerank_context_builder_stage_config = rerank_context_builder_stage_config
         self.reranker_stage_config = reranker_stage_config
         self.roadmap_builder_stage_config = roadmap_builder_stage_config
@@ -367,7 +369,10 @@ class RecommendationService:
         )
         recalculated: list[dict[str, Any]] = []
         for candidate in graph_candidates:
-            if str(candidate.get("root_connection_mode", "")).strip().lower() != "non-direct":
+            if (
+                str(candidate.get("root_connection_mode", "")).strip().lower()
+                != "non-direct"
+            ):
                 recalculated.append(candidate)
                 continue
             relation_metrics = related_metadata.get(
@@ -517,8 +522,6 @@ class RecommendationService:
         fallback_summary, fallback_steps = self._fallback_roadmap(
             state, pool_candidates
         )
-        roadmap_summary = fallback_summary
-        roadmap_steps = fallback_steps
         try:
             response = create_chat_completion_with_retry(
                 self.client,
@@ -552,7 +555,12 @@ class RecommendationService:
                 fallback_steps=fallback_steps,
             )
         except Exception:
-            logger.exception("Roadmap builder failed, using fallback roadmap")
+            logger.exception(
+                "Roadmap builder failed for model=%s candidate_count=%s",
+                self.roadmap_builder_stage_config.model_name,
+                len(pool_candidates),
+            )
+            raise
 
         logger.debug(
             "Roadmap builder produced %s steps with summary=%s",
@@ -587,7 +595,7 @@ class RecommendationService:
         try:
             response = rerank_documents_with_retry(
                 api_key=self.fireworks_api_key,
-                base_url=self.fireworks_base_url,
+                base_url=self.fireworks_rerank_base_url,
                 model_name=self.reranker_stage_config.model_name,
                 query=query,
                 documents=documents,
@@ -599,16 +607,26 @@ class RecommendationService:
                 ),
             )
         except FireworksRerankError:
-            logger.exception("Reranker failed, using fallback candidate order")
-            return fallback_candidates
+            logger.exception(
+                "Reranker failed for model=%s document_count=%s query_preview=%s",
+                self.reranker_stage_config.model_name,
+                len(documents),
+                truncate_text(query, limit=240),
+            )
+            raise
 
         rerank_scores = {
             int(item.get("index", -1)): float(item.get("relevance_score", 0.0) or 0.0)
             for item in response.get("data", [])
         }
         if not rerank_scores:
-            logger.debug("Reranker returned no scores, using fallback candidate order")
-            return fallback_candidates
+            logger.error(
+                "Reranker returned no scores for model=%s document_count=%s response=%s",
+                self.reranker_stage_config.model_name,
+                len(documents),
+                response,
+            )
+            raise ValueError("Reranker returned no scores.")
         logger.debug("Reranker scores by index: %s", rerank_scores)
 
         reranked = [dict(candidate) for candidate in fallback_candidates]
@@ -754,7 +772,11 @@ class RecommendationService:
                 or fallback["goal_query"],
             }
         except Exception:
-            return fallback
+            logger.exception(
+                "Rerank context planning failed for model=%s",
+                self.rerank_context_builder_stage_config.model_name,
+            )
+            raise
 
     def _finalize_rerank_context(
         self,
@@ -803,7 +825,12 @@ class RecommendationService:
             )
             return rerank_query, rerank_overview
         except Exception:
-            return fallback_query, fallback_overview
+            logger.exception(
+                "Rerank context finalization failed for model=%s planner_goal_query=%s",
+                self.rerank_context_builder_stage_config.model_name,
+                planner_goal_query,
+            )
+            raise
 
     def _llm_base_context_summary(self, state: RecommendationState) -> dict[str, Any]:
         exercise = state["exercise"]
@@ -816,44 +843,48 @@ class RecommendationService:
             "student_id": state["student_id"],
             "current_exercise": {
                 "exercise_id": state["exercise_id"],
-                "title": getattr(exercise, "title", ""),
-                "description": getattr(exercise, "description", ""),
+                "title": self._compact_text(getattr(exercise, "title", ""), limit=80),
+                "description": self._compact_text(
+                    getattr(exercise, "description", ""),
+                    limit=180,
+                ),
                 "difficulty": getattr(exercise, "difficulty", ""),
-                "concept_slugs": getattr(exercise, "concept_slugs", []),
+                "concept_slugs": list(getattr(exercise, "concept_slugs", []))[:4],
             },
             "focus_concept": {
-                "concept_ids": state["focus_concept_ids"],
+                "concept_ids": list(state["focus_concept_ids"])[:4],
             },
             "latest_review": {
-                "summary": review.summary if review else "",
-                "detail": review.detail if review else "",
+                "summary": (
+                    self._compact_text(review.summary, limit=140) if review else ""
+                ),
+                "detail": (
+                    self._compact_text(review.detail, limit=180) if review else ""
+                ),
                 "issues": [
                     {
                         "type": item.type,
-                        "issue": item.issue,
+                        "issue": self._compact_text(item.issue, limit=120),
                     }
-                    for item in review_items[:4]
+                    for item in review_items[:3]
                 ],
             },
             "latest_submission": {
                 "submission_id": (submission.submission_id if submission else ""),
                 "created_at": submission.created_at if submission else "",
                 "code_preview": (
-                    self._extract_code_snippet(submission.code)
+                    self._extract_code_snippet(submission.code, max_lines=4)
                     if submission and submission.code.strip()
                     else ""
                 ),
                 "testcase_output_count": (
                     len(submission.testcases) if submission else 0
                 ),
-                "testcases": [
-                    {
-                        "input": testcase.input,
-                        "expect": testcase.expect,
-                        "output": testcase.output,
-                    }
-                    for testcase in (submission.testcases if submission else [])
-                ][:6],
+                "testcases": self._compact_testcases(
+                    submission.testcases if submission else [],
+                    limit=2,
+                    only_failures=True,
+                ),
             },
             "history": {
                 "attempted_exercise_count": len(state["attempted_exercise_ids"]),
@@ -880,8 +911,11 @@ class RecommendationService:
             f"They have already submitted {attempted_count} prior exercises.",
         ]
         if review and review.summary.strip():
-            parts.append(f"The latest review highlights: {review.summary.strip()}")
-        return " ".join(parts)
+            parts.append(
+                "The latest review highlights: "
+                f"{self._compact_text(review.summary.strip(), limit=140)}"
+            )
+        return self._compact_text(" ".join(parts), limit=280)
 
     def _fallback_roadmap(
         self,
@@ -967,21 +1001,18 @@ class RecommendationService:
                 "\n".join(
                     [
                         f"exercise_id: {exercise.exercise_id}",
-                        f"title: {exercise.title}",
-                        f"description: {exercise.description}",
+                        f"title: {self._compact_text(exercise.title, limit=80)}",
+                        f"description: {self._compact_text(exercise.description, limit=140)}",
                         f"difficulty: {exercise.difficulty}",
-                        f"concept_slugs: {', '.join(exercise.concept_slugs)}",
+                        f"concept_slugs: {', '.join(list(exercise.concept_slugs)[:4])}",
                         f"recommended_weight: {float(candidate.get('recommended_weight', 0.0)):.4f}",
-                        f"tests_weight: {float(candidate.get('tests_weight', 0.0)):.4f}",
-                        f"related_weight: {float(candidate.get('related_weight', 0.0)):.4f}",
                         f"progression_score: {float(candidate.get('progression_score', 0.0)):.4f}",
                         f"similarity_score: {float(candidate.get('similarity_score', 0.0)):.4f}",
                         f"vector_similarity: {float(candidate.get('vector_similarity', 0.0)):.4f}",
                         f"history_fit_score: {float(candidate.get('history_fit_score', 0.0)):.4f}",
                         f"root_connection_mode: {candidate.get('root_connection_mode', 'fallback')}",
-                        f"root_connection_weight: {float(candidate.get('root_connection_weight', 0.0)):.4f}",
-                        f"root_hop_count: {int(candidate.get('root_hop_count', 0) or 0)}",
-                        f"retrieval_sources: {', '.join(candidate.get('retrieval_sources', []))}",
+                        f"root_hops: {int(candidate.get('root_hop_count', 0) or 0)}",
+                        f"sources: {', '.join(list(candidate.get('retrieval_sources', []))[:2])}",
                     ]
                 )
             )
@@ -1077,7 +1108,7 @@ class RecommendationService:
         return json.dumps(
             {
                 "query": rerank_query,
-                "overview": rerank_overview,
+                "overview": truncate_text(rerank_overview, limit=240),
             },
             ensure_ascii=True,
             separators=(",", ":"),
@@ -1300,9 +1331,7 @@ class RecommendationService:
             str(candidate.get("root_connection_mode", "fallback")).strip().lower()
         )
         if root_mode == "direct":
-            return (
-                "A strong next step because it stays directly connected to the current concept and gives the student a clearer chance to reinforce the same core reasoning pattern."
-            )
+            return "A strong next step because it stays directly connected to the current concept and gives the student a clearer chance to reinforce the same core reasoning pattern."
         if root_mode == "indirect":
             return "A useful bridge exercise because it stays close to the current concept while expanding the student's practice into a nearby pattern that needs slightly broader reasoning."
         return "A relevant reinforcement exercise chosen from similar problem patterns, so the student can keep practicing the same ideas in a fresh but still familiar setting."
@@ -1444,7 +1473,46 @@ class RecommendationService:
     def _extract_code_snippet(code: str, max_lines: int = 6) -> str:
         lines = [line.rstrip() for line in code.splitlines() if line.strip()]
         snippet = "\n".join(lines[:max_lines]).strip()
-        return snippet or code.strip()[:240]
+        return truncate_text(snippet or code.strip(), limit=220)
+
+    @staticmethod
+    def _compact_text(value: Any, *, limit: int) -> str:
+        return truncate_text(str(value or "").strip(), limit=limit)
+
+    def _compact_testcases(
+        self,
+        testcases: list[Any],
+        *,
+        limit: int,
+        only_failures: bool = False,
+    ) -> list[dict[str, str]]:
+        selected = list(testcases)
+        if only_failures:
+            selected = [
+                testcase
+                for testcase in selected
+                if str(getattr(testcase, "expect", "")).strip()
+                != str(getattr(testcase, "output", "")).strip()
+            ]
+        compact: list[dict[str, str]] = []
+        for testcase in selected[:limit]:
+            compact.append(
+                {
+                    "input": self._compact_text(
+                        getattr(testcase, "input", ""),
+                        limit=80,
+                    ),
+                    "expect": self._compact_text(
+                        getattr(testcase, "expect", ""),
+                        limit=60,
+                    ),
+                    "output": self._compact_text(
+                        getattr(testcase, "output", ""),
+                        limit=60,
+                    ),
+                }
+            )
+        return compact
 
     @staticmethod
     def _clamp_float(value: Any, fallback: float) -> float:
