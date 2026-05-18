@@ -53,9 +53,6 @@ def _safe_startup_config_summary(settings) -> dict[str, object]:
         "qdrant_collection_name": settings.qdrant_collection_name,
         "qdrant_timeout_seconds": settings.qdrant_timeout_seconds,
         "review_logic_model": settings.get_stage_config("review", "logic").model_name,
-        "knowledge_graph_default_model": settings.get_stage_config(
-            "knowledge_graph"
-        ).model_name,
         "recommendation_rerank_context_builder_model": settings.get_stage_config(
             "recommendation", "rerank_context_builder"
         ).model_name,

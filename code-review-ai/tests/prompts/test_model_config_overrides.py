@@ -21,7 +21,6 @@ class ModelConfigOverrideTests(unittest.TestCase):
         logic_stage = config.get_stage_config("review", "logic")
         fix_hint_stage = config.get_stage_config("review", "fix_hint")
         review_link_stage = config.get_stage_config("review", "review_link")
-        scoring_stage = config.get_stage_config("review", "scoring")
 
         self.assertEqual(logic_stage.model_name, "fireworks/deepseek-v3p2")
         self.assertEqual(logic_stage.temperature, 0.1)
@@ -34,10 +33,6 @@ class ModelConfigOverrideTests(unittest.TestCase):
         self.assertEqual(review_link_stage.model_name, "fireworks/deepseek-v3p2")
         self.assertEqual(review_link_stage.temperature, 0.1)
         self.assertEqual(review_link_stage.max_tokens, 1000)
-
-        self.assertEqual(scoring_stage.model_name, "fireworks/deepseek-v3p2")
-        self.assertEqual(scoring_stage.temperature, 0.05)
-        self.assertEqual(scoring_stage.max_tokens, 1800)
 
     def test_stage_specific_recommendation_model_override(self):
         config = build_env_config(
@@ -63,12 +58,12 @@ class ModelConfigOverrideTests(unittest.TestCase):
         )
 
         logic_stage = config.get_stage_config("review", "logic")
-        scoring_stage = config.get_stage_config("review", "scoring")
+        overview_stage = config.get_stage_config("review", "overview")
 
         self.assertEqual(logic_stage.model_name, "fireworks/test-review-model")
-        self.assertEqual(scoring_stage.model_name, "fireworks/test-review-model")
+        self.assertEqual(overview_stage.model_name, "fireworks/test-review-model")
         self.assertEqual(logic_stage.max_tokens, 2200)
-        self.assertEqual(scoring_stage.max_tokens, 1800)
+        self.assertEqual(overview_stage.max_tokens, 950)
 
     def test_stage_specific_override_wins_over_feature_level_model(self):
         config = build_env_config(
