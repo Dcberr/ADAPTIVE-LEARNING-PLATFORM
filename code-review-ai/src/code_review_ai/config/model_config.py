@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+REVIEW_MODEL = "accounts/fireworks/models/glm-5p1"
+RECOMMENDATION_MODEL = "accounts/fireworks/models/kimi-k2p6"
+RERANKER_MODEL = "fireworks/qwen3-reranker-8b"
+
 
 @dataclass(frozen=True)
 class FireworksStageConfig:
@@ -14,42 +18,42 @@ class FireworksStageConfig:
 class ReviewModelConfig:
     logic: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/qwen3-coder-30b-a3b-instruct",
+            model_name=REVIEW_MODEL,
             temperature=0.1,
             max_tokens=2200,
         )
     )
     fix_hint: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/qwen3-coder-30b-a3b-instruct",
+            model_name=REVIEW_MODEL,
             temperature=0.25,
             max_tokens=900,
         )
     )
     improvement: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/qwen3-coder-30b-a3b-instruct",
+            model_name=REVIEW_MODEL,
             temperature=0.15,
             max_tokens=1200,
         )
     )
     review_link: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/deepseek-v3p2",
+            model_name=REVIEW_MODEL,
             temperature=0.1,
             max_tokens=1000,
         )
     )
     overview: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/deepseek-v3p2",
+            model_name=REVIEW_MODEL,
             temperature=0.3,
             max_tokens=950,
         )
     )
     default: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/deepseek-v3p2",
+            model_name=REVIEW_MODEL,
             temperature=0.2,
             max_tokens=1200,
         )
@@ -70,28 +74,28 @@ class ReviewModelConfig:
 class RecommendationModelConfig:
     rerank_context_builder: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/deepseek-v3p2",
+            model_name=RECOMMENDATION_MODEL,
             temperature=0.1,
             max_tokens=1200,
         )
     )
     reranker: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/qwen3-reranker-8b",
+            model_name=RERANKER_MODEL,
             temperature=0.0,
             max_tokens=0,
         )
     )
     roadmap_builder: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/deepseek-v3p2",
+            model_name=RECOMMENDATION_MODEL,
             temperature=0.2,
             max_tokens=1800,
         )
     )
     default: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
-            model_name="accounts/fireworks/models/deepseek-v3p2",
+            model_name=RECOMMENDATION_MODEL,
             temperature=0.2,
             max_tokens=1400,
         )
