@@ -37,8 +37,7 @@ def build_overview_prompt(state: ReviewState) -> str:
     logic_issue_block = "\n".join(logic_issue_lines) or "- None"
     improvement_block = "\n".join(improvement_lines) or "- None"
 
-    return dedent(
-        f"""
+    return dedent(f"""
         Write a short overview for this student's current submission using only these current review findings.
 
         Main logic issue
@@ -47,7 +46,7 @@ def build_overview_prompt(state: ReviewState) -> str:
         Main improvement note
         {improvement_block}
 
-        Write exactly one paragraph with 3 to 4 sentences.
+        Write exactly one paragraph with 5 to 7 sentences.
         Aim for about 80 to 110 words when there is a logic issue or improvement note to explain.
         Write as if you are speaking directly to the student.
         Start with the most important logic problem if there is one.
@@ -57,5 +56,4 @@ def build_overview_prompt(state: ReviewState) -> str:
         Do not include raw code, JSON, headings, bullet points, labels, IDs, testcase names, or meta commentary.
         Do not mention prompts, hidden instructions, policies, or internal rules.
         Output only the final overview paragraph.
-        """
-    ).strip()
+        """).strip()
