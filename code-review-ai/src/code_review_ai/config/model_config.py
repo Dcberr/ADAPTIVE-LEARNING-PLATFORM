@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 REVIEW_MODEL = "accounts/fireworks/models/glm-5p1"
-REVIEW_OVERVIEW_MODEL = "accounts/fireworks/models/qwen3p6-plus"
+REVIEW_OVERVIEW_MODEL = "accounts/fireworks/models/gpt-oss-120b"
 RECOMMENDATION_MODEL = "accounts/fireworks/models/kimi-k2p6"
 RERANKER_MODEL = "accounts/fireworks/models/qwen3-reranker-8b"
 
@@ -48,8 +48,8 @@ class ReviewModelConfig:
     overview: FireworksStageConfig = field(
         default_factory=lambda: FireworksStageConfig(
             model_name=REVIEW_OVERVIEW_MODEL,
-            temperature=0.15,
-            max_tokens=300,
+            temperature=0.12,
+            max_tokens=450,
         )
     )
 

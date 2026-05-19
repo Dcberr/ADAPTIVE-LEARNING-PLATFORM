@@ -1,5 +1,7 @@
 from ast import List
 import logging
+from time import perf_counter
+from typing import Any
 
 from code_review_ai.api.review_code_schema import ReviewItem
 from code_review_ai.models.review_state import ReviewState
@@ -76,24 +78,47 @@ class OverviewAgent:
 
         # Generate teacher-style overview using prompt
         try:
+            messages = build_overview_messages(new_state)
+            prompt_text = "\n\n".join(
+                str(message.get("content", "")) for message in messages
+            )
+            logger.debug(
+                "OverviewAgent request summary: model=%s logic_issues=%s improvement_notes=%s review_items=%s prompt_chars=%s prompt_lines=%s",
+                self.model_name,
+                len(new_state.get("logic_issues", {})),
+                len(new_state.get("improvement_notes", [])),
+                len(review_items),
+                len(prompt_text),
+                len(prompt_text.splitlines()),
+            )
+            request_started_at = perf_counter()
             response = create_chat_completion_with_retry(
                 self.client,
                 model=self.model_name,
-                messages=build_overview_messages(new_state),
+                messages=messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
+            request_elapsed_ms = (perf_counter() - request_started_at) * 1000
             overview_text = self._sanitize_overview_text(
                 response.choices[0].message.content
             )
+            if not overview_text:
+                overview_text = self._build_fallback_overview(new_state)
             new_state["overview"] = overview_text
             logger.debug(
-                "OverviewAgent generated overview preview: %s",
+                "OverviewAgent response summary: model=%s duration_ms=%.2f overview_chars=%s preview=%s",
+                self.model_name,
+                request_elapsed_ms,
+                len(overview_text),
                 truncate_text(overview_text),
             )
-        except Exception as e:
-            logger.exception("OverviewAgent failed")
-            new_state["overview"] = "Unable to generate overview at this time."
+        except Exception:
+            logger.exception(
+                "OverviewAgent failed for model=%s; using deterministic fallback",
+                self.model_name,
+            )
+            new_state["overview"] = self._build_fallback_overview(new_state)
 
         logger.debug(
             "OverviewAgent completed with state summary: %s",
@@ -105,7 +130,28 @@ class OverviewAgent:
     def _sanitize_overview_text(content: str | None) -> str:
         text = (content or "").strip()
         if not text:
-            return "Unable to generate overview at this time."
+            return ""
+
+        lowered_text = text.lower()
+        blocked_phrases = (
+            "the user wants",
+            "analyze the request",
+            "analysis of the request",
+            "key constraints",
+            "the prompt says",
+            "system prompt",
+            "hidden instructions",
+            "internal rules",
+            "i should",
+            "i need to",
+            "let me",
+            "role:",
+            "tone:",
+            "constraints:",
+            "output:",
+        )
+        if any(phrase in lowered_text for phrase in blocked_phrases):
+            return ""
 
         blocked_prefixes = (
             "you are ",
@@ -114,6 +160,9 @@ class OverviewAgent:
             "logic issues:",
             "improvement notes:",
             "system prompt",
+            "1.",
+            "2.",
+            "3.",
         )
         kept_lines = [
             line.strip()
@@ -126,5 +175,36 @@ class OverviewAgent:
         if not cleaned:
             cleaned = text
 
-        cleaned = truncate_text(cleaned, limit=420)
         return cleaned
+
+    @staticmethod
+    def _build_fallback_overview(state: ReviewState) -> str:
+        logic_issues = list(state.get("logic_issues", {}).values())
+        improvement_notes = list(state.get("improvement_notes", []))
+
+        if logic_issues:
+            main_issue = OverviewAgent._extract_summary_text(logic_issues[0])
+            parts = [f"Your program still has a main logic problem: {main_issue}."]
+            if improvement_notes:
+                improvement = OverviewAgent._extract_summary_text(improvement_notes[0])
+                parts.append(
+                    f"After fixing that, also improve this part of the code: {improvement}."
+                )
+            return " ".join(parts)
+
+        if improvement_notes:
+            improvement = OverviewAgent._extract_summary_text(improvement_notes[0])
+            return (
+                f"Your solution is close, but there is still an important improvement to make: {improvement}."
+            )
+
+        return "No major issues were detected in this submission."
+
+    @staticmethod
+    def _extract_summary_text(item: Any) -> str:
+        issue_text = str(item.get("issue", "")).strip() if isinstance(item, dict) else ""
+        fix_text = (
+            str(item.get("fix_suggestion", "")).strip() if isinstance(item, dict) else ""
+        )
+        text = issue_text or fix_text or "please review the current submission"
+        return text.rstrip(".")

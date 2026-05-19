@@ -21,6 +21,7 @@ class ModelConfigOverrideTests(unittest.TestCase):
         logic_stage = config.get_stage_config("review", "logic")
         fix_hint_stage = config.get_stage_config("review", "fix_hint")
         review_link_stage = config.get_stage_config("review", "review_link")
+        overview_stage = config.get_stage_config("review", "overview")
 
         self.assertEqual(logic_stage.model_name, "accounts/fireworks/models/glm-5p1")
         self.assertEqual(logic_stage.temperature, 0.1)
@@ -33,6 +34,10 @@ class ModelConfigOverrideTests(unittest.TestCase):
         self.assertEqual(review_link_stage.model_name, "accounts/fireworks/models/glm-5p1")
         self.assertEqual(review_link_stage.temperature, 0.1)
         self.assertEqual(review_link_stage.max_tokens, 1000)
+
+        self.assertEqual(overview_stage.model_name, "accounts/fireworks/models/gpt-oss-120b")
+        self.assertEqual(overview_stage.temperature, 0.12)
+        self.assertEqual(overview_stage.max_tokens, 900)
 
     def test_stage_specific_recommendation_model_override(self):
         config = build_env_config(
@@ -61,9 +66,9 @@ class ModelConfigOverrideTests(unittest.TestCase):
         overview_stage = config.get_stage_config("review", "overview")
 
         self.assertEqual(logic_stage.model_name, "fireworks/test-review-model")
-        self.assertEqual(overview_stage.model_name, "accounts/fireworks/models/qwen3-8b")
+        self.assertEqual(overview_stage.model_name, "accounts/fireworks/models/gpt-oss-120b")
         self.assertEqual(logic_stage.max_tokens, 2200)
-        self.assertEqual(overview_stage.max_tokens, 300)
+        self.assertEqual(overview_stage.max_tokens, 900)
 
     def test_recommendation_stage_overrides_are_isolated(self):
         config = build_env_config(

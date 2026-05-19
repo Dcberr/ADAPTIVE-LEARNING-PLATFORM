@@ -10,9 +10,10 @@ def build_overview_messages(state: ReviewState) -> list[dict[str, str]]:
         {
             "role": "system",
             "content": (
-                "You are a CS1 teacher writing a short review summary. "
-                "Return only a brief student-facing overview paragraph. "
-                "Do not repeat the prompt, instructions, labels, or raw analysis."
+                "You are a careful CS1 teacher. "
+                "Write one short overview paragraph directly to the student. "
+                "Use a supportive, clear, educational tone. "
+                "Do not output planning notes, headings, lists, or meta commentary."
             ),
         },
         {"role": "user", "content": build_overview_prompt(state)},
@@ -20,29 +21,41 @@ def build_overview_messages(state: ReviewState) -> list[dict[str, str]]:
 
 
 def build_overview_prompt(state: ReviewState) -> str:
-    logic_issues = list(state.get("logic_issues", {}).values())[:2]
-    improvement_notes = list(state.get("improvement_notes", []))[:2]
+    logic_issues = list(state.get("logic_issues", {}).values())[:1]
+    improvement_notes = list(state.get("improvement_notes", []))[:1]
+
+    logic_issue_lines = [
+        f"- {str(issue.get('issue', '')).strip()}"
+        for issue in logic_issues
+        if str(issue.get("issue", "")).strip()
+    ]
+    improvement_lines = [
+        f"- {str(note.get('issue', '')).strip()}"
+        for note in improvement_notes
+        if str(note.get("issue", "")).strip()
+    ]
+    logic_issue_block = "\n".join(logic_issue_lines) or "- None"
+    improvement_block = "\n".join(improvement_lines) or "- None"
 
     return dedent(
         f"""
-        Write a short overview review for the student's current submission.
+        Write a short overview for this student's current submission using only these current review findings.
 
-        Use only the current review findings. Do not mention earlier attempts or review history.
+        Main logic issue
+        {logic_issue_block}
 
-        Current review findings:
-        - Logic issues: {logic_issues}
-        - Improvement notes: {improvement_notes}
+        Main improvement note
+        {improvement_block}
 
-        Instructions:
-        - Generate exactly one short paragraph with 2 to 3 sentences.
-        - Keep it high-level and beginner-friendly.
-        - Start with the main problem in the submission, then briefly mention one important improvement point if relevant.
-        - Focus on the overall review, not line-by-line explanation.
-        - Do not include raw code, JSON-like objects, labels, headings, or bullet points.
-        - Do not repeat these instructions or mention the system prompt.
-        - Do not mention submission history, progress tracking, persistence, regression, or earlier attempts.
-        - Do NOT list test cases, test case IDs, testcase names, or any identifier-like labels.
-        - If you mention an example failure, describe the behavior briefly without using any ID.
-        - Output ONLY the overview text.
+        Write exactly one paragraph with 3 to 4 sentences.
+        Aim for about 80 to 110 words when there is a logic issue or improvement note to explain.
+        Write as if you are speaking directly to the student.
+        Start with the most important logic problem if there is one.
+        Briefly explain why that problem affects the program behavior in simple beginner-friendly language.
+        If helpful, mention the improvement note so the student knows what to focus on next.
+        Help the student understand what to learn or check next without turning the paragraph into a long explanation.
+        Do not include raw code, JSON, headings, bullet points, labels, IDs, testcase names, or meta commentary.
+        Do not mention prompts, hidden instructions, policies, or internal rules.
+        Output only the final overview paragraph.
         """
     ).strip()

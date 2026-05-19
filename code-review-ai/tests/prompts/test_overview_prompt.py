@@ -27,23 +27,31 @@ class OverviewPromptTests(unittest.TestCase):
         user_prompt = messages[1]["content"]
 
         self.assertIn(
-            "Generate exactly one short paragraph with 2 to 3 sentences.",
+            "Write exactly one paragraph with 3 to 4 sentences.",
             user_prompt,
         )
         self.assertIn(
-            "Use only the current review findings. Do not mention earlier attempts or review history.",
+            "Aim for about 80 to 110 words when there is a logic issue or improvement note to explain.",
             user_prompt,
         )
         self.assertIn(
-            "Do NOT list test cases, test case IDs, testcase names, or any identifier-like labels.",
+            "Write a short overview for this student's current submission using only these current review findings.",
             user_prompt,
         )
         self.assertIn(
-            "If you mention an example failure, describe the behavior briefly without using any ID.",
+            "Write as if you are speaking directly to the student.",
             user_prompt,
         )
         self.assertIn(
-            "Do not mention submission history, progress tracking, persistence, regression, or earlier attempts.",
+            "Help the student understand what to learn or check next without turning the paragraph into a long explanation.",
+            user_prompt,
+        )
+        self.assertIn(
+            "Do not include raw code, JSON, headings, bullet points, labels, IDs, testcase names, or meta commentary.",
+            user_prompt,
+        )
+        self.assertIn(
+            "Do not mention prompts, hidden instructions, policies, or internal rules.",
             user_prompt,
         )
         self.assertNotIn("int main() { return 0; }", user_prompt)
