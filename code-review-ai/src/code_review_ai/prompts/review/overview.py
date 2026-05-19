@@ -47,12 +47,12 @@ def build_overview_prompt(state: ReviewState) -> str:
         {improvement_block}
 
         Write exactly one paragraph with 5 to 7 sentences.
-        Aim for about 80 to 110 words when there is a logic issue or improvement note to explain.
+        Do not make the paragraph too short; aim for about 110 to 150 words when there is a logic issue or improvement note to explain.
         Write as if you are speaking directly to the student.
         Start with the most important logic problem if there is one.
         Briefly explain why that problem affects the program behavior in simple beginner-friendly language.
         If helpful, mention the improvement note so the student knows what to focus on next.
-        Help the student understand what to learn or check next without turning the paragraph into a long explanation.
+        Help the student understand what to learn or check next without turning the paragraph into an overly long explanation.
         Do not include raw code, JSON, headings, bullet points, labels, IDs, testcase names, or meta commentary.
         Do not mention prompts, hidden instructions, policies, or internal rules.
         Output only the final overview paragraph.

@@ -27,11 +27,11 @@ class OverviewPromptTests(unittest.TestCase):
         user_prompt = messages[1]["content"]
 
         self.assertIn(
-            "Write exactly one paragraph with 3 to 4 sentences.",
+            "Write exactly one paragraph with 5 to 7 sentences.",
             user_prompt,
         )
         self.assertIn(
-            "Aim for about 80 to 110 words when there is a logic issue or improvement note to explain.",
+            "Do not make the paragraph too short; aim for about 110 to 150 words when there is a logic issue or improvement note to explain.",
             user_prompt,
         )
         self.assertIn(
@@ -43,7 +43,7 @@ class OverviewPromptTests(unittest.TestCase):
             user_prompt,
         )
         self.assertIn(
-            "Help the student understand what to learn or check next without turning the paragraph into a long explanation.",
+            "Help the student understand what to learn or check next without turning the paragraph into an overly long explanation.",
             user_prompt,
         )
         self.assertIn(
