@@ -49,7 +49,7 @@ class ReviewModelConfig:
         default_factory=lambda: FireworksStageConfig(
             model_name=REVIEW_OVERVIEW_MODEL,
             temperature=0.12,
-            max_tokens=450,
+            max_tokens=900,
         )
     )
 
