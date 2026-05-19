@@ -374,6 +374,8 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewResponse> getSubmissionReviewsByUser(UUID submissionId, UUID userId) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow();
+        Instant submittedAt = submission.getSubmittedAt();
+        Instant nextSubmissionAt = findNextSubmissionAt(submission);
         
         var userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
@@ -391,6 +393,15 @@ public class ReviewServiceImpl implements ReviewService {
 
         return codeReviewRepository.findBySubmissionId(submissionId)
                 .stream()
+                .filter(review -> isOnOrAfter(review.getCreatedAt(), submittedAt))
+                .filter(review -> isBeforeNextSubmission(review.getCreatedAt(), nextSubmissionAt))
+                .sorted(Comparator.comparing(
+                        CodeReview::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ).thenComparing(
+                        CodeReview::getId,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .map(r -> deserializeReview(r.getReviewItemsJson()))
                 .toList();
     }
@@ -466,6 +477,31 @@ public class ReviewServiceImpl implements ReviewService {
                     .stream()
                     .map(r -> deserializeReview(r.getReviewItemsJson()))
                     .toList();
+        }
+
+        private Instant findNextSubmissionAt(Submission submission) {
+            Instant submittedAt = submission.getSubmittedAt();
+
+            return submissionRepository.getAllSubmissionsByProblemIdAndUserId(submission.getUserId(), submission.getProblemId())
+                    .stream()
+                    .filter(candidate -> !candidate.getId().equals(submission.getId()))
+                    .map(Submission::getSubmittedAt)
+                    .filter(candidateSubmittedAt -> candidateSubmittedAt != null && submittedAt != null)
+                    .filter(candidateSubmittedAt -> candidateSubmittedAt.isAfter(submittedAt))
+                    .min(Comparator.naturalOrder())
+                    .orElse(null);
+        }
+
+        private boolean isOnOrAfter(Instant candidate, Instant reference) {
+            if (candidate == null) {
+                return false;
+            }
+
+            return reference == null || !candidate.isBefore(reference);
+        }
+
+        private boolean isBeforeNextSubmission(Instant candidate, Instant nextSubmissionAt) {
+            return candidate != null && (nextSubmissionAt == null || candidate.isBefore(nextSubmissionAt));
         }
 
 }

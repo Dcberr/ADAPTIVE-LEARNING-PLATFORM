@@ -60,6 +60,16 @@ public class RecommendationController {
         return ApiResponse.success(recommendationService.getRecommendationHistoryByProblem(requesterId, problemId, requesterId));
     }
 
+    @Operation(summary = "Get my recommendation history for a submission")
+    @GetMapping("/history/submission/{submissionId}/me")
+    public ApiResponse<List<RecommendationHistoryResponse>> getMyRecommendationHistoryBySubmission(
+            Authentication authentication,
+            @PathVariable UUID submissionId
+    ) {
+        UUID requesterId = (UUID) authentication.getPrincipal();
+        return ApiResponse.success(recommendationService.getRecommendationHistoryBySubmission(submissionId, requesterId));
+    }
+
     @Operation(summary = "Get recommendation history of a student")
     @Hidden
     @GetMapping("/history/student/{studentId}")

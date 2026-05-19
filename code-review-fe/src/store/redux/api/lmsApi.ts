@@ -763,6 +763,14 @@ export const lmsApi = baseApi.injectEndpoints({
       query: (problemId) => `/recommendations/history/problem/${problemId}/me`,
       transformResponse: (response: ApiResponse<RecommendationHistoryResponse>) => response.data ?? [],
     }),
+    getRecommendationHistoryBySubmission: builder.query<RecommendationHistoryResponse, string>({
+      query: (submissionId) => `/recommendations/history/submission/${submissionId}/me`,
+      transformResponse: (response: ApiResponse<RecommendationHistoryResponse>) => response.data ?? [],
+    }),
+    getSubmissionReviews: builder.query<CodeReviewResponse[], string>({
+      query: (submissionId) => `/reviews/submission/${submissionId}`,
+      transformResponse: (response: ApiResponse<CodeReviewResponse[]>) => response.data ?? [],
+    }),
     getProblemReviewsByUser: builder.query<CodeReviewResponse[], GetProblemReviewsByUserRequest>({
       query: ({ problemId, userId }) =>
         `/reviews/problem/${problemId}/user/${encodeURIComponent(userId)}`,
@@ -1323,11 +1331,13 @@ export const {
   useGetAssignmentTestcasesQuery,
   useLazyGetAssignmentTestcasesQuery,
   useGetProblemSubmissionsQuery,
+  useGetSubmissionReviewsQuery,
   useGetProblemReviewsByUserQuery,
   useJudgeExecutionMutation,
   useReviewCodeMutation,
   useReviewSubmissionMutation,
   useGetRecommendationRoadmapMutation,
+  useGetRecommendationHistoryBySubmissionQuery,
   useGetRecommendationHistoryByProblemQuery,
   useCreateClassMutation,
   useUpdateClassMutation,

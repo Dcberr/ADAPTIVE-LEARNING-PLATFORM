@@ -14,4 +14,6 @@ public interface RecommendationService {
     List<RecommendationHistoryResponse> getRecommendationHistory(UUID studentId, UUID requesterId);
 
     List<RecommendationHistoryResponse> getRecommendationHistoryByProblem(UUID studentId, UUID problemId, UUID requesterId);
+
+    List<RecommendationHistoryResponse> getRecommendationHistoryBySubmission(UUID submissionId, UUID requesterId);
 }

@@ -19,10 +19,10 @@ import {
   type RecommendationResponse,
   type SubmissionDetailResponse,
   useGetRecommendationRoadmapMutation,
-  useGetRecommendationHistoryByProblemQuery,
+  useGetRecommendationHistoryBySubmissionQuery,
   useGetProblemByIdQuery,
-  useGetProblemReviewsByUserQuery,
   useGetProblemSubmissionsQuery,
+  useGetSubmissionReviewsQuery,
   useGetSubmissionByIdQuery,
   useReviewSubmissionMutation,
 } from "@/store/redux/api/lmsApi"
@@ -175,21 +175,16 @@ export default function ProblemBankSubmissionReviewPage({
   } = useGetProblemSubmissionsQuery(problemId)
   const { data: submissionDetail, isLoading: isLoadingDetail, error: detailError } =
     useGetSubmissionByIdQuery(submissionId)
-  const shouldLoadReviewHistory =
-    Boolean(submissionDetail?.isReviewed) && Boolean(problemId) && Boolean(currentUserId)
-  const shouldLoadRecommendationHistory =
-    Boolean(submissionDetail?.isRecommend) && Boolean(problemId)
-  const { data: reviewHistory = [], isLoading: isLoadingReviewHistory } = useGetProblemReviewsByUserQuery(
-    {
-      problemId,
-      userId: currentUserId,
-    },
+  const shouldLoadReviewHistory = Boolean(submissionDetail?.isReviewed) && Boolean(submissionId)
+  const shouldLoadRecommendationHistory = Boolean(submissionDetail?.isRecommend) && Boolean(submissionId)
+  const { data: reviewHistory = [], isLoading: isLoadingReviewHistory } = useGetSubmissionReviewsQuery(
+    submissionId,
     {
       skip: !shouldLoadReviewHistory,
     }
   )
   const { data: recommendationHistory = [], isLoading: isLoadingRecommendationHistory } =
-    useGetRecommendationHistoryByProblemQuery(problemId, {
+    useGetRecommendationHistoryBySubmissionQuery(submissionId, {
       skip: !shouldLoadRecommendationHistory,
     })
   const submission = submissions.find((item) => item.submissionId === submissionId)
@@ -203,14 +198,14 @@ export default function ProblemBankSubmissionReviewPage({
   const latestHistoricalReview = useMemo(
     () =>
       reviewHistory.length > 0
-        ? mapCodeReviewResponseToFeedback(problemId, reviewHistory[reviewHistory.length - 1])
+        ? mapCodeReviewResponseToFeedback(problemId, reviewHistory[0])
         : null,
     [problemId, reviewHistory]
   )
   const latestHistoricalRecommendation = useMemo<RecommendationResponse | null>(
     () =>
       recommendationHistory.length > 0
-        ? recommendationHistory[recommendationHistory.length - 1].recommendation
+        ? recommendationHistory[0].recommendation
         : null,
     [recommendationHistory]
   )

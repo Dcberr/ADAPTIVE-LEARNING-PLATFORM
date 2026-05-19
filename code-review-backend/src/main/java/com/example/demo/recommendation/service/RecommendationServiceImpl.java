@@ -101,6 +101,37 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<RecommendationHistoryResponse> getRecommendationHistoryBySubmission(UUID submissionId, UUID requesterId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBMISSION_NOT_FOUND));
+        User requester = getUserOrThrow(requesterId);
+        validateAccess(requester, submission.getUserId());
+
+        Instant submittedAt = submission.getSubmittedAt();
+        Instant nextSubmissionAt = findNextSubmissionAt(submission);
+        List<Instant> reviewInstants = codeReviewRepository.findBySubmissionId(submissionId).stream()
+                .map(CodeReview::getCreatedAt)
+                .filter(reviewAt -> isOnOrAfter(reviewAt, submittedAt))
+                .filter(reviewAt -> isBeforeNextSubmission(reviewAt, nextSubmissionAt))
+                .toList();
+
+        if (reviewInstants.isEmpty()) {
+            return List.of();
+        }
+
+        return recommendationHistoryRepository
+                .findByStudentIdAndProblemIdOrderByCreatedAtDesc(submission.getUserId(), submission.getProblemId())
+                .stream()
+                .filter(history -> isOnOrAfter(history.getCreatedAt(), submittedAt))
+                .filter(history -> isBeforeNextSubmission(history.getCreatedAt(), nextSubmissionAt))
+                .filter(history -> reviewInstants.stream()
+                        .anyMatch(reviewAt -> isOnOrAfter(history.getCreatedAt(), reviewAt)))
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
     private RecommendationAgentRequest buildAgentRequest(
             RecommendationRequest request,
             Problem problem
@@ -237,6 +268,31 @@ public class RecommendationServiceImpl implements RecommendationService {
         if (!canAccess) {
             throw new AppException(ErrorCode.FORBIDDEN);
         }
+    }
+
+    private Instant findNextSubmissionAt(Submission submission) {
+        Instant submittedAt = submission.getSubmittedAt();
+
+        return submissionRepository.getAllSubmissionsByProblemIdAndUserId(submission.getUserId(), submission.getProblemId())
+                .stream()
+                .filter(candidate -> !candidate.getId().equals(submission.getId()))
+                .map(Submission::getSubmittedAt)
+                .filter(candidateSubmittedAt -> candidateSubmittedAt != null && submittedAt != null)
+                .filter(candidateSubmittedAt -> candidateSubmittedAt.isAfter(submittedAt))
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+    }
+
+    private boolean isOnOrAfter(Instant candidate, Instant reference) {
+        if (candidate == null) {
+            return false;
+        }
+
+        return reference == null || !candidate.isBefore(reference);
+    }
+
+    private boolean isBeforeNextSubmission(Instant candidate, Instant nextSubmissionAt) {
+        return candidate != null && (nextSubmissionAt == null || candidate.isBefore(nextSubmissionAt));
     }
 
     private void saveRecommendationHistory(UUID studentId, UUID problemId, UUID requesterId,

@@ -23,10 +23,10 @@ import {
   useGetAssignmentContextQuery,
   useGetAssignmentProblemQuery,
   useGetRecommendationRoadmapMutation,
-  useGetRecommendationHistoryByProblemQuery,
+  useGetRecommendationHistoryBySubmissionQuery,
   useGetAssignmentSubmissionsQuery,
   useGetAssignmentTestcasesQuery,
-  useGetProblemReviewsByUserQuery,
+  useGetSubmissionReviewsQuery,
   useGetSubmissionByIdQuery,
   useReviewSubmissionMutation,
 } from "@/store/redux/api/lmsApi"
@@ -197,21 +197,16 @@ export default function SubmissionReviewPage({
   } = useGetAssignmentTestcasesQuery(assignmentId)
   const { data: submissionDetail, isLoading: isLoadingDetail, error: detailError } =
     useGetSubmissionByIdQuery(submissionId)
-  const shouldLoadReviewHistory =
-    Boolean(submissionDetail?.isReviewed) && Boolean(assignmentProblem?.id) && Boolean(currentUserId)
-  const shouldLoadRecommendationHistory =
-    Boolean(submissionDetail?.isRecommend) && Boolean(assignmentProblem?.id)
-  const { data: reviewHistory = [], isLoading: isLoadingReviewHistory } = useGetProblemReviewsByUserQuery(
-    {
-      problemId: assignmentProblem?.id ?? "",
-      userId: currentUserId,
-    },
+  const shouldLoadReviewHistory = Boolean(submissionDetail?.isReviewed) && Boolean(submissionId)
+  const shouldLoadRecommendationHistory = Boolean(submissionDetail?.isRecommend) && Boolean(submissionId)
+  const { data: reviewHistory = [], isLoading: isLoadingReviewHistory } = useGetSubmissionReviewsQuery(
+    submissionId,
     {
       skip: !shouldLoadReviewHistory,
     }
   )
   const { data: recommendationHistory = [], isLoading: isLoadingRecommendationHistory } =
-    useGetRecommendationHistoryByProblemQuery(assignmentProblem?.id ?? "", {
+    useGetRecommendationHistoryBySubmissionQuery(submissionId, {
       skip: !shouldLoadRecommendationHistory,
     })
   const submission = submissions.find((item) => item.submissionId === submissionId)
@@ -234,14 +229,14 @@ export default function SubmissionReviewPage({
   const latestHistoricalReview = useMemo(
     () =>
       reviewHistory.length > 0
-        ? mapCodeReviewResponseToFeedback(assignmentId, reviewHistory[reviewHistory.length - 1])
+        ? mapCodeReviewResponseToFeedback(assignmentId, reviewHistory[0])
         : null,
     [assignmentId, reviewHistory]
   )
   const latestHistoricalRecommendation = useMemo<RecommendationResponse | null>(
     () =>
       recommendationHistory.length > 0
-        ? recommendationHistory[recommendationHistory.length - 1].recommendation
+        ? recommendationHistory[0].recommendation
         : null,
     [recommendationHistory]
   )

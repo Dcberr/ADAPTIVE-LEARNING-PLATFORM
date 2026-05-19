@@ -42,18 +42,18 @@ public class ReviewController {
         );
     }
 
-//     @Operation(summary = "Get review history of a submission")
-//     @GetMapping("/submission/{submissionId}")
-//     public ApiResponse<List<ReviewResponse>> history(
-//             Authentication auth,
-//             @Parameter(description = "Submission ID")
-//             @PathVariable UUID submissionId
-//     ) {
-//         UUID userId = (UUID) auth.getPrincipal();
-//         return ApiResponse.success(
-//                 reviewService.getSubmissionReviewsByUser(submissionId, userId)
-//         );
-//     }
+    @Operation(summary = "Get review history of a submission")
+    @GetMapping("/submission/{submissionId}")
+    public ApiResponse<List<ReviewResponse>> history(
+            Authentication auth,
+            @Parameter(description = "Submission ID")
+            @PathVariable UUID submissionId
+    ) {
+        UUID userId = (UUID) auth.getPrincipal();
+        return ApiResponse.success(
+                reviewService.getSubmissionReviewsByUser(submissionId, userId)
+        );
+    }
 
     @Operation(summary = "Review code directly without submission")
     @PostMapping("/code")
