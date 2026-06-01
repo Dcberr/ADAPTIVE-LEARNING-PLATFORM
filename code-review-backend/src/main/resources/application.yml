@@ -45,6 +45,23 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      missing-topics-fatal: false
+    producer:
+      acks: all
+      retries: 10
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
   datasource:
     url: jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}?sslmode=require&channel_binding=require
     username: ${DATABASE_USERNAME}
@@ -88,3 +105,13 @@ spring:
             token-uri: https://oauth2.googleapis.com/token
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: sub
+
+app:
+  kafka:
+    consumer-group: ${KAFKA_CONSUMER_GROUP:code-review-backend}
+    outbox:
+      publish-delay-ms: ${KAFKA_OUTBOX_PUBLISH_DELAY_MS:3000}
+    topics:
+      assignment: ${KAFKA_ASSIGNMENT_TOPIC:assignment-events}
+      submission: ${KAFKA_SUBMISSION_TOPIC:submission-events}
+      review: ${KAFKA_REVIEW_TOPIC:review-events}

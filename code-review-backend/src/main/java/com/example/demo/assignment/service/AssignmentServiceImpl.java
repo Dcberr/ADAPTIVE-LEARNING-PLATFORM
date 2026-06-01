@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +30,7 @@ import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.classmanagement.entity.ClassEnrollment;
 import com.example.demo.classmanagement.repository.ClassEnrollmentRepository;
 import com.example.demo.classmanagement.repository.ClassRepository;
+import com.example.demo.event.DomainEventPublisher;
 import com.example.demo.problem.dto.CreateProblemRequest;
 import com.example.demo.problem.dto.TestcaseDto;
 import com.example.demo.problem.entity.Problem;
@@ -60,8 +62,10 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final UserRepository userRepository;
     private final ClassRepository classRepository;
     private final ClassEnrollmentRepository classEnrollmentRepository;
+    private final DomainEventPublisher domainEventPublisher;
 
     @Override
+    @Transactional
     public AssignmentResponse createAssignment(CreateAssignmentRequest request) {
         topicRepository.findByIdAndDeletedAtIsNull(request.getTopicId())
                 .orElseThrow(() -> new AppException(ErrorCode.TOPIC_NOT_FOUND));
@@ -106,6 +110,8 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .problemId(problem.getId())
                 .build()
         );
+
+        domainEventPublisher.publishAssignmentCreated(assignment);
 
         return mapAssignment(assignment);
     }
@@ -175,6 +181,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
+    @Transactional
     public AssignmentResponse updateAssignment(UUID assignmentId, UpdateAssignmentRequest request) {
 
         Assignment assignment = getActiveAssignment(assignmentId);
@@ -187,6 +194,10 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignmentMapper.updateAssignmentFromDto(request, assignment);
 
         assignmentRepository.save(assignment);
+
+        if (shouldPublishAssignmentUpdateEvent(request)) {
+            domainEventPublisher.publishAssignmentUpdated(assignment);
+        }
 
         return mapAssignment(assignment);
     }
@@ -296,10 +307,12 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     @Override
+    @Transactional
     public void deleteAssignment(UUID assignmentId) {
         Assignment assignment = getActiveAssignment(assignmentId);
         assignment.setDeletedAt(Instant.now());
         assignmentRepository.save(assignment);
+        domainEventPublisher.publishAssignmentDeleted(assignment);
     }
 
     private Assignment getActiveAssignment(UUID assignmentId) {
@@ -351,5 +364,18 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .ignoreOrder(testcase.isIgnoreOrder())
                 .explanation(testcase.getExplanation())
                 .build();
+    }
+
+    private boolean shouldPublishAssignmentUpdateEvent(UpdateAssignmentRequest request) {
+        return request.getTopicId() != null
+                || request.getTitle() != null
+                || request.getStartTime() != null
+                || request.getDeadline() != null
+                || request.getTimeLimit() != null
+                || request.getMaxScore() != null
+                || request.getMaxSubmission() != null
+                || request.getDifficulty() != null
+                || request.getTags() != null
+                || request.getProblem() != null;
     }
 }

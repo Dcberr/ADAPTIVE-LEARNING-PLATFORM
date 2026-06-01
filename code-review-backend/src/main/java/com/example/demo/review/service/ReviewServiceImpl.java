@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.*;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.dto.RunTestcaseRequest;
@@ -12,6 +13,7 @@ import com.example.demo.execution.model.JudgeStatus;
 import com.example.demo.execution.service.ExecutionService;
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
+import com.example.demo.event.DomainEventPublisher;
 import com.example.demo.problem.entity.Problem;
 import com.example.demo.problem.entity.Testcase;
 import com.example.demo.problem.repository.ProblemRepository;
@@ -45,8 +47,10 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserRepository userRepository;
 
     private final ObjectMapper objectMapper;
+    private final DomainEventPublisher domainEventPublisher;
 
     @Override
+    @Transactional
     public ReviewResponse reviewSubmission(UUID submissionId, UUID requesterId) {
 
         Submission submission =
@@ -155,7 +159,8 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewResponse review =
                 reviewAgentClient.reviewCode(body);
 
-        saveReview(problem.getId(), submissionId, review, submission.getLanguage(), submission.getUserId());
+        CodeReview savedReview = saveReview(problem.getId(), submissionId, review, submission.getLanguage(), submission.getUserId());
+        domainEventPublisher.publishReviewCompleted(savedReview);
 
         // review.setTestcaseResults(testcases);
 
@@ -175,11 +180,9 @@ public class ReviewServiceImpl implements ReviewService {
         }
     }
 
-    private void saveReview(UUID problemId, UUID submissionId,
+    private CodeReview saveReview(UUID problemId, UUID submissionId,
                             ReviewResponse review, String language, UUID userId) {
-
         try {
-
             String reviewItemsJson =
                     objectMapper.writeValueAsString(review);
 
@@ -195,11 +198,10 @@ public class ReviewServiceImpl implements ReviewService {
                             .userId(userId)
                             .build();
 
-            codeReviewRepository.save(entity);
-
+            return codeReviewRepository.save(entity);
         } catch (Exception e) {
-
             log.error("Failed to save review", e);
+            throw new IllegalStateException("Failed to persist code review", e);
         }
     }
 
@@ -213,6 +215,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional
     public ReviewResponse reviewCode(UUID problemId, UUID submissionId, String code, String language, UUID userId) {
         Problem problem = problemRepository.findById(problemId)
                 .orElseThrow();
@@ -289,12 +292,13 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewResponse review = reviewAgentClient.reviewCode(body);
 
         // Save review to database
-        saveDirectCodeReview(problemId, submissionId, code, language, review, userId);
+        CodeReview savedReview = saveDirectCodeReview(problemId, submissionId, code, language, review, userId);
+        domainEventPublisher.publishReviewCompleted(savedReview);
 
         return review;
     }
 
-    private void saveDirectCodeReview(UUID problemId, UUID submissionId, String code,
+    private CodeReview saveDirectCodeReview(UUID problemId, UUID submissionId, String code,
                                       String language, ReviewResponse review, UUID userId) {
         try {
             String reviewItemsJson = objectMapper.writeValueAsString(review);
@@ -311,9 +315,10 @@ public class ReviewServiceImpl implements ReviewService {
                     .userId(userId)
                     .build();
 
-            codeReviewRepository.save(entity);
+            return codeReviewRepository.save(entity);
         } catch (Exception e) {
             log.error("Failed to save direct code review", e);
+            throw new IllegalStateException("Failed to persist direct code review", e);
         }
     }
 

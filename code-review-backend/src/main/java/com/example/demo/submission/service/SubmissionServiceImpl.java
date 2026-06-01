@@ -16,6 +16,7 @@ import com.example.demo.assignment.repository.AssignmentRepository;
 import com.example.demo.assignment.service.AssignmentService;
 import com.example.demo.common.exception.AppException;
 import com.example.demo.common.exception.ErrorCode;
+import com.example.demo.event.DomainEventPublisher;
 import com.example.demo.execution.dto.RunCodeResponse;
 import com.example.demo.execution.service.ExecutionService;
 import com.example.demo.problem.entity.Problem;
@@ -48,6 +49,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final ProblemRepository problemRepository;
     private final CodeReviewRepository codeReviewRepository;
     private final RecommendationHistoryRepository recommendationHistoryRepository;
+    private final DomainEventPublisher domainEventPublisher;
 
     @Override
     @Transactional
@@ -92,6 +94,8 @@ public class SubmissionServiceImpl implements SubmissionService {
                     .status(AssignmentStatus.SUBMITTED)
                     .build());
         }
+
+        domainEventPublisher.publishSubmissionCreated(submission, assignment != null ? assignment.getId() : null);
 
         return SubmissionResponse.builder()
                 .submissionId(submission.getId())

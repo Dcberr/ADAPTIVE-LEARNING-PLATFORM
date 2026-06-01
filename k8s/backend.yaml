@@ -105,6 +105,36 @@ spec:
                 configMapKeyRef:
                   name: review-code-config
                   key: MINIO_URL
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_CONSUMER_GROUP
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: KAFKA_CONSUMER_GROUP
+            - name: KAFKA_ASSIGNMENT_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: KAFKA_ASSIGNMENT_TOPIC
+            - name: KAFKA_SUBMISSION_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: KAFKA_SUBMISSION_TOPIC
+            - name: KAFKA_REVIEW_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: KAFKA_REVIEW_TOPIC
+            - name: KAFKA_OUTBOX_PUBLISH_DELAY_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: KAFKA_OUTBOX_PUBLISH_DELAY_MS
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
@@ -148,4 +178,3 @@ spec:
       port: 8080
       targetPort: 8080
   type: ClusterIP
-

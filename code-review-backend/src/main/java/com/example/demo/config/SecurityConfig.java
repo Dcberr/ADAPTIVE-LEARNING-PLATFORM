@@ -102,6 +102,7 @@ public class SecurityConfig {
                     .requestMatchers("/users/**").hasAnyRole(LECTURER_ROLES)
 
                     .requestMatchers("/recommendations/**").hasAnyRole(LMS_ROLES)
+                    .requestMatchers("/notifications/**").hasAnyRole(LMS_ROLES)
                     .requestMatchers("/execution/**").hasAnyRole(LMS_ROLES)
                     .anyRequest().authenticated()
             )
