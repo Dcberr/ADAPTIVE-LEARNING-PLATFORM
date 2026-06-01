@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: review-code-config
+  namespace: review-code-app
+data:
+  APP_DOMAIN: "bbc-lms.online"
+  APPLICATION_URL: "https://bbc-lms.online"
+  NEXT_PUBLIC_API_BASE_URL: "https://bbc-lms.online/api"
+  SERVER_SERVLET_CONTEXT_PATH: "/api"
+  DATABASE_HOST: "your-postgres-host"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "reviewcodeapp"
+  HIBERNATE_DDL_AUTO: "update"
+  SHOW_SQL: "true"
+  JOBE_URL: "http://jobe/jobe/index.php/restapi"
+  REVIEW_AGENT_URL: "http://review-agent:8000/api/v1/review_code"
+  RECOMMEND_AGENT_URL: "http://review-agent:8000/api/v1/recommendation"
+  LEETCODE_API_URL: "http://leetcode-crawler:8001/api/problems"
+  MINIO_URL: "http://minio:9000"
+  QDRANT_URL: "https://your-qdrant-cluster"
+  QDRANT_COLLECTION_NAME: "exercise-recommendations"
+  QDRANT_TIMEOUT_SECONDS: "5.0"
+  NEO4J_URI: "neo4j+s://your-neo4j-instance"
+

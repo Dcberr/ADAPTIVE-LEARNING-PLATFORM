@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: review-code-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: reviewcodeappdevacr.azurecr.io/code-review-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: SERVER_SERVLET_CONTEXT_PATH
+            - name: APPLICATION_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: APPLICATION_URL
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: DATABASE_HOST
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: DATABASE_PORT
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: DATABASE_NAME
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: DATABASE_USERNAME
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: DATABASE_PASSWORD
+            - name: HIBERNATE_DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: HIBERNATE_DDL_AUTO
+            - name: SHOW_SQL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: SHOW_SQL
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: CLIENT_ID
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: CLIENT_SECRET
+            - name: GOOGLE_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: GOOGLE_REDIRECT_URI
+            - name: JOBE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: JOBE_URL
+            - name: REVIEW_AGENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: REVIEW_AGENT_URL
+            - name: RECOMMEND_AGENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: RECOMMEND_AGENT_URL
+            - name: LEETCODE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: LEETCODE_API_URL
+            - name: MINIO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: MINIO_URL
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: MINIO_SECRET_KEY
+          readinessProbe:
+            httpGet:
+              path: /api/v3/api-docs
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v3/api-docs
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: review-code-app
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+

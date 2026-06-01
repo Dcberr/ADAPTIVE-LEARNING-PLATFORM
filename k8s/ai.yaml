@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: review-agent
+  namespace: review-code-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: review-agent
+  template:
+    metadata:
+      labels:
+        app: review-agent
+    spec:
+      containers:
+        - name: review-agent
+          image: reviewcodeappdevacr.azurecr.io/review-agent:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8000"
+            - name: FIREWORKS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: FIREWORKS_API_KEY
+            - name: NEO4J_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: NEO4J_URI
+            - name: NEO4J_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: NEO4J_USERNAME
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: NEO4J_PASSWORD
+            - name: QDRANT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: QDRANT_URL
+            - name: QDRANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: review-code-secret
+                  key: QDRANT_API_KEY
+            - name: QDRANT_COLLECTION_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: QDRANT_COLLECTION_NAME
+            - name: QDRANT_TIMEOUT_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: review-code-config
+                  key: QDRANT_TIMEOUT_SECONDS
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: review-agent
+  namespace: review-code-app
+spec:
+  selector:
+    app: review-agent
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+
