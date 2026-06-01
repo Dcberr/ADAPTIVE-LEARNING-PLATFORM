@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -38,7 +38,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/toast-provider"
 import { logoutCurrentSession } from "@/lib/auth"
+import {
+  buildNotificationsWebSocketUrl,
+  fetchNotifications,
+  fetchUnreadNotificationCount,
+  markNotificationAsRead,
+  type NotificationRealtimeMessage,
+  type NotificationRecord,
+} from "@/lib/notifications"
 import { cn } from "@/lib/utils"
 import { daysUntil } from "@/components/lms/date"
 import { useAppDispatch, useAppSelector } from "@/store/redux/hooks"
@@ -54,8 +63,13 @@ export default function LmsShell({
   const pathname = usePathname()
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const { toast } = useToast()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
+  const [markingIds, setMarkingIds] = useState<Set<string>>(new Set())
   const user = useAppSelector((state) => state.auth.user)
   const compactWorkspace =
     /^\/(student|lecturer)\/assignments\/[^/]+\/attempt$/.test(pathname) ||
@@ -82,6 +96,123 @@ export default function LmsShell({
       dispatch(authActions.logout())
       router.replace("/login")
       setIsSigningOut(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadNotifications() {
+      try {
+        const [notificationItems, unread] = await Promise.all([
+          fetchNotifications(),
+          fetchUnreadNotificationCount(),
+        ])
+
+        if (cancelled) {
+          return
+        }
+
+        setNotifications(notificationItems)
+        setUnreadCount(unread)
+      } catch {
+        if (!cancelled) {
+          setNotifications([])
+          setUnreadCount(0)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingNotifications(false)
+        }
+      }
+    }
+
+    void loadNotifications()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+
+    const socket = new WebSocket(buildNotificationsWebSocketUrl())
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data) as NotificationRealtimeMessage
+
+        if (typeof message.unreadCount === "number") {
+          setUnreadCount(message.unreadCount)
+        }
+
+        if (message.type === "notification.created" && message.notification) {
+          setNotifications((current) => [
+            message.notification!,
+            ...current.filter((item) => item.id !== message.notification!.id),
+          ])
+
+          toast({
+            title: message.notification.title,
+            description: message.notification.message,
+            tone: "info",
+          })
+        }
+
+        if (message.type === "notification.read" && message.notificationId) {
+          setNotifications((current) =>
+            current.map((item) =>
+              item.id === message.notificationId
+                ? {
+                    ...item,
+                    read: true,
+                    readAt: new Date().toISOString(),
+                  }
+                : item
+            )
+          )
+        }
+      } catch {
+        // Ignore malformed realtime payloads so the shell stays responsive.
+      }
+    }
+
+    socket.onerror = () => {
+      socket.close()
+    }
+
+    return () => {
+      socket.close()
+    }
+  }, [toast, user])
+
+  const handleMarkNotificationAsRead = async (notificationId: string) => {
+    if (markingIds.has(notificationId)) {
+      return
+    }
+
+    setMarkingIds((current) => new Set(current).add(notificationId))
+
+    try {
+      const updatedNotification = await markNotificationAsRead(notificationId)
+      setNotifications((current) =>
+        current.map((item) => (item.id === updatedNotification.id ? updatedNotification : item))
+      )
+      setUnreadCount((current) => Math.max(0, current - 1))
+    } catch {
+      toast({
+        description: "Không thể cập nhật trạng thái thông báo.",
+        tone: "error",
+      })
+    } finally {
+      setMarkingIds((current) => {
+        const next = new Set(current)
+        next.delete(notificationId)
+        return next
+      })
     }
   }
 
@@ -166,16 +297,76 @@ export default function LmsShell({
             </div>
 
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative size-11 rounded-xl transition-colors hover:bg-[#E3F2FD]"
-              >
-                <Bell className="size-5 text-[#030391]" />
-                <Badge className="absolute -right-1 -top-1 size-5 bg-[#1488D8] p-0 text-white">
-                  {role === "student" ? 3 : atRiskStudents.length}
-                </Badge>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative size-11 rounded-xl transition-colors hover:bg-[#E3F2FD]"
+                  >
+                    <Bell className="size-5 text-[#030391]" />
+                    <Badge className="absolute -right-1 -top-1 size-5 bg-[#1488D8] p-0 text-white">
+                      {unreadCount}
+                    </Badge>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[360px] rounded-2xl p-2">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div>
+                      <p className="text-sm font-semibold text-[#030391]">Thông báo trực tiếp</p>
+                      <p className="text-xs text-slate-500">Cập nhật theo thời gian thực</p>
+                    </div>
+                    <Badge className="bg-[#1488D8] text-white">{unreadCount}</Badge>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[380px] overflow-y-auto">
+                    {isLoadingNotifications ? (
+                      <div className="px-3 py-6 text-sm text-slate-500">Đang tải thông báo...</div>
+                    ) : notifications.length === 0 ? (
+                      <div className="px-3 py-6 text-sm text-slate-500">Chưa có thông báo nào.</div>
+                    ) : (
+                      notifications.slice(0, 8).map((notification) => (
+                        <DropdownMenuItem
+                          key={notification.id}
+                          className={cn(
+                            "flex cursor-default items-start gap-3 rounded-xl px-3 py-3",
+                            !notification.read && "bg-[#E3F2FD]/60"
+                          )}
+                          onSelect={(event) => event.preventDefault()}
+                        >
+                          <div
+                            className={cn(
+                              "mt-1 size-2 rounded-full",
+                              notification.read ? "bg-slate-300" : "bg-[#1488D8]"
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-[#030391]">
+                              {notification.title}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                              {notification.message}
+                            </p>
+                            <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                              {new Date(notification.createdAt).toLocaleString("vi-VN")}
+                            </p>
+                          </div>
+                          {!notification.read ? (
+                            <button
+                              type="button"
+                              className="rounded-lg px-2 py-1 text-[11px] font-medium text-[#1488D8] transition hover:bg-white"
+                              disabled={markingIds.has(notification.id)}
+                              onClick={() => void handleMarkNotificationAsRead(notification.id)}
+                            >
+                              {markingIds.has(notification.id) ? "..." : "Da doc"}
+                            </button>
+                          ) : null}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button

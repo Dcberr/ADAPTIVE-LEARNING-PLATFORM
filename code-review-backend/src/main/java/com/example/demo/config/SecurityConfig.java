@@ -43,6 +43,7 @@ public class SecurityConfig {
                             "/error",
                             "/oauth2/**",
                             "/login/**",
+                            "/ws/**",
                             "/swagger-ui/**",
                             "/v3/api-docs/**",
                             "/v3/api-docs.yaml/**"

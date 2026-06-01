@@ -13,6 +13,7 @@ import com.example.demo.common.exception.ErrorCode;
 import com.example.demo.notification.dto.NotificationResponse;
 import com.example.demo.notification.dto.NotificationUnreadCountResponse;
 import com.example.demo.notification.entity.Notification;
+import com.example.demo.notification.realtime.NotificationRealtimeGateway;
 import com.example.demo.notification.repository.NotificationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -24,6 +25,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationRealtimeGateway notificationRealtimeGateway;
 
     @Override
     public List<NotificationResponse> getNotifications(UUID userId) {
@@ -41,6 +43,7 @@ public class NotificationServiceImpl implements NotificationService {
         if (!notification.isRead()) {
             notification.setRead(true);
             notification.setReadAt(Instant.now());
+            notificationRealtimeGateway.sendMarkedRead(userId, notificationId);
         }
 
         return toResponse(notification);
@@ -80,7 +83,10 @@ public class NotificationServiceImpl implements NotificationService {
                 .toList();
 
         if (!notifications.isEmpty()) {
-            notificationRepository.saveAll(notifications);
+            List<Notification> savedNotifications = notificationRepository.saveAll(notifications);
+            savedNotifications.forEach(notification ->
+                    notificationRealtimeGateway.sendCreated(notification.getUserId(), toResponse(notification))
+            );
         }
     }
 
@@ -109,4 +115,3 @@ public class NotificationServiceImpl implements NotificationService {
                 .build();
     }
 }
-
